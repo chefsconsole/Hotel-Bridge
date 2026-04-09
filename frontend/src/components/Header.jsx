@@ -44,6 +44,9 @@ export const Header = () => {
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4">
+            <Button asChild variant="ghost" className="text-gray-600 hover:text-primary">
+              <Link to="/login">CRM Login</Link>
+            </Button>
             <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
               <Link to="/contact">Get Started</Link>
             </Button>
