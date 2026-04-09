@@ -30,8 +30,30 @@ export const HotelsList = () => {
   const fetchHotels = async () => {
     try {
       setLoading(true);
-      const response = await hotelsAPI.getAll();
-      setHotels(response.data);
+      const [hotelsRes, bookingsRes] = await Promise.all([
+        hotelsAPI.getAll(),
+        bookingsAPI.getAll()
+      ]);
+      
+      const hotelsData = hotelsRes.data;
+      
+      // Calculate stats for each hotel
+      const hotelsWithStats = hotelsData.map(hotel => {
+        const hotelBookings = bookingsRes.data.filter(b => b.hotelId === hotel.id);
+        const totalRevenue = hotelBookings.reduce((sum, b) => sum + (b.totalRevenue || 0), 0);
+        const totalRoomNights = hotelBookings.reduce((sum, b) => sum + (b.rooms * b.nights), 0);
+        
+        return {
+          ...hotel,
+          stats: {
+            totalGroups: hotelBookings.length,
+            totalRevenue,
+            totalRoomNights
+          }
+        };
+      });
+      
+      setHotels(hotelsWithStats);
     } catch (error) {
       toast.error('Failed to load hotels');
       console.error('Error fetching hotels:', error);
@@ -156,6 +178,26 @@ export const HotelsList = () => {
                     <p className="font-semibold text-secondary">{hotel.commission}%</p>
                   </div>
                 </div>
+
+                {hotel.stats && hotel.stats.totalGroups > 0 && (
+                  <div className="mb-4 p-3 bg-secondary/5 rounded-lg border border-secondary/20">
+                    <p className="text-xs font-semibold text-secondary mb-2">Performance Summary</p>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-lg font-bold text-primary">{hotel.stats.totalGroups}</p>
+                        <p className="text-xs text-gray-600">Groups</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-primary">€{hotel.stats.totalRevenue.toLocaleString()}</p>
+                        <p className="text-xs text-gray-600">Revenue</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-primary">{hotel.stats.totalRoomNights}</p>
+                        <p className="text-xs text-gray-600">Room Nights</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t pt-4 space-y-2">
                   <div className="flex items-center text-sm text-gray-600">

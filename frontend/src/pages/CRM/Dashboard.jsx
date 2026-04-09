@@ -45,37 +45,19 @@ export const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, bookingsRes] = await Promise.all([
+      const [statsRes, monthlyRes, topHotelsRes, topOperatorsRes, bookingsRes] = await Promise.all([
         dashboardAPI.getStats(),
+        dashboardAPI.getMonthlyRevenue(),
+        dashboardAPI.getTopHotels(),
+        dashboardAPI.getTopOperators(),
         bookingsAPI.getAll()
       ]);
       
       setStats(statsRes.data);
-      setRecentBookings(bookingsRes.data.slice(0, 3));
-      
-      // Mock monthly data for now
-      setMonthlyData([
-        { month: 'Jan', revenue: 45000, commission: 5400 },
-        { month: 'Feb', revenue: 52000, commission: 6240 },
-        { month: 'Mar', revenue: 64000, commission: 7680 },
-        { month: 'Apr', revenue: 58000, commission: 6960 },
-        { month: 'May', revenue: 71000, commission: 8520 },
-        { month: 'Jun', revenue: 48000, commission: 5760 }
-      ]);
-      
-      // Mock top hotels
-      setTopHotels([
-        { name: 'Grand Hotel Europa', bookings: 15 },
-        { name: 'Château de Luxe', bookings: 12 },
-        { name: 'Alpine Resort', bookings: 10 }
-      ]);
-      
-      // Mock top operators
-      setTopOperators([
-        { name: 'Nexus DMC India', bookings: 14, revenue: 45000 },
-        { name: 'Global Tours & Travels', bookings: 11, revenue: 38000 },
-        { name: 'Wanderlust Travel', bookings: 8, revenue: 25000 }
-      ]);
+      setMonthlyData(monthlyRes.data);
+      setTopHotels(topHotelsRes.data);
+      setTopOperators(topOperatorsRes.data);
+      setRecentBookings(bookingsRes.data.filter(b => b.status === 'confirmed' || b.status === 'quoted').slice(0, 3));
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {

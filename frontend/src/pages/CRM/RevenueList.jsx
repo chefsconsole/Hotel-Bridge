@@ -16,8 +16,48 @@ export const RevenueList = () => {
   const fetchCommissions = async () => {
     try {
       setLoading(true);
-      const response = await commissionsAPI.getAll();
-      setCommissions(response.data);
+      const [bookingsRes, commissionsRes] = await Promise.all([
+        bookingsAPI.getAll(),
+        commissionsAPI.getAll()
+      ]);
+      
+      // Create a map of commissions by bookingId
+      const commissionMap = {};
+      commissionsRes.data.forEach(comm => {
+        commissionMap[comm.bookingId] = comm;
+      });
+      
+      // Create commission records for all confirmed bookings
+      const allCommissions = bookingsRes.data
+        .filter(b => b.status === 'confirmed')
+        .map(booking => {
+          const existingComm = commissionMap[booking.id];
+          
+          if (existingComm) {
+            return existingComm;
+          } else {
+            // Create virtual commission record for display
+            const marginPerRoom = booking.ratePerRoom * 0.20;
+            const totalMargin = marginPerRoom * booking.rooms * booking.nights;
+            const commissionAmount = booking.totalRevenue * 0.12; // Default 12%
+            
+            return {
+              id: `virtual-${booking.id}`,
+              bookingId: booking.id,
+              groupName: booking.groupName,
+              totalBookingValue: booking.totalRevenue,
+              marginPerRoom,
+              totalMargin,
+              commissionPercent: 12,
+              commissionAmount,
+              paymentStatus: 'pending',
+              paymentDueDate: booking.checkOut,
+              paidDate: null
+            };
+          }
+        });
+      
+      setCommissions(allCommissions);
     } catch (error) {
       toast.error('Failed to load commission data');
     } finally {

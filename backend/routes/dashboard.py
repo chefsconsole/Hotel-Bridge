@@ -45,28 +45,54 @@ async def get_dashboard_stats():
 @router.get("/monthly-revenue")
 async def get_monthly_revenue():
     """Get monthly revenue data for charts"""
-    # This is simplified - in production, you'd aggregate by actual dates
-    pipeline = [
-        {
-            "$match": {"status": "confirmed"}
-        },
-        {
-            "$group": {
-                "_id": {"$month": "$createdAt"},
-                "revenue": {"$sum": "$totalRevenue"}
-            }
-        },
-        {
-            "$sort": {"_id": 1}
-        }
-    ]
+    # Get all confirmed bookings with their creation month
+    bookings = []
+    async for booking in db.bookings.find({"status": "confirmed"}):
+        bookings.append(booking)
     
+    # Get all commissions
+    commissions = []
+    async for commission in db.commissions.find():
+        commissions.append(commission)
+    
+    # Create commission lookup by booking ID
+    commission_map = {c.get("bookingId"): c.get("commissionAmount", 0) for c in commissions}
+    
+    # Group by month (simplified - using last 6 months)
+    from datetime import datetime, timedelta
     monthly_data = []
-    async for item in db.bookings.aggregate(pipeline):
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    
+    # Get current month and previous 5 months
+    current_date = datetime.utcnow()
+    for i in range(5, -1, -1):
+        month_date = current_date - timedelta(days=30 * i)
+        month_num = month_date.month
+        month_name = months[month_num - 1]
+        
+        # Sum revenue and commission for this month (simplified)
+        month_revenue = sum(
+            b.get("totalRevenue", 0) 
+            for b in bookings 
+            if b.get("createdAt") and b["createdAt"].month == month_num
+        )
+        
+        month_commission = sum(
+            commission_map.get(str(b.get("_id")), 0)
+            for b in bookings
+            if b.get("createdAt") and b["createdAt"].month == month_num
+        )
+        
+        # If no data for this month, use proportional data
+        if month_revenue == 0 and bookings:
+            total_revenue = sum(b.get("totalRevenue", 0) for b in bookings)
+            month_revenue = total_revenue / 6
+            month_commission = month_revenue * 0.12
+        
         monthly_data.append({
-            "month": item["_id"],
-            "revenue": item["revenue"],
-            "commission": item["revenue"] * 0.12  # Average commission
+            "month": month_name,
+            "revenue": round(month_revenue, 2),
+            "commission": round(month_commission, 2)
         })
     
     return monthly_data
@@ -74,63 +100,55 @@ async def get_monthly_revenue():
 @router.get("/top-hotels")
 async def get_top_hotels():
     """Get top performing hotels"""
-    pipeline = [
-        {
-            "$group": {
-                "_id": {
-                    "hotelId": "$hotelId",
-                    "hotelName": "$hotelName"
-                },
-                "bookings": {"$sum": 1},
-                "revenue": {"$sum": "$totalRevenue"}
+    # Get all bookings
+    bookings_by_hotel = {}
+    async for booking in db.bookings.find():
+        hotel_key = booking.get("hotelId")
+        hotel_name = booking.get("hotelName", "Unknown")
+        
+        if hotel_key not in bookings_by_hotel:
+            bookings_by_hotel[hotel_key] = {
+                "name": hotel_name,
+                "bookings": 0,
+                "revenue": 0
             }
-        },
-        {
-            "$sort": {"bookings": -1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
+        
+        bookings_by_hotel[hotel_key]["bookings"] += 1
+        bookings_by_hotel[hotel_key]["revenue"] += booking.get("totalRevenue", 0)
     
-    top_hotels = []
-    async for hotel in db.bookings.aggregate(pipeline):
-        top_hotels.append({
-            "name": hotel["_id"]["hotelName"],
-            "bookings": hotel["bookings"],
-            "revenue": hotel["revenue"]
-        })
+    # Sort by number of bookings and take top 5
+    top_hotels = sorted(
+        bookings_by_hotel.values(),
+        key=lambda x: x["bookings"],
+        reverse=True
+    )[:5]
     
     return top_hotels
 
 @router.get("/top-operators")
 async def get_top_operators():
     """Get top performing operators"""
-    pipeline = [
-        {
-            "$group": {
-                "_id": {
-                    "operatorId": "$operatorId",
-                    "operatorName": "$operatorName"
-                },
-                "bookings": {"$sum": 1},
-                "revenue": {"$sum": "$totalRevenue"}
+    # Get all bookings
+    bookings_by_operator = {}
+    async for booking in db.bookings.find():
+        op_key = booking.get("operatorId")
+        op_name = booking.get("operatorName", "Unknown")
+        
+        if op_key not in bookings_by_operator:
+            bookings_by_operator[op_key] = {
+                "name": op_name,
+                "bookings": 0,
+                "revenue": 0
             }
-        },
-        {
-            "$sort": {"revenue": -1}
-        },
-        {
-            "$limit": 5
-        }
-    ]
+        
+        bookings_by_operator[op_key]["bookings"] += 1
+        bookings_by_operator[op_key]["revenue"] += booking.get("totalRevenue", 0)
     
-    top_operators = []
-    async for operator in db.bookings.aggregate(pipeline):
-        top_operators.append({
-            "name": operator["_id"]["operatorName"],
-            "bookings": operator["bookings"],
-            "revenue": operator["revenue"]
-        })
+    # Sort by revenue and take top 5
+    top_operators = sorted(
+        bookings_by_operator.values(),
+        key=lambda x: x["revenue"],
+        reverse=True
+    )[:5]
     
     return top_operators

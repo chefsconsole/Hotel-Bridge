@@ -30,8 +30,30 @@ export const OperatorsList = () => {
   const fetchOperators = async () => {
     try {
       setLoading(true);
-      const response = await operatorsAPI.getAll();
-      setOperators(response.data);
+      const [operatorsRes, bookingsRes] = await Promise.all([
+        operatorsAPI.getAll(),
+        bookingsAPI.getAll()
+      ]);
+      
+      const operatorsData = operatorsRes.data;
+      
+      // Calculate stats for each operator
+      const operatorsWithStats = operatorsData.map(operator => {
+        const opBookings = bookingsRes.data.filter(b => b.operatorId === operator.id);
+        const totalRevenue = opBookings.reduce((sum, b) => sum + (b.totalRevenue || 0), 0);
+        const totalRoomNights = opBookings.reduce((sum, b) => sum + (b.rooms * b.nights), 0);
+        
+        return {
+          ...operator,
+          stats: {
+            totalGroups: opBookings.length,
+            totalRevenue,
+            totalRoomNights
+          }
+        };
+      });
+      
+      setOperators(operatorsWithStats);
     } catch (error) {
       toast.error('Failed to load operators');
     } finally {
@@ -150,6 +172,26 @@ export const OperatorsList = () => {
                   <p className="text-xs text-gray-500 mb-1">Contact Person</p>
                   <p className="text-sm font-medium text-primary">{operator.contactPerson}</p>
                 </div>
+
+                {operator.stats && operator.stats.totalGroups > 0 && (
+                  <div className="mb-3 p-3 bg-secondary/5 rounded-lg border border-secondary/20">
+                    <p className="text-xs font-semibold text-secondary mb-2">Performance Summary</p>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-lg font-bold text-primary">{operator.stats.totalGroups}</p>
+                        <p className="text-xs text-gray-600">Groups</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-primary">€{operator.stats.totalRevenue.toLocaleString()}</p>
+                        <p className="text-xs text-gray-600">Revenue</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-primary">{operator.stats.totalRoomNights}</p>
+                        <p className="text-xs text-gray-600">Room Nights</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {operator.notes && (
                   <div className="bg-gray-50 p-3 rounded-lg mb-3">
