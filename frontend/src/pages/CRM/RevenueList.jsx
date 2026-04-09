@@ -1,15 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Search, DollarSign, Calendar, TrendingUp, Download } from 'lucide-react';
-import { mockCommissions } from '../../data/crmMockData';
+import { commissionsAPI } from '../../services/api';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export const RevenueList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [commissions] = useState(mockCommissions);
+  const [commissions, setCommissions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCommissions = async () => {
+    try {
+      setLoading(true);
+      const response = await commissionsAPI.getAll();
+      setCommissions(response.data);
+    } catch (error) {
+      toast.error('Failed to load commission data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCommissions();
+  }, []);
 
   const filteredCommissions = commissions.filter(comm =>
     comm.groupName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -22,6 +40,15 @@ export const RevenueList = () => {
     pending: commissions.filter(c => c.paymentStatus === 'pending').reduce((sum, c) => sum + c.commissionAmount, 0),
     received: commissions.filter(c => c.paymentStatus === 'received').reduce((sum, c) => sum + c.commissionAmount, 0)
   };
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-gray-600">Loading revenue data...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

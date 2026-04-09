@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { 
   DollarSign, 
@@ -19,13 +20,68 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-import { getDashboardStats, getMonthlyRevenue, getTopHotels, getTopOperators } from '../../data/crmMockData';
+import { dashboardAPI, bookingsAPI } from '../../services/api';
 
 export const Dashboard = () => {
-  const stats = getDashboardStats();
-  const monthlyData = getMonthlyRevenue();
-  const topHotels = getTopHotels();
-  const topOperators = getTopOperators();
+  const [stats, setStats] = useState({
+    totalRevenue: 0,
+    totalRoomNights: 0,
+    totalCommission: 0,
+    pendingPayments: 0,
+    confirmedBookings: 0,
+    totalHotels: 0,
+    totalOperators: 0
+  });
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [topHotels, setTopHotels] = useState([]);
+  const [topOperators, setTopOperators] = useState([]);
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, bookingsRes] = await Promise.all([
+        dashboardAPI.getStats(),
+        bookingsAPI.getAll()
+      ]);
+      
+      setStats(statsRes.data);
+      setRecentBookings(bookingsRes.data.slice(0, 3));
+      
+      // Mock monthly data for now
+      setMonthlyData([
+        { month: 'Jan', revenue: 45000, commission: 5400 },
+        { month: 'Feb', revenue: 52000, commission: 6240 },
+        { month: 'Mar', revenue: 64000, commission: 7680 },
+        { month: 'Apr', revenue: 58000, commission: 6960 },
+        { month: 'May', revenue: 71000, commission: 8520 },
+        { month: 'Jun', revenue: 48000, commission: 5760 }
+      ]);
+      
+      // Mock top hotels
+      setTopHotels([
+        { name: 'Grand Hotel Europa', bookings: 15 },
+        { name: 'Château de Luxe', bookings: 12 },
+        { name: 'Alpine Resort', bookings: 10 }
+      ]);
+      
+      // Mock top operators
+      setTopOperators([
+        { name: 'Nexus DMC India', bookings: 14, revenue: 45000 },
+        { name: 'Global Tours & Travels', bookings: 11, revenue: 38000 },
+        { name: 'Wanderlust Travel', bookings: 8, revenue: 25000 }
+      ]);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const statCards = [
     {
@@ -71,6 +127,15 @@ export const Dashboard = () => {
       bgColor: 'bg-indigo-50'
     }
   ];
+
+  if (loading) {
+    return (
+      <div className="text-center py-12">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="mt-4 text-gray-600">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -190,36 +255,22 @@ export const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="flex items-center justify-between py-3 border-b">
-              <div>
-                <p className="font-semibold text-primary">Mumbai Corporate Incentive</p>
-                <p className="text-sm text-gray-600">Grand Hotel Europa - Rome</p>
+            {recentBookings.map((booking) => (
+              <div key={booking.id} className="flex items-center justify-between py-3 border-b last:border-0">
+                <div>
+                  <p className="font-semibold text-primary">{booking.groupName}</p>
+                  <p className="text-sm text-gray-600">{booking.hotelName} - {booking.destination}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-secondary">€{booking.totalRevenue?.toLocaleString()}</p>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    booking.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {booking.status}
+                  </span>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="font-semibold text-secondary">€18,000</p>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Confirmed</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-3 border-b">
-              <div>
-                <p className="font-semibold text-primary">Delhi Wedding Group</p>
-                <p className="text-sm text-gray-600">Château de Luxe - Paris</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-secondary">€18,000</p>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Confirmed</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-3">
-              <div>
-                <p className="font-semibold text-primary">Pune Senior Citizens</p>
-                <p className="text-sm text-gray-600">Grand Hotel Europa - Rome</p>
-              </div>
-              <div className="text-right">
-                <p className="font-semibold text-secondary">€15,600</p>
-                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full">Quoted</span>
-              </div>
-            </div>
+            ))}
           </div>
         </CardContent>
       </Card>

@@ -1,14 +1,47 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
-import { Plus, Search, Users, Mail, Phone, MapPin, TrendingUp } from 'lucide-react';
-import { mockOperators } from '../../data/crmMockData';
+import { Plus, Search, Users, Mail, Phone, MapPin, TrendingUp, Pencil, Trash2 } from 'lucide-react';
+import { operatorsAPI } from '../../services/api';
+import { OperatorDialog } from './OperatorDialog';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../../components/ui/alert-dialog";
 
 export const OperatorsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [operators] = useState(mockOperators);
+  const [operators, setOperators] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedOperator, setSelectedOperator] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [operatorToDelete, setOperatorToDelete] = useState(null);
+
+  const fetchOperators = async () => {
+    try {
+      setLoading(true);
+      const response = await operatorsAPI.getAll();
+      setOperators(response.data);
+    } catch (error) {
+      toast.error('Failed to load operators');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOperators();
+  }, []);
 
   const filteredOperators = operators.filter(op =>
     op.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,6 +57,19 @@ export const OperatorsList = () => {
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    try {
+      await operatorsAPI.delete(operatorToDelete.id);
+      toast.success('Operator deleted successfully!');
+      fetchOperators();
+    } catch (error) {
+      toast.error('Failed to delete operator');
+    } finally {
+      setDeleteDialogOpen(false);
+      setOperatorToDelete(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -31,7 +77,7 @@ export const OperatorsList = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">Operators & DMCs</h1>
           <p className="text-gray-600">Manage your tour operator and DMC partnerships</p>
         </div>
-        <Button className="bg-secondary hover:bg-secondary/90">
+        <Button onClick={() => { setSelectedOperator(null); setDialogOpen(true); }} className="bg-secondary hover:bg-secondary/90">
           <Plus className="w-4 h-4 mr-2" />
           Add New Operator
         </Button>
@@ -51,67 +97,114 @@ export const OperatorsList = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredOperators.map((operator) => (
-          <Card key={operator.id} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start space-x-3">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-primary">{operator.companyName}</h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{operator.country}</span>
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <p className="mt-4 text-gray-600">Loading operators...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filteredOperators.map((operator) => (
+            <Card key={operator.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Users className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-primary">{operator.companyName}</h3>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-600">{operator.country}</span>
+                      </div>
                     </div>
                   </div>
+                  <Badge className="bg-primary/10 text-primary uppercase text-xs">
+                    {operator.type}
+                  </Badge>
                 </div>
-                <Badge className="bg-primary/10 text-primary uppercase text-xs">
-                  {operator.type}
-                </Badge>
-              </div>
 
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center text-sm text-gray-600">
-                  <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                  {operator.email}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Mail className="w-4 h-4 mr-2 text-gray-400" />
+                    {operator.email}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                    {operator.phone}
+                  </div>
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                  {operator.phone}
+
+                <div className="flex items-center justify-between mb-4 py-3 border-y">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Business Potential</span>
+                  </div>
+                  <Badge className={getPotentialColor(operator.businessPotential)}>
+                    {operator.businessPotential}
+                  </Badge>
                 </div>
-              </div>
 
-              <div className="flex items-center justify-between mb-4 py-3 border-y">
-                <div className="flex items-center space-x-2">
-                  <TrendingUp className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Business Potential</span>
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-1">Contact Person</p>
+                  <p className="text-sm font-medium text-primary">{operator.contactPerson}</p>
                 </div>
-                <Badge className={getPotentialColor(operator.businessPotential)}>
-                  {operator.businessPotential}
-                </Badge>
-              </div>
 
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Contact Person</p>
-                <p className="text-sm font-medium text-primary mb-3">{operator.contactPerson}</p>
-              </div>
+                {operator.notes && (
+                  <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                    <p className="text-xs text-gray-600">{operator.notes}</p>
+                  </div>
+                )}
 
-              {operator.notes && (
-                <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                  <p className="text-xs text-gray-600">{operator.notes}</p>
+                <div className="flex space-x-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => { setSelectedOperator(operator); setDialogOpen(true); }}
+                    className="flex-1 text-primary border-primary hover:bg-primary hover:text-white"
+                  >
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => { setOperatorToDelete(operator); setDeleteDialogOpen(true); }}
+                    className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-              <Button variant="outline" size="sm" className="w-full text-primary border-primary hover:bg-primary hover:text-white">
-                View Details
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <OperatorDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        operator={selectedOperator}
+        onSuccess={fetchOperators}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Operator</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{operatorToDelete?.companyName}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
