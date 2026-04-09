@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Plus, Search, Building2, Mail, Phone, MapPin, Star, Pencil, Trash2 } from 'lucide-react';
-import { hotelsAPI } from '../../services/api';
+import { hotelsAPI, bookingsAPI } from '../../services/api';
 import { HotelDialog } from './HotelDialog';
 import { toast } from 'sonner';
 import {

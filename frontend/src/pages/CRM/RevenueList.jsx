@@ -4,7 +4,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Search, DollarSign, Calendar, TrendingUp, Download } from 'lucide-react';
-import { commissionsAPI } from '../../services/api';
+import { commissionsAPI, bookingsAPI } from '../../services/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
