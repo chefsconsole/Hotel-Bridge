@@ -24,7 +24,7 @@ export const Header = () => {
         <div className="flex h-20 items-center justify-between">
           <Link to="/" className="flex items-center space-x-3">
             <img 
-              src="https://customer-assets.emergentagent.com/job_bridge-hospitality/artifacts/as3zx4ru_Screenshot%202026-04-12%20at%205.47.17%E2%80%AFPM.png" 
+              src="https://customer-assets.emergentagent.com/job_bridge-hospitality/artifacts/famqoiio_Screenshot%202026-04-12%20at%205.50.23%E2%80%AFPM.png" 
               alt="HotelBridge Logo" 
               className="w-auto object-contain"
               style={{ height: '2.5rem' }}
