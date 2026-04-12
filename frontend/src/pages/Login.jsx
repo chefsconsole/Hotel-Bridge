@@ -68,11 +68,6 @@ export const Login = () => {
                   className="mt-2"
                 />
               </div>
-              <div className="text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-                Demo credentials:<br />
-                Email: admin@hotelbridge.com<br />
-                Password: admin123
-              </div>
               <Button 
                 type="submit" 
                 className="w-full bg-secondary hover:bg-secondary/90" 
