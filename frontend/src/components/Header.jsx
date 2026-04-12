@@ -27,7 +27,7 @@ export const Header = () => {
               src="https://customer-assets.emergentagent.com/job_bridge-hospitality/artifacts/nsi9d6iq_ChatGPT%20Image%20Mar%2015%2C%202026%20at%2007_13_50%20PM.png" 
               alt="HotelBridge Logo" 
               className="w-auto object-contain"
-              style={{ height: '55px' }}
+              style={{ height: '2rem' }}
             />
             <div className="text-2xl font-bold text-primary">
               Hotel<span className="text-secondary">Bridge</span>
