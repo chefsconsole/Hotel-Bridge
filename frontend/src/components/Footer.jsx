@@ -100,6 +100,9 @@ export const Footer = () => {
               <Link to="#" className="text-gray-400 hover:text-secondary text-sm transition-colors">
                 Terms of Service
               </Link>
+              <Link to="/login" className="text-gray-400 hover:text-secondary text-sm transition-colors">
+                Partner Login
+              </Link>
             </div>
           </div>
         </div>

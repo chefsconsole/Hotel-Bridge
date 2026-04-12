@@ -19,23 +19,23 @@ export const Home = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-primary/95 to-primary/70"></div>
         </div>
         <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <Badge className="mb-4 bg-secondary text-white hover:bg-secondary/90">
-            Your Bridge to the Indian Travel Market
-          </Badge>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-            Helping Hotels Access the<br />Indian Group Travel Market
+            Connecting Hotels with High-Value<br />Group Travelers Worldwide
           </h1>
           <p className="text-lg md:text-xl mb-8 max-w-3xl mx-auto text-gray-100">
-            Connect with 200+ tour operators and unlock consistent group bookings from one of the world's fastest-growing travel markets.
+            Connect with 200+ global tour operators and unlock consistent, high-value group bookings.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button asChild size="lg" className="bg-secondary hover:bg-secondary/90 text-white">
-              <Link to="/partnerships">Partner With Us</Link>
+              <Link to="/partnerships">Become a Partner</Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="bg-white text-primary hover:bg-gray-100 border-0">
               <Link to="/services">Explore Services</Link>
             </Button>
           </div>
+          <p className="text-sm text-gray-200 mt-6">
+            Trusted by hotels across Europe & Asia
+          </p>
         </div>
       </section>
 

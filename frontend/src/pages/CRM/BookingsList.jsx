@@ -3,11 +3,12 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
-import { Plus, Search, Calendar, Building2, Users, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Calendar, Building2, Users, MapPin, Pencil, Trash2, Download } from 'lucide-react';
 import { bookingsAPI } from '../../services/api';
 import { BookingDialog } from './BookingDialog';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { exportBookingsToCSV } from '../../utils/exportUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -72,6 +73,21 @@ export const BookingsList = () => {
     }
   };
 
+  const handleExport = () => {
+    if (filteredBookings.length === 0) {
+      toast.error('No bookings to export');
+      return;
+    }
+    
+    try {
+      exportBookingsToCSV(filteredBookings);
+      toast.success('Bookings data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
+      console.error('Export error:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -79,10 +95,16 @@ export const BookingsList = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">Group Bookings</h1>
           <p className="text-gray-600">Manage all group bookings and reservations</p>
         </div>
-        <Button onClick={() => { setSelectedBooking(null); setDialogOpen(true); }} className="bg-secondary hover:bg-secondary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Booking
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => { setSelectedBooking(null); setDialogOpen(true); }} className="bg-secondary hover:bg-secondary/90">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Booking
+          </Button>
+        </div>
       </div>
 
       <Card>

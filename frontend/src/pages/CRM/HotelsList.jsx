@@ -3,10 +3,11 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
-import { Plus, Search, Building2, Mail, Phone, MapPin, Star, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Building2, Mail, Phone, MapPin, Star, Pencil, Trash2, Download } from 'lucide-react';
 import { hotelsAPI, bookingsAPI } from '../../services/api';
 import { HotelDialog } from './HotelDialog';
 import { toast } from 'sonner';
+import { exportHotelsToCSV } from '../../utils/exportUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -101,6 +102,21 @@ export const HotelsList = () => {
     }
   };
 
+  const handleExport = () => {
+    if (filteredHotels.length === 0) {
+      toast.error('No hotels to export');
+      return;
+    }
+    
+    try {
+      exportHotelsToCSV(filteredHotels);
+      toast.success('Hotels data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
+      console.error('Export error:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -108,10 +124,16 @@ export const HotelsList = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">Hotels</h1>
           <p className="text-gray-600">Manage your hotel partnerships and contracts</p>
         </div>
-        <Button onClick={handleAdd} className="bg-secondary hover:bg-secondary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Hotel
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={handleAdd} className="bg-secondary hover:bg-secondary/90">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Hotel
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -3,10 +3,11 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
-import { Plus, Search, Users, Mail, Phone, MapPin, TrendingUp, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Users, Mail, Phone, MapPin, TrendingUp, Pencil, Trash2, Download } from 'lucide-react';
 import { operatorsAPI, bookingsAPI } from '../../services/api';
 import { OperatorDialog } from './OperatorDialog';
 import { toast } from 'sonner';
+import { exportOperatorsToCSV } from '../../utils/exportUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -92,6 +93,25 @@ export const OperatorsList = () => {
     }
   };
 
+  const handleExport = () => {
+    if (filteredOperators.length === 0) {
+      toast.error('No operators to export');
+      return;
+    }
+    
+    try {
+      exportOperatorsToCSV(filteredOperators.map(op => ({
+        ...op,
+        name: op.companyName,
+        stats: op.stats || { totalBookings: 0, totalRevenue: 0, totalRoomNights: 0 }
+      })));
+      toast.success('Operators data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
+      console.error('Export error:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -99,10 +119,16 @@ export const OperatorsList = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">Operators & DMCs</h1>
           <p className="text-gray-600">Manage your tour operator and DMC partnerships</p>
         </div>
-        <Button onClick={() => { setSelectedOperator(null); setDialogOpen(true); }} className="bg-secondary hover:bg-secondary/90">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Operator
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleExport} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+          <Button onClick={() => { setSelectedOperator(null); setDialogOpen(true); }} className="bg-secondary hover:bg-secondary/90">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Operator
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -7,6 +7,7 @@ import { Search, DollarSign, Calendar, TrendingUp, Download } from 'lucide-react
 import { commissionsAPI, bookingsAPI } from '../../services/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { exportRevenueToCSV } from '../../utils/exportUtils';
 
 export const RevenueList = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +82,21 @@ export const RevenueList = () => {
     received: commissions.filter(c => c.paymentStatus === 'received').reduce((sum, c) => sum + c.commissionAmount, 0)
   };
 
+  const handleExport = () => {
+    if (filteredCommissions.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+    
+    try {
+      exportRevenueToCSV(filteredCommissions);
+      toast.success('Revenue data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
+      console.error('Export error:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12">
@@ -97,7 +113,7 @@ export const RevenueList = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">Revenue & Commission</h1>
           <p className="text-gray-600">Track revenue, margins, and commission payments</p>
         </div>
-        <Button className="bg-secondary hover:bg-secondary/90">
+        <Button className="bg-secondary hover:bg-secondary/90" onClick={handleExport}>
           <Download className="w-4 h-4 mr-2" />
           Export Report
         </Button>

@@ -22,7 +22,12 @@ export const Header = () => {
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to="/" className="flex items-center space-x-3">
+            <img 
+              src="https://customer-assets.emergentagent.com/job_bridge-hospitality/artifacts/nsi9d6iq_ChatGPT%20Image%20Mar%2015%2C%202026%20at%2007_13_50%20PM.png" 
+              alt="HotelBridge Logo" 
+              className="h-12 w-auto object-contain"
+            />
             <div className="text-2xl font-bold text-primary">
               Hotel<span className="text-secondary">Bridge</span>
             </div>
@@ -44,9 +49,6 @@ export const Header = () => {
           </nav>
 
           <div className="hidden lg:flex items-center space-x-4">
-            <Button asChild variant="ghost" className="text-gray-600 hover:text-primary">
-              <Link to="/login">CRM Login</Link>
-            </Button>
             <Button asChild variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
               <Link to="/contact">Get Started</Link>
             </Button>

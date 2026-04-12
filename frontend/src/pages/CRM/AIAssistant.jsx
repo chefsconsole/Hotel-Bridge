@@ -35,32 +35,48 @@ export const AIAssistant = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    // Mock AI response - will be replaced with actual OpenAI API call
-    setTimeout(() => {
-      let aiResponse = '';
-      
-      if (input.toLowerCase().includes('add') && input.toLowerCase().includes('group')) {
-        aiResponse = "I've analyzed your request to add a new group booking.\n\n📋 **Booking Details:**\n• Group: 30 rooms\n• Destination: Paris\n• Duration: 2 nights\n• Rate: €100/room\n• Operator: Nexus DMC\n\n**Total Revenue:** €6,000\n\nWould you like me to proceed with creating this booking? Please confirm the hotel property in Paris.";
-      } else if (input.toLowerCase().includes('total') && input.toLowerCase().includes('business')) {
-        aiResponse = "📊 **Business Summary for Current Month:**\n\n💰 Total Confirmed Revenue: €64,000\n🛏️ Total Room Nights: 460\n💵 Total Commission Earned: €7,660\n⏳ Pending Payments: €5,500\n\n📈 **Performance:**\n• 3 confirmed bookings\n• Average booking value: €21,333\n• Top hotel: Grand Hotel Europa (2 bookings)";
-      } else if (input.toLowerCase().includes('pending') && input.toLowerCase().includes('commission')) {
-        aiResponse = "💳 **Pending Commission Payments:**\n\n1. Delhi Wedding Group - €2,700\n   • Due: May 14, 2025\n   • Hotel: Château de Luxe\n\n2. Bangalore Cultural Tour - €2,800\n   • Due: June 24, 2025\n   • Hotel: Alpine Resort\n\n**Total Pending:** €5,500\n\nWould you like me to send payment reminders?";
-      } else {
-        aiResponse = "I understand you're asking about: \"" + input + "\"\n\nI can help you with:\n• Adding/updating bookings and hotels\n• Querying business data\n• Generating reports\n• Providing insights\n\nCould you please rephrase your question or try one of the example commands I mentioned earlier?";
+    try {
+      // Call the AI Assistant API
+      const API_URL = process.env.REACT_APP_BACKEND_URL;
+      const response = await fetch(`${API_URL}/api/ai/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          session_id: 'user-session-' + Date.now()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI response');
       }
 
+      const data = await response.json();
+      
       const assistantMessage = {
         role: 'assistant',
-        content: aiResponse,
+        content: data.response,
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('AI Assistant error:', error);
+      const errorMessage = {
+        role: 'assistant',
+        content: "I apologize, but I'm having trouble processing your request. Please try again or rephrase your question.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -198,10 +214,10 @@ export const AIAssistant = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-yellow-50 border-yellow-200">
+          <Card className="bg-green-50 border-green-200">
             <CardContent className="p-4">
-              <p className="text-xs text-yellow-800">
-                <strong>Note:</strong> AI responses are currently simulated with mock data. Full OpenAI GPT-4o integration will be implemented in the backend phase.
+              <p className="text-xs text-green-800">
+                <strong>✓ Live Integration:</strong> AI Assistant is now powered by OpenAI GPT-4o and has real-time access to your CRM data.
               </p>
             </CardContent>
           </Card>

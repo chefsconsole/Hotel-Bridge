@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 # Import routes
-from routes import hotels, operators, bookings, commissions, dashboard, auth
+from routes import hotels, operators, bookings, commissions, dashboard, auth, ai_assistant
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -35,6 +35,7 @@ app.include_router(bookings.router)
 app.include_router(commissions.router)
 app.include_router(dashboard.router)
 app.include_router(auth.router)
+app.include_router(ai_assistant.router)
 
 # Include the api_router for root endpoint
 app.include_router(api_router)
