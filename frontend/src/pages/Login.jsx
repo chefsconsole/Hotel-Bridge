@@ -51,7 +51,7 @@ export const Login = () => {
                   type="email"
                   value={credentials.email}
                   onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                  placeholder="admin@hotelbridge.com"
+                  placeholder="Enter your email"
                   required
                   className="mt-2"
                 />
