@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import {
-  ArrowRight, Building2, TrendingUp, Users, Globe,
+  ArrowRight, Building2, TrendingUp, Users, Globe, Calendar,
   Star, CheckCircle2, ChevronRight, Zap, Shield, Award,
   Calculator, MessageCircle, Handshake, Sparkles, Plus, Minus,
   PlayCircle, MapPin, Crown, Heart, Mountain, Sun
