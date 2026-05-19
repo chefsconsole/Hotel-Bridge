@@ -1,26 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
-import { Badge } from '../../components/ui/badge';
-import { Plus, Search, Building2, Mail, Phone, MapPin, Star, Pencil, Trash2, Download } from 'lucide-react';
+import {
+  Plus, Search, Building2, Mail, Phone, MapPin, Star, Pencil, Trash2,
+  Download, Filter, TrendingUp, X
+} from 'lucide-react';
 import { hotelsAPI, bookingsAPI } from '../../services/api';
 import { HotelDialog } from './HotelDialog';
 import { toast } from 'sonner';
 import { exportHotelsToCSV } from '../../utils/exportUtils';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../components/ui/alert-dialog";
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
+
+const hotelImages = [
+  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80',
+  'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&q=80',
+  'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=800&q=80',
+  'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800&q=80',
+  'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=800&q=80',
+  'https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=800&q=80',
+];
+const imgFor = (id) => hotelImages[(id?.charCodeAt?.(0) || 0) % hotelImages.length];
 
 export const HotelsList = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [hotels, setHotels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -33,69 +39,51 @@ export const HotelsList = () => {
       setLoading(true);
       const [hotelsRes, bookingsRes] = await Promise.all([
         hotelsAPI.getAll(),
-        bookingsAPI.getAll()
+        bookingsAPI.getAll(),
       ]);
-      
-      const hotelsData = hotelsRes.data;
-      
-      // Calculate stats for each hotel
-      const hotelsWithStats = hotelsData.map(hotel => {
-        const hotelBookings = bookingsRes.data.filter(b => b.hotelId === hotel.id);
-        const totalRevenue = hotelBookings.reduce((sum, b) => sum + (b.totalRevenue || 0), 0);
-        const totalRoomNights = hotelBookings.reduce((sum, b) => sum + (b.rooms * b.nights), 0);
-        
+      const hotelsWithStats = hotelsRes.data.map((hotel) => {
+        const hb = bookingsRes.data.filter((b) => b.hotelId === hotel.id);
         return {
           ...hotel,
           stats: {
-            totalGroups: hotelBookings.length,
-            totalRevenue,
-            totalRoomNights
-          }
+            totalGroups: hb.length,
+            totalRevenue: hb.reduce((s, b) => s + (b.totalRevenue || 0), 0),
+            totalRoomNights: hb.reduce((s, b) => s + (b.rooms * b.nights), 0),
+          },
         };
       });
-      
       setHotels(hotelsWithStats);
-    } catch (error) {
+    } catch (e) {
       toast.error('Failed to load hotels');
-      console.error('Error fetching hotels:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchHotels();
-  }, []);
+  useEffect(() => { fetchHotels(); }, []);
 
-  const filteredHotels = hotels.filter(hotel =>
-    hotel.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hotel.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    hotel.country.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredHotels = hotels.filter((h) => {
+    const matchesSearch =
+      h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.country.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || h.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-  const handleAdd = () => {
-    setSelectedHotel(null);
-    setDialogOpen(true);
-  };
+  const totalRevenue = hotels.reduce((s, h) => s + (h.stats?.totalRevenue || 0), 0);
+  const activeCount = hotels.filter((h) => h.status === 'active').length;
 
-  const handleEdit = (hotel) => {
-    setSelectedHotel(hotel);
-    setDialogOpen(true);
-  };
-
-  const handleDeleteClick = (hotel) => {
-    setHotelToDelete(hotel);
-    setDeleteDialogOpen(true);
-  };
-
+  const handleAdd = () => { setSelectedHotel(null); setDialogOpen(true); };
+  const handleEdit = (h) => { setSelectedHotel(h); setDialogOpen(true); };
+  const handleDeleteClick = (h) => { setHotelToDelete(h); setDeleteDialogOpen(true); };
   const handleDeleteConfirm = async () => {
     try {
       await hotelsAPI.delete(hotelToDelete.id);
-      toast.success('Hotel deleted successfully!');
+      toast.success('Hotel deleted');
       fetchHotels();
-    } catch (error) {
-      toast.error('Failed to delete hotel');
-      console.error('Error deleting hotel:', error);
+    } catch (e) {
+      toast.error('Failed to delete');
     } finally {
       setDeleteDialogOpen(false);
       setHotelToDelete(null);
@@ -103,189 +91,244 @@ export const HotelsList = () => {
   };
 
   const handleExport = () => {
-    if (filteredHotels.length === 0) {
-      toast.error('No hotels to export');
-      return;
-    }
-    
-    try {
-      exportHotelsToCSV(filteredHotels);
-      toast.success('Hotels data exported successfully');
-    } catch (error) {
-      toast.error('Failed to export data');
-      console.error('Export error:', error);
-    }
+    if (!filteredHotels.length) return toast.error('No hotels to export');
+    try { exportHotelsToCSV(filteredHotels); toast.success('Exported'); }
+    catch { toast.error('Export failed'); }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 max-w-[1600px] mx-auto">
+
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary mb-2">Hotels</h1>
-          <p className="text-gray-600">Manage your hotel partnerships and contracts</p>
+          <div className="text-xs font-semibold text-secondary uppercase tracking-widest mb-2">Hotel Partners</div>
+          <h1 className="font-serif text-3xl lg:text-4xl font-bold text-primary leading-tight">
+            Your Hotel Network
+          </h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Managing <span className="font-semibold text-primary">{hotels.length}</span> partnerships across <span className="font-semibold text-primary">{new Set(hotels.map(h=>h.country)).size}</span> countries
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleExport} variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
-            <Download className="w-4 h-4 mr-2" />
-            Export
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            className="rounded-xl border-gray-200 text-gray-600 hover:border-primary hover:text-primary"
+          >
+            <Download className="w-4 h-4 mr-2" /> Export
           </Button>
-          <Button onClick={handleAdd} className="bg-secondary hover:bg-secondary/90">
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Hotel
+          <Button
+            onClick={handleAdd}
+            className="rounded-xl btn-gold text-white border-0"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add Hotel
           </Button>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <Input
-              placeholder="Search hotels by name, city, or country..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Summary pills */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total Hotels', value: hotels.length, accent: 'from-blue-500 to-indigo-600' },
+          { label: 'Active', value: activeCount, accent: 'from-green-500 to-emerald-600' },
+          { label: 'Total Revenue', value: `€${totalRevenue.toLocaleString()}`, accent: 'from-secondary to-yellow-500' },
+        ].map((s, i) => (
+          <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
+            <div className={`w-2 h-12 rounded-full bg-gradient-to-b ${s.accent}`} />
+            <div>
+              <div className="text-xs text-gray-500">{s.label}</div>
+              <div className="text-xl font-serif font-bold text-primary">{s.value}</div>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
 
+      {/* Search + filters */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 flex flex-col sm:flex-row gap-3 items-stretch">
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search by name, city, or country..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 h-11 rounded-xl border-gray-200 focus:border-secondary"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <div className="flex gap-2 items-center">
+          <Filter className="w-4 h-4 text-gray-400" />
+          {['all', 'active', 'inactive'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${
+                statusFilter === s
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Cards */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-          <p className="mt-4 text-gray-600">Loading hotels...</p>
+        <div className="text-center py-16">
+          <div className="w-12 h-12 rounded-full border-4 border-secondary/20 border-t-secondary animate-spin mx-auto" />
+          <p className="mt-4 text-gray-500 text-sm">Loading hotels…</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredHotels.map((hotel) => (
-            <Card key={hotel.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start space-x-3 flex-1">
-                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Building2 className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-primary">{hotel.name}</h3>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-600">{hotel.city}, {hotel.country}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <Badge className={`${hotel.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+            <div
+              key={hotel.id}
+              className="group relative bg-white rounded-2xl overflow-hidden border border-gray-100 hover:border-secondary/30 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+            >
+              {/* Hero image */}
+              <div className="relative h-44 overflow-hidden">
+                <img
+                  src={imgFor(hotel.id)}
+                  alt={hotel.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+                {/* Status badge */}
+                <div className="absolute top-3 right-3">
+                  <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-full backdrop-blur-md ${
+                    hotel.status === 'active'
+                      ? 'bg-green-500/90 text-white border border-green-300/30'
+                      : 'bg-gray-500/80 text-white border border-gray-300/30'
+                  }`}>
                     {hotel.status}
-                  </Badge>
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Star Category</p>
-                    <div className="flex items-center">
-                      {[...Array(hotel.starCategory)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-secondary text-secondary" />
-                      ))}
+                {/* Stars */}
+                <div className="absolute top-3 left-3 flex items-center gap-0.5 px-2 py-1 rounded-full bg-black/40 backdrop-blur-md">
+                  {[...Array(hotel.starCategory)].map((_, i) => (
+                    <Star key={i} className="w-3 h-3 fill-secondary text-secondary" />
+                  ))}
+                </div>
+
+                {/* Title overlay */}
+                <div className="absolute bottom-3 left-4 right-4 text-white">
+                  <h3 className="font-serif font-bold text-lg leading-tight mb-1 truncate">{hotel.name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-gray-200">
+                    <MapPin className="w-3 h-3" />
+                    {hotel.city}, {hotel.country}
+                  </div>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Quick stats grid */}
+                <div className="grid grid-cols-3 gap-2 -mx-1">
+                  <div className="text-center p-2 rounded-xl bg-gray-50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Rooms</div>
+                    <div className="text-sm font-bold text-primary">{hotel.rooms}</div>
+                  </div>
+                  <div className="text-center p-2 rounded-xl bg-secondary/10">
+                    <div className="text-[10px] text-secondary uppercase tracking-wider mb-1">Commission</div>
+                    <div className="text-sm font-bold text-primary">{hotel.commission}%</div>
+                  </div>
+                  <div className="text-center p-2 rounded-xl bg-gray-50">
+                    <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Contract</div>
+                    <div className="text-sm font-bold text-primary capitalize truncate">{hotel.contractType}</div>
+                  </div>
+                </div>
+
+                {/* Performance */}
+                {hotel.stats?.totalGroups > 0 && (
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-secondary/10 to-secondary/0 border border-secondary/15">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <TrendingUp className="w-3 h-3 text-secondary" />
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-widest">Performance</span>
                     </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Total Rooms</p>
-                    <p className="font-semibold text-primary">{hotel.rooms}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Contract Type</p>
-                    <p className="font-semibold text-primary capitalize">{hotel.contractType}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Commission</p>
-                    <p className="font-semibold text-secondary">{hotel.commission}%</p>
-                  </div>
-                </div>
-
-                {hotel.stats && hotel.stats.totalGroups > 0 && (
-                  <div className="mb-4 p-3 bg-secondary/5 rounded-lg border border-secondary/20">
-                    <p className="text-xs font-semibold text-secondary mb-2">Performance Summary</p>
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div>
-                        <p className="text-lg font-bold text-primary">{hotel.stats.totalGroups}</p>
-                        <p className="text-xs text-gray-600">Groups</p>
+                        <div className="text-base font-bold text-primary">{hotel.stats.totalGroups}</div>
+                        <div className="text-[10px] text-gray-500">Groups</div>
                       </div>
                       <div>
-                        <p className="text-lg font-bold text-primary">€{hotel.stats.totalRevenue.toLocaleString()}</p>
-                        <p className="text-xs text-gray-600">Revenue</p>
+                        <div className="text-base font-bold text-primary">€{(hotel.stats.totalRevenue / 1000).toFixed(0)}k</div>
+                        <div className="text-[10px] text-gray-500">Revenue</div>
                       </div>
                       <div>
-                        <p className="text-lg font-bold text-primary">{hotel.stats.totalRoomNights}</p>
-                        <p className="text-xs text-gray-600">Room Nights</p>
+                        <div className="text-base font-bold text-primary">{hotel.stats.totalRoomNights}</div>
+                        <div className="text-[10px] text-gray-500">Nights</div>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className="border-t pt-4 space-y-2">
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                    {hotel.email}
+                {/* Contact */}
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                    <span className="truncate">{hotel.email}</span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Phone className="w-3 h-3 text-gray-400 shrink-0" />
                     {hotel.phone}
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500">Contact Person</p>
-                      <p className="text-sm font-medium text-primary">{hotel.contactPerson}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleEdit(hotel)}
-                        className="text-primary border-primary hover:bg-primary hover:text-white"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleDeleteClick(hotel)}
-                        className="text-red-600 border-red-600 hover:bg-red-600 hover:text-white"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                  <div>
+                    <div className="text-[10px] text-gray-500">Contact</div>
+                    <div className="text-xs font-semibold text-primary truncate max-w-[150px]">{hotel.contactPerson}</div>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => handleEdit(hotel)}
+                      className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-primary hover:text-white text-gray-500 flex items-center justify-center transition-all"
+                      title="Edit"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteClick(hotel)}
+                      className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-red-500 hover:text-white text-gray-500 flex items-center justify-center transition-all"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-
-                {hotel.notes && (
-                  <div className="mt-4 bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-600">{hotel.notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       )}
 
       {!loading && filteredHotels.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">No hotels found</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm ? 'Try adjusting your search criteria' : 'Get started by adding your first hotel'}
-            </p>
-            {!searchTerm && (
-              <Button onClick={handleAdd} className="bg-secondary hover:bg-secondary/90">
-                <Plus className="w-4 h-4 mr-2" />
-                Add First Hotel
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mb-4">
+            <Building2 className="w-10 h-10 text-gray-300" />
+          </div>
+          <h3 className="font-serif text-xl font-bold text-primary mb-2">No hotels found</h3>
+          <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+            {searchTerm ? 'Try a different search or filter.' : 'Get started by adding your first hotel partnership.'}
+          </p>
+          {!searchTerm && (
+            <Button onClick={handleAdd} className="rounded-xl btn-gold text-white border-0">
+              <Plus className="w-4 h-4 mr-2" /> Add First Hotel
+            </Button>
+          )}
+        </div>
       )}
 
       <HotelDialog
@@ -296,16 +339,16 @@ export const HotelsList = () => {
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Hotel</AlertDialogTitle>
+            <AlertDialogTitle className="font-serif text-xl">Delete Hotel</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{hotelToDelete?.name}</strong>? This action cannot be undone.
+              Are you sure you want to delete <strong className="text-primary">{hotelToDelete?.name}</strong>? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="rounded-xl bg-red-600 hover:bg-red-700">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
