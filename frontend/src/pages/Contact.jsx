@@ -1,328 +1,245 @@
 import { useState } from 'react';
-import { Badge } from '../components/ui/badge';
+import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Card, CardContent } from '../components/ui/card';
 import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
-import { contactReasons } from '../data/mockData';
 import { toast } from 'sonner';
+import {
+  Mail, Phone, MapPin, Send, ArrowRight, Sparkles, Clock,
+  Calendar, Globe, CheckCircle2
+} from 'lucide-react';
+import { contactReasons } from '../data/mockData';
+import { useRevealAll } from '../hooks/useInView';
+
+const contactMethods = [
+  {
+    icon: Mail, title: 'Email Us',
+    text: 'info@hotelbridge.com',
+    href: 'mailto:info@hotelbridge.com',
+    desc: 'We respond within 4 business hours'
+  },
+  {
+    icon: Phone, title: 'Call Us',
+    text: '+91 (0) 123 456 7890',
+    href: 'tel:+911234567890',
+    desc: 'Mon–Fri, 9am–6pm IST'
+  },
+  {
+    icon: Calendar, title: 'Book a Demo',
+    text: 'Schedule a call',
+    href: '#',
+    desc: 'See the platform in action'
+  },
+];
 
 export const Contact = () => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    hotelName: '',
-    location: '',
-    reason: '',
-    message: ''
+  useRevealAll();
+  const [form, setForm] = useState({
+    name: '', email: '', company: '', phone: '', reason: '', message: ''
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleReasonChange = (value) => {
-    setFormData(prev => ({ ...prev, reason: value }));
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    try {
-      // Mock submission - will be replaced with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast.success('Thank you for your inquiry!', {
-        description: 'We\'ll get back to you within 24 hours.',
+    setSubmitting(true);
+    setTimeout(() => {
+      toast.success('Message sent!', {
+        description: "We'll get back to you within 4 business hours."
       });
-      
-      // Reset form
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        hotelName: '',
-        location: '',
-        reason: '',
-        message: ''
-      });
-    } catch (error) {
-      toast.error('Something went wrong', {
-        description: 'Please try again or contact us directly.',
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+      setForm({ name: '', email: '', company: '', phone: '', reason: '', message: '' });
+      setSubmitting(false);
+    }, 1100);
   };
+
+  const update = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   return (
-    <div className="flex flex-col">
-      {/* Hero Section */}
-      <section className="relative h-[400px] flex items-center justify-center overflow-hidden">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
+    <div className="overflow-hidden">
+
+      {/* HERO */}
+      <section className="relative pt-24 pb-20 cta-gradient text-white overflow-hidden">
+        <div className="orb w-[500px] h-[500px] bg-secondary/15 -top-40 -right-20 animate-float-slow" />
+        <div className="orb w-72 h-72 bg-white/5 -bottom-20 left-10 animate-float" />
+        <div className="absolute inset-0 opacity-[0.07]"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1758519290233-a03c1d17ecc9)',
+            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
+            backgroundSize: '60px 60px',
           }}
-        >
-          <div className="absolute inset-0 bg-primary/85"></div>
-        </div>
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
-          <p className="text-lg md:text-xl text-gray-100 max-w-2xl mx-auto">
-            Let's discuss how we can help your hotel access the Indian travel market.
+        />
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 text-sm font-medium text-yellow-300">
+            <Sparkles className="w-4 h-4" /> Let's Talk
+          </div>
+          <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
+            We'd love to<br /><span className="text-shimmer">hear from you.</span>
+          </h1>
+          <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
+            Hotel partner, tour operator, or just curious — choose your channel below.
           </p>
         </div>
       </section>
 
-      {/* Contact Form & Info Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-            {/* Contact Form */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardContent className="p-8">
-                  <div className="mb-6">
-                    <Badge className="mb-4 bg-secondary/10 text-secondary hover:bg-secondary/20">
-                      Get In Touch
-                    </Badge>
-                    <h2 className="text-2xl md:text-3xl font-bold text-primary mb-2">
-                      Send Us a Message
-                    </h2>
-                    <p className="text-gray-600">
-                      Fill out the form below and we'll respond within 24 hours.
-                    </p>
-                  </div>
-
-                  <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="name">Your Name *</Label>
-                        <Input
-                          id="name"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          required
-                          placeholder="John Doe"
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email Address *</Label>
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={handleChange}
-                          required
-                          placeholder="john@hotel.com"
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          value={formData.phone}
-                          onChange={handleChange}
-                          placeholder="+1 (555) 000-0000"
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="hotelName">Hotel Name</Label>
-                        <Input
-                          id="hotelName"
-                          name="hotelName"
-                          value={formData.hotelName}
-                          onChange={handleChange}
-                          placeholder="Grand Hotel"
-                          className="mt-2"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="location">Hotel Location</Label>
-                        <Input
-                          id="location"
-                          name="location"
-                          value={formData.location}
-                          onChange={handleChange}
-                          placeholder="Paris, France"
-                          className="mt-2"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="reason">Reason for Contact *</Label>
-                        <Select onValueChange={handleReasonChange} value={formData.reason} required>
-                          <SelectTrigger className="mt-2">
-                            <SelectValue placeholder="Select a reason" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {contactReasons.map((reason, index) => (
-                              <SelectItem key={index} value={reason}>
-                                {reason}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="message">Message *</Label>
-                      <Textarea
-                        id="message"
-                        name="message"
-                        value={formData.message}
-                        onChange={handleChange}
-                        required
-                        placeholder="Tell us about your hotel and what you'd like to achieve..."
-                        rows={6}
-                        className="mt-2"
-                      />
-                    </div>
-
-                    <Button 
-                      type="submit" 
-                      size="lg" 
-                      className="w-full bg-secondary hover:bg-secondary/90"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Sending...' : 'Send Message'}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Contact Info */}
-            <div className="space-y-6">
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-semibold text-primary mb-4">Contact Information</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <Mail className="w-5 h-5 text-secondary mt-1" />
-                      <div>
-                        <div className="font-medium text-gray-900">Email</div>
-                        <a href="mailto:info@hotelbridge.com" className="text-sm text-gray-600 hover:text-secondary">
-                          info@hotelbridge.com
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Phone className="w-5 h-5 text-secondary mt-1" />
-                      <div>
-                        <div className="font-medium text-gray-900">Phone</div>
-                        <a href="tel:+910123456789" className="text-sm text-gray-600 hover:text-secondary">
-                          +91 (0) 123 456 7890
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <MapPin className="w-5 h-5 text-secondary mt-1" />
-                      <div>
-                        <div className="font-medium text-gray-900">Office</div>
-                        <p className="text-sm text-gray-600">
-                          Mumbai, India
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-3">
-                      <Clock className="w-5 h-5 text-secondary mt-1" />
-                      <div>
-                        <div className="font-medium text-gray-900">Business Hours</div>
-                        <p className="text-sm text-gray-600">
-                          Mon - Fri: 9:00 AM - 6:00 PM IST<br />
-                          Sat: 10:00 AM - 2:00 PM IST
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-secondary/5 border-secondary/20">
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-primary mb-3">Quick Response</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    We typically respond to all inquiries within 24 hours during business days.
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    For urgent matters, please call us directly during business hours.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <h3 className="text-lg font-semibold text-primary mb-3">Book a Consultation</h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Prefer a scheduled call? Book a 30-minute consultation to discuss your hotel's potential in the Indian market.
-                  </p>
-                  <Button variant="outline" className="w-full border-primary text-primary hover:bg-primary hover:text-white">
-                    Schedule a Call
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+      {/* CONTACT METHODS */}
+      <section className="py-16 bg-gradient-to-b from-white to-gray-50 -mt-12">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
+            {contactMethods.map(({ icon: Icon, title, text, href, desc }) => (
+              <a
+                key={title}
+                href={href}
+                className="reveal group bg-white rounded-3xl p-7 border border-gray-100 hover:border-secondary/30 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary/15 to-secondary/5 flex items-center justify-center mb-5 group-hover:from-secondary/25 transition-all">
+                  <Icon className="w-6 h-6 text-secondary" />
+                </div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">{title}</div>
+                <div className="font-serif text-lg font-bold text-primary mb-2 group-hover:text-secondary transition-colors">{text}</div>
+                <div className="text-xs text-gray-500">{desc}</div>
+              </a>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Map or Additional Info */}
-      <section className="py-20 bg-gray-50">
+      {/* FORM + INFO */}
+      <section className="py-16 bg-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary mb-6">
-              Ready to Get Started?
-            </h2>
-            <p className="text-lg text-gray-600 mb-8">
-              Whether you're a hotel looking for representation or a tour operator seeking partnerships, we're here to help create successful collaborations.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="text-center hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="text-3xl font-bold text-secondary mb-2">24h</div>
-                  <div className="text-sm text-gray-600">Response Time</div>
-                </CardContent>
-              </Card>
-              <Card className="text-center hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="text-3xl font-bold text-secondary mb-2">Free</div>
-                  <div className="text-sm text-gray-600">Initial Consultation</div>
-                </CardContent>
-              </Card>
-              <Card className="text-center hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="text-3xl font-bold text-secondary mb-2">Global</div>
-                  <div className="text-sm text-gray-600">Reach & Support</div>
-                </CardContent>
-              </Card>
+          <div className="grid lg:grid-cols-5 gap-10 max-w-6xl mx-auto">
+
+            {/* Form */}
+            <div className="lg:col-span-3 reveal-left">
+              <div className="section-divider" style={{ margin: '0 0 1rem' }} />
+              <h2 className="font-serif text-3xl md:text-4xl font-bold text-primary mb-3 leading-tight">
+                Send us a message
+              </h2>
+              <p className="text-gray-500 mb-8">We typically respond within 4 business hours.</p>
+
+              <form onSubmit={handleSubmit} className="bg-gradient-to-br from-gray-50 to-white rounded-3xl p-6 lg:p-8 border border-gray-100 space-y-5">
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Full Name *"
+                    value={form.name}
+                    onChange={update('name')}
+                    required
+                    className="h-12 rounded-xl border-gray-200 focus:border-secondary focus-visible:ring-secondary/20"
+                  />
+                  <Input
+                    type="email"
+                    placeholder="Email *"
+                    value={form.email}
+                    onChange={update('email')}
+                    required
+                    className="h-12 rounded-xl border-gray-200 focus:border-secondary focus-visible:ring-secondary/20"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Company / Hotel Name"
+                    value={form.company}
+                    onChange={update('company')}
+                    className="h-12 rounded-xl border-gray-200 focus:border-secondary focus-visible:ring-secondary/20"
+                  />
+                  <Input
+                    placeholder="Phone"
+                    value={form.phone}
+                    onChange={update('phone')}
+                    className="h-12 rounded-xl border-gray-200 focus:border-secondary focus-visible:ring-secondary/20"
+                  />
+                </div>
+
+                <select
+                  value={form.reason}
+                  onChange={update('reason')}
+                  required
+                  className="w-full h-12 rounded-xl border border-gray-200 focus:border-secondary focus-visible:ring-1 focus-visible:ring-secondary/20 bg-white text-sm px-3 outline-none"
+                >
+                  <option value="">Reason for contacting *</option>
+                  {contactReasons.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+
+                <Textarea
+                  placeholder="Tell us more *"
+                  value={form.message}
+                  onChange={update('message')}
+                  rows={5}
+                  required
+                  className="rounded-xl border-gray-200 focus:border-secondary focus-visible:ring-secondary/20 resize-none"
+                />
+
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full btn-gold border-0 text-white rounded-xl h-12 font-semibold text-sm"
+                >
+                  {submitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin mr-2" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>Send Message <Send className="ml-2 w-4 h-4" /></>
+                  )}
+                </Button>
+              </form>
+            </div>
+
+            {/* Side panel */}
+            <div className="lg:col-span-2 reveal-right space-y-4">
+              {/* Office */}
+              <div className="bg-gradient-to-br from-primary to-blue-900 rounded-3xl p-7 text-white relative overflow-hidden">
+                <div className="orb w-40 h-40 bg-secondary/20 -top-10 -right-10" />
+                <div className="relative z-10">
+                  <MapPin className="w-8 h-8 text-secondary mb-3" />
+                  <div className="font-serif text-xl font-bold mb-1">Mumbai HQ</div>
+                  <p className="text-sm text-gray-300 leading-relaxed mb-5">
+                    Bandra Kurla Complex<br />
+                    Mumbai 400051<br />
+                    India
+                  </p>
+                  <div className="pt-4 border-t border-white/10 space-y-2 text-xs text-gray-300">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-secondary" /> Mon–Fri · 9am–6pm IST
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="w-3 h-3 text-secondary" /> Serving 15+ countries
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick stats */}
+              <div className="bg-white rounded-3xl p-6 border border-gray-100">
+                <h3 className="font-serif text-base font-bold text-primary mb-4">By the numbers</h3>
+                <div className="space-y-3">
+                  {[
+                    { v: '< 4h', l: 'Avg. response time' },
+                    { v: '200+', l: 'Hotel partners' },
+                    { v: '95%', l: 'Partner satisfaction' },
+                  ].map((s) => (
+                    <div key={s.l} className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">{s.l}</span>
+                      <span className="font-serif font-bold text-secondary">{s.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick CTA */}
+              <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20 rounded-3xl p-6">
+                <CheckCircle2 className="w-7 h-7 text-secondary mb-3" />
+                <div className="font-serif font-bold text-primary text-base mb-1">Ready to partner?</div>
+                <p className="text-xs text-gray-600 leading-relaxed mb-4">
+                  Skip the form — apply directly for partnership.
+                </p>
+                <Link
+                  to="/partnerships"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-secondary hover:gap-2 transition-all"
+                >
+                  Apply now <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>

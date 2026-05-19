@@ -8,6 +8,7 @@ import About from "./pages/About";
 import Services from "./pages/Services";
 import WhyUs from "./pages/WhyUs";
 import Partnerships from "./pages/Partnerships";
+import Pricing from "./pages/Pricing";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import CRMLayout from "./pages/CRM/CRMLayout";
@@ -75,6 +76,16 @@ function App() {
               <Header />
               <main className="min-h-screen">
                 <Partnerships />
+              </main>
+              <Footer />
+              <Toaster />
+            </>
+          } />
+          <Route path="/pricing" element={
+            <>
+              <Header />
+              <main className="min-h-screen">
+                <Pricing />
               </main>
               <Footer />
               <Toaster />

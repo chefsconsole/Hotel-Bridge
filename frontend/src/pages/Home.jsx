@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import {
   ArrowRight, Building2, TrendingUp, Users, Globe,
-  Star, CheckCircle2, ChevronRight, Zap, Shield, Award
+  Star, CheckCircle2, ChevronRight, Zap, Shield, Award,
+  Calculator, MessageCircle, Handshake, Sparkles, Plus, Minus,
+  PlayCircle, BadgeCheck
 } from 'lucide-react';
 import { services, stats, testimonials } from '../data/mockData';
 import { useRevealAll } from '../hooks/useInView';
@@ -80,6 +82,145 @@ function ServiceCard({ service }) {
   );
 }
 
+/* ── ROI Calculator ─────────────────────────────── */
+function RoiCalculator() {
+  const [rooms, setRooms] = useState(120);
+  const [adr, setAdr] = useState(180);
+  const [occupancy, setOccupancy] = useState(72);
+
+  // 40% revenue uplift assumption (matches stat shown on site)
+  const baseAnnualRevenue = rooms * adr * 365 * (occupancy / 100);
+  const upliftRevenue = baseAnnualRevenue * 0.40;
+  const additionalNights = rooms * 365 * (occupancy / 100) * 0.40;
+  const ourFee = upliftRevenue * 0.12;
+  const netUplift = upliftRevenue - ourFee;
+
+  return (
+    <section className="py-24 bg-white">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12 reveal">
+          <div className="section-divider" />
+          <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">
+            ROI Calculator
+          </span>
+          <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-4">
+            See what HotelBridge could<br />add to your <span className="text-shimmer">bottom line</span>
+          </h2>
+          <p className="text-gray-500 max-w-2xl mx-auto text-lg">
+            Adjust the sliders to your property's profile. Live calculation.
+          </p>
+        </div>
+
+        <div className="max-w-6xl mx-auto reveal-scale grid lg:grid-cols-5 gap-6 lg:gap-10">
+
+          {/* Inputs */}
+          <div className="lg:col-span-3 bg-gradient-to-br from-gray-50 to-white rounded-3xl p-6 lg:p-10 border border-gray-100">
+            <div className="flex items-center gap-2 mb-8">
+              <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center">
+                <Calculator className="w-5 h-5 text-secondary" />
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Your property</div>
+                <div className="font-serif font-bold text-primary">Estimate your uplift</div>
+              </div>
+            </div>
+
+            {/* Rooms slider */}
+            <div className="mb-7">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-primary">Number of Rooms</label>
+                <div className="font-serif text-2xl font-bold text-secondary">{rooms}</div>
+              </div>
+              <input
+                type="range" min="20" max="500" step="10" value={rooms}
+                onChange={(e) => setRooms(parseInt(e.target.value, 10))}
+                className="roi-slider"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>20</span><span>500</span>
+              </div>
+            </div>
+
+            {/* ADR slider */}
+            <div className="mb-7">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-primary">Avg. Daily Rate (ADR)</label>
+                <div className="font-serif text-2xl font-bold text-secondary">€{adr}</div>
+              </div>
+              <input
+                type="range" min="60" max="600" step="10" value={adr}
+                onChange={(e) => setAdr(parseInt(e.target.value, 10))}
+                className="roi-slider"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>€60</span><span>€600</span>
+              </div>
+            </div>
+
+            {/* Occupancy slider */}
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-semibold text-primary">Current Occupancy</label>
+                <div className="font-serif text-2xl font-bold text-secondary">{occupancy}%</div>
+              </div>
+              <input
+                type="range" min="30" max="95" step="1" value={occupancy}
+                onChange={(e) => setOccupancy(parseInt(e.target.value, 10))}
+                className="roi-slider"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>30%</span><span>95%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Results */}
+          <div className="lg:col-span-2 relative overflow-hidden rounded-3xl p-6 lg:p-8 cta-gradient text-white">
+            <div className="orb w-48 h-48 bg-secondary/20 -top-10 -right-10" />
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-[10px] font-bold text-yellow-300 mb-6 uppercase tracking-wider">
+                <Sparkles className="w-3 h-3" /> Projected Year 1
+              </div>
+
+              <div className="mb-6">
+                <div className="text-xs text-gray-300 uppercase tracking-widest mb-1">Additional Revenue</div>
+                <div className="font-serif text-4xl lg:text-5xl font-bold text-shimmer leading-none">
+                  €{Math.round(upliftRevenue).toLocaleString()}
+                </div>
+                <div className="text-xs text-gray-400 mt-2">40% uplift average · validated by 200+ partners</div>
+              </div>
+
+              <div className="space-y-3 mb-6 pt-6 border-t border-white/10">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-300">Additional Room Nights</span>
+                  <span className="text-sm font-semibold">{Math.round(additionalNights).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-300">Our Fee (12% avg.)</span>
+                  <span className="text-sm font-semibold">€{Math.round(ourFee).toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between pt-3 border-t border-white/10">
+                  <span className="text-sm font-bold text-secondary">Your Net Uplift</span>
+                  <span className="font-serif text-xl font-bold text-shimmer">€{Math.round(netUplift).toLocaleString()}</span>
+                </div>
+              </div>
+
+              <Button asChild className="w-full btn-gold border-0 text-white rounded-xl py-6 font-semibold">
+                <Link to="/contact">
+                  Get a custom estimate <ArrowRight className="ml-2 w-4 h-4" />
+                </Link>
+              </Button>
+              <p className="text-[10px] text-gray-400 mt-3 text-center">
+                Numbers are projections based on our partner-network averages. Not a guarantee.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ── Testimonial card ───────────────────────────── */
 function TestimonialCard({ testimonial }) {
   return (
@@ -103,6 +244,102 @@ function TestimonialCard({ testimonial }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ── FAQ ────────────────────────────────────────── */
+function FAQ() {
+  const [open, setOpen] = useState(0);
+  const faqs = [
+    {
+      q: 'How quickly will I see my first group booking?',
+      a: 'Most partners see their first group booking confirmed within 60–90 days of activation. Some have closed within their first 30 days, depending on lead time and seasonality.'
+    },
+    {
+      q: 'What does HotelBridge charge?',
+      a: 'We charge a commission only on confirmed, materialised bookings — typically 10–15% depending on volume tier. Zero setup fees, zero monthly retainers. You only pay when your hotel is paid.'
+    },
+    {
+      q: 'Do I lose direct relationships with operators?',
+      a: 'No — we are an extension of your sales team. All contracts can be co-signed in your name, and you retain full ownership of every operator relationship we open up for you.'
+    },
+    {
+      q: 'Which markets do you currently cover?',
+      a: 'Our core network is Indian tour operators and DMCs (200+ partners), with growing reach into Southeast Asian and Middle Eastern outbound markets. We can scope additional markets on request.'
+    },
+    {
+      q: 'How does the CRM portal work?',
+      a: 'Every partner hotel gets a dedicated CRM login with real-time visibility into your bookings, revenue, commissions, and an AI assistant. Mobile-optimised. Updates within seconds of any new booking.'
+    },
+    {
+      q: 'Is my hotel right for HotelBridge?',
+      a: 'We work best with 3–5 star hotels (50+ rooms) in destinations Indian travelers actively visit. Apply for partnership — we will assess fit within 48 hours.'
+    }
+  ];
+
+  return (
+    <section className="py-24 bg-gradient-to-b from-white to-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-12 reveal">
+            <div className="section-divider" />
+            <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">
+              Frequently Asked
+            </span>
+            <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-4">
+              Questions, answered.
+            </h2>
+            <p className="text-gray-500 text-lg">
+              Everything you need to know before becoming a partner.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {faqs.map((f, i) => (
+              <div
+                key={i}
+                className={`reveal bg-white rounded-2xl border transition-all duration-300 ${
+                  open === i ? 'border-secondary/40 shadow-xl' : 'border-gray-100 hover:border-gray-200'
+                }`}
+              >
+                <button
+                  onClick={() => setOpen(open === i ? -1 : i)}
+                  className="w-full flex items-center justify-between gap-4 p-5 text-left"
+                >
+                  <span className={`font-serif font-semibold text-base lg:text-lg transition-colors ${
+                    open === i ? 'text-secondary' : 'text-primary'
+                  }`}>
+                    {f.q}
+                  </span>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${
+                    open === i ? 'bg-secondary text-white rotate-180' : 'bg-gray-100 text-gray-400'
+                  }`}>
+                    {open === i ? <Minus className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  </div>
+                </button>
+                <div
+                  className="overflow-hidden transition-all duration-500 ease-in-out"
+                  style={{ maxHeight: open === i ? '300px' : '0px' }}
+                >
+                  <p className="px-5 pb-5 text-sm text-gray-600 leading-relaxed">{f.a}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Still have questions? */}
+          <div className="mt-10 text-center reveal">
+            <p className="text-sm text-gray-500 mb-4">Still have questions?</p>
+            <Link
+              to="/contact"
+              className="inline-flex items-center gap-2 text-secondary font-semibold hover:gap-3 transition-all"
+            >
+              Talk to our team <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -239,8 +476,36 @@ export const Home = () => {
         </div>
       </section>
 
+      {/* ── LOGO WALL ─────────────────────────────────── */}
+      <section className="py-10 bg-white border-y border-gray-100">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-xs font-semibold text-gray-400 uppercase tracking-[0.25em] mb-8">
+            Trusted by leading hotels and operators worldwide
+          </p>
+          <div className="relative overflow-hidden">
+            <div className="absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+            <div className="flex items-center gap-12 animate-marquee" style={{ width: 'max-content' }}>
+              {[...Array(2)].map((_, dup) => (
+                <div key={dup} className="flex items-center gap-12 shrink-0">
+                  {[
+                    'Grand Hotel Europa', 'Château de Luxe', 'Alpine Resort',
+                    'Mediterranean Pearl', 'Royal Plaza', 'Coastal Grand',
+                    'Nexus DMC', 'Voyageur Travel', 'Indus Tours'
+                  ].map((name, i) => (
+                    <div key={`${dup}-${i}`} className="text-base lg:text-lg font-serif italic text-gray-300 hover:text-primary transition-colors whitespace-nowrap select-none">
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── STATS ─────────────────────────────────────── */}
-      <section className="py-14 bg-white border-y border-gray-100">
+      <section className="py-14 bg-white border-b border-gray-100">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 stagger">
             {stats.map((stat, i) => (
@@ -254,6 +519,66 @@ export const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* ── HOW IT WORKS ──────────────────────────────── */}
+      <section className="py-24 bg-gradient-to-b from-white via-gray-50 to-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 reveal">
+            <div className="section-divider" />
+            <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">
+              How It Works
+            </span>
+            <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-4">
+              From signup to <span className="text-shimmer">booked rooms</span> in 90 days
+            </h2>
+            <p className="text-gray-500 max-w-2xl mx-auto text-lg">
+              A proven three-step process trusted by 200+ hotels.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-0 stagger relative">
+            {/* Connecting line behind cards */}
+            <div className="hidden lg:block absolute top-1/2 left-[16%] right-[16%] h-px bg-gradient-to-r from-secondary/0 via-secondary/40 to-secondary/0 -translate-y-12" />
+
+            {[
+              {
+                step: '01', icon: MessageCircle, title: 'Discovery & Onboarding',
+                desc: 'We learn your property, capacity, and target demographic. Custom market positioning crafted in week one.',
+                time: 'Week 1–2'
+              },
+              {
+                step: '02', icon: Handshake, title: 'Market Activation',
+                desc: 'We introduce your hotel to our network of 200+ pre-vetted Indian tour operators and DMCs with custom offerings.',
+                time: 'Week 3–6'
+              },
+              {
+                step: '03', icon: TrendingUp, title: 'Bookings & Growth',
+                desc: 'First group bookings arrive. Dedicated account manager optimizes rates, allotments, and renewals.',
+                time: 'Week 7–12'
+              }
+            ].map(({ step, icon: Icon, title, desc, time }, i) => (
+              <div key={step} className="reveal relative">
+                <div className="group relative h-full bg-white rounded-3xl p-8 border border-gray-100 hover:border-secondary/30 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 z-10">
+                  <div className="flex items-start gap-4 mb-5">
+                    <div className="font-serif text-5xl font-bold text-secondary/15 group-hover:text-secondary/30 transition-colors leading-none">
+                      {step}
+                    </div>
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-secondary/15 to-secondary/5 flex items-center justify-center group-hover:from-secondary/25 transition-all">
+                      <Icon className="w-6 h-6 text-secondary" />
+                    </div>
+                  </div>
+                  <div className="text-xs font-bold text-secondary uppercase tracking-wider mb-2">{time}</div>
+                  <h3 className="font-serif text-xl font-bold text-primary mb-3">{title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── ROI CALCULATOR ─────────────────────────────── */}
+      <RoiCalculator />
 
       {/* ── SERVICES ──────────────────────────────────── */}
       <section className="py-24 mesh-bg">
@@ -408,6 +733,9 @@ export const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* ── FAQ ───────────────────────────────────────── */}
+      <FAQ />
 
       {/* ── CTA ───────────────────────────────────────── */}
       <section className="py-28 cta-gradient relative overflow-hidden">

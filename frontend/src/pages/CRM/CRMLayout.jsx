@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
   LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles
 } from 'lucide-react';
+import { CommandPalette, useCommandPalette } from '../../components/CommandPalette';
 
 const menuItems = [
   { name: 'Dashboard', path: '/crm', icon: LayoutDashboard, exact: true },
@@ -41,6 +42,8 @@ export const CRMLayout = () => {
   const userEmail = localStorage.getItem('userEmail') || 'admin@hotelbridge.com';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
   const currentPage = menuItems.find((m) => isActive(m))?.name || 'Dashboard';
+
+  const cmdPalette = useCommandPalette();
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -203,18 +206,15 @@ export const CRMLayout = () => {
             </div>
           </div>
 
-          {/* Search */}
-          <div className="hidden md:flex flex-1 max-w-md">
-            <div className="relative w-full group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-secondary transition-colors" />
-              <input
-                type="text"
-                placeholder="Search anything..."
-                className="w-full pl-10 pr-4 py-2 text-sm rounded-xl bg-gray-50 border border-transparent focus:bg-white focus:border-secondary/40 focus:ring-1 focus:ring-secondary/20 outline-none transition-all"
-              />
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-gray-400 bg-white border border-gray-200 rounded px-1.5 py-0.5">⌘K</kbd>
-            </div>
-          </div>
+          {/* Search → opens command palette */}
+          <button
+            onClick={() => cmdPalette.setOpen(true)}
+            className="hidden md:flex flex-1 max-w-md group items-center gap-2 px-3 py-2 text-sm rounded-xl bg-gray-50 hover:bg-white hover:border-secondary/40 border border-transparent transition-all"
+          >
+            <Search className="w-4 h-4 text-gray-400 group-hover:text-secondary transition-colors shrink-0" />
+            <span className="flex-1 text-left text-gray-400">Search or jump to...</span>
+            <kbd className="text-[10px] text-gray-400 bg-white border border-gray-200 rounded px-1.5 py-0.5">⌘K</kbd>
+          </button>
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
@@ -233,6 +233,9 @@ export const CRMLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Global Command Palette */}
+      <CommandPalette open={cmdPalette.open} onClose={() => cmdPalette.setOpen(false)} />
     </div>
   );
 };

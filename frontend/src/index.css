@@ -247,6 +247,41 @@ body {
     gap: 1.5rem;
 }
 
+/* ── ROI slider ─────────────────────────────────────────── */
+.roi-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, hsl(43, 74%, 49%) 0%, hsl(43, 74%, 49%) var(--val, 50%), #e5e7eb var(--val, 50%), #e5e7eb 100%);
+    outline: none;
+    cursor: pointer;
+}
+.roi-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid hsl(43, 74%, 49%);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(184, 142, 48, 0.3);
+    transition: transform 0.15s ease;
+}
+.roi-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+.roi-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid hsl(43, 74%, 49%);
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(184, 142, 48, 0.3);
+}
+
 /* ── CTA gradient animated ──────────────────────────────── */
 .cta-gradient {
     background: linear-gradient(
