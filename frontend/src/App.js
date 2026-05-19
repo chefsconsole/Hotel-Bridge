@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
+import { CustomCursor } from "./components/CustomCursor";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -28,6 +29,7 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <div className="App">
+      <CustomCursor />
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}
