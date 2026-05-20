@@ -631,8 +631,8 @@ export const Home = () => {
                 className="btn-gold text-white border-0 px-10 py-7 rounded-full text-base font-semibold group"
                 data-cursor="link"
               >
-                <Link to="/partnerships">
-                  Become a Partner
+                <Link to="/contact">
+                  Get in Touch
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
@@ -876,7 +876,7 @@ export const Home = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Magnetic strength={0.4}>
                 <Button asChild size="lg" className="btn-gold text-white border-0 px-10 py-7 rounded-full text-base font-semibold" data-cursor="link">
-                  <Link to="/partnerships">Become a Partner <ArrowRight className="ml-2 w-4 h-4" /></Link>
+                  <Link to="/contact">Get in Touch <ArrowRight className="ml-2 w-4 h-4" /></Link>
                 </Button>
               </Magnetic>
               <Magnetic strength={0.4}>

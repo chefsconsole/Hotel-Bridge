@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Mail, Phone, MapPin, Send, ArrowRight, Sparkles, Clock,
+  Mail, Phone, MapPin, Send, Sparkles, Clock,
   Calendar, Globe, CheckCircle2
 } from 'lucide-react';
 import { contactReasons } from '../data/mockData';
@@ -226,19 +225,13 @@ export const Contact = () => {
                 </div>
               </div>
 
-              {/* Quick CTA */}
+              {/* Quick info card */}
               <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20 rounded-3xl p-6">
                 <CheckCircle2 className="w-7 h-7 text-secondary mb-3" />
-                <div className="font-serif font-bold text-primary text-base mb-1">Ready to partner?</div>
-                <p className="text-xs text-gray-600 leading-relaxed mb-4">
-                  Skip the form — apply directly for partnership.
+                <div className="font-serif font-bold text-primary text-base mb-1">We typically respond fast</div>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Most enquiries get a personal reply within 4 business hours, Monday to Friday.
                 </p>
-                <Link
-                  to="/partnerships"
-                  className="inline-flex items-center gap-1 text-sm font-semibold text-secondary hover:gap-2 transition-all"
-                >
-                  Apply now <ArrowRight className="w-4 h-4" />
-                </Link>
               </div>
             </div>
           </div>

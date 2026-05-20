@@ -8,7 +8,6 @@ import Home from "./pages/Home";
 import About from "./pages/About";
 import Services from "./pages/Services";
 import WhyUs from "./pages/WhyUs";
-import Partnerships from "./pages/Partnerships";
 import Pricing from "./pages/Pricing";
 import Contact from "./pages/Contact";
 import Login from "./pages/Login";
@@ -73,16 +72,6 @@ function App() {
               <Toaster />
             </>
           } />
-          <Route path="/partnerships" element={
-            <>
-              <Header />
-              <main className="min-h-screen">
-                <Partnerships />
-              </main>
-              <Footer />
-              <Toaster />
-            </>
-          } />
           <Route path="/pricing" element={
             <>
               <Header />
@@ -121,6 +110,9 @@ function App() {
             <Route path="revenue" element={<RevenueList />} />
             <Route path="ai-assistant" element={<AIAssistant />} />
           </Route>
+
+          {/* Catch-all: redirect unknown URLs to home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
     </div>

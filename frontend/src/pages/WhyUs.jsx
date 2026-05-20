@@ -222,7 +222,7 @@ export const WhyUs = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button asChild size="lg" className="btn-gold border-0 text-white rounded-full px-8">
-                <Link to="/partnerships">Apply for Partnership <ArrowRight className="ml-2 w-4 h-4" /></Link>
+                <Link to="/contact">Get in Touch <ArrowRight className="ml-2 w-4 h-4" /></Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-8 border-2 border-primary text-primary hover:bg-primary hover:text-white">
                 <Link to="/pricing">View Pricing</Link>

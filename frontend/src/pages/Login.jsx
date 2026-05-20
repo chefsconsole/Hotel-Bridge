@@ -176,8 +176,8 @@ export const Login = () => {
 
             <p className="text-center text-xs text-gray-500 mt-8">
               Not a partner yet?{' '}
-              <Link to="/partnerships" className="text-secondary hover:text-yellow-300 font-semibold transition-colors">
-                Apply for partnership
+              <Link to="/contact" className="text-secondary hover:text-yellow-300 font-semibold transition-colors">
+                Get in touch
               </Link>
             </p>
           </div>

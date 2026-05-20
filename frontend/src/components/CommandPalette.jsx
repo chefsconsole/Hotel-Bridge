@@ -87,6 +87,7 @@ export function CommandPalette({ open, onClose }) {
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, filtered, selectedIdx]);
 
   // Reset selected on filter change
