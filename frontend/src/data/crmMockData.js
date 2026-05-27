@@ -63,11 +63,11 @@ export const mockHotels = [
 export const mockOperators = [
   {
     id: 1,
-    companyName: "Nexus DMC India",
+    companyName: "Atlas Voyages",
     contactPerson: "Raj Kumar",
     country: "India",
     type: "DMC",
-    email: "raj@nexusdmc.in",
+    email: "raj@atlasvoyages.com",
     phone: "+91 11 2345 6789",
     businessPotential: "high",
     notes: "Top DMC, 500+ groups annually. Excellent payment record."
@@ -101,7 +101,7 @@ export const mockBookings = [
     id: 1,
     groupName: "Mumbai Corporate Incentive",
     operatorId: 1,
-    operatorName: "Nexus DMC India",
+    operatorName: "Atlas Voyages",
     destination: "Rome",
     hotelId: 1,
     hotelName: "Grand Hotel Europa",
@@ -135,7 +135,7 @@ export const mockBookings = [
     id: 3,
     groupName: "Bangalore Cultural Tour",
     operatorId: 1,
-    operatorName: "Nexus DMC India",
+    operatorName: "Atlas Voyages",
     destination: "Interlaken",
     hotelId: 3,
     hotelName: "Alpine Resort",

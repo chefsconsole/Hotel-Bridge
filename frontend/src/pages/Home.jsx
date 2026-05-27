@@ -102,8 +102,7 @@ function RoiCalculator() {
   const baseAnnualRevenue = rooms * adr * 365 * (occupancy / 100);
   const upliftRevenue = baseAnnualRevenue * 0.40;
   const additionalNights = rooms * 365 * (occupancy / 100) * 0.40;
-  const ourFee = upliftRevenue * 0.12;
-  const netUplift = upliftRevenue - ourFee;
+  const groupBookings = Math.round((additionalNights / 3) / 25); // approx group count
 
   return (
     <section className="py-28 bg-white relative">
@@ -180,12 +179,12 @@ function RoiCalculator() {
                   <span className="text-sm font-semibold tabular-nums">{Math.round(additionalNights).toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-300">Our Fee (12% avg.)</span>
-                  <span className="text-sm font-semibold tabular-nums">€{Math.round(ourFee).toLocaleString()}</span>
+                  <span className="text-xs text-gray-300">Estimated Group Bookings</span>
+                  <span className="text-sm font-semibold tabular-nums">{groupBookings.toLocaleString()}</span>
                 </div>
                 <div className="flex items-center justify-between pt-3 border-t border-white/10">
-                  <span className="text-sm font-bold text-secondary">Your Net Uplift</span>
-                  <span className="font-serif text-xl font-bold text-shimmer tabular-nums">€{Math.round(netUplift).toLocaleString()}</span>
+                  <span className="text-sm font-bold text-secondary">Projected Revenue Uplift</span>
+                  <span className="font-serif text-xl font-bold text-shimmer tabular-nums">€{Math.round(upliftRevenue).toLocaleString()}</span>
                 </div>
               </div>
 
@@ -302,11 +301,10 @@ function FeaturedDestinations() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 stagger">
           {destinations.map((d, i) => {
             const Icon = d.icon;
-            const large = i === 0 || i === 4; // make some larger
             return (
               <div
                 key={d.name}
-                className={`reveal img-reveal cursor-none aspect-[4/5] ${large ? 'md:row-span-2 md:aspect-[3/4]' : ''}`}
+                className="reveal img-reveal group cursor-none aspect-[4/5]"
                 data-cursor="link"
               >
                 <img
@@ -710,7 +708,7 @@ export const Home = () => {
                   {[
                     'Grand Hotel Europa', 'Château de Luxe', 'Alpine Resort',
                     'Mediterranean Pearl', 'Royal Plaza', 'Coastal Grand',
-                    'Nexus DMC', 'Voyageur Travel', 'Indus Tours',
+                    'Atlas Voyages', 'Voyageur Travel', 'Horizon Tours',
                   ].map((name, i) => (
                     <div key={`${dup}-${i}`} className="text-lg lg:text-xl font-serif italic text-gray-300 hover:text-primary transition-colors whitespace-nowrap select-none">
                       {name}

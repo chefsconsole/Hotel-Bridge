@@ -166,12 +166,6 @@ export const Login = () => {
                 )}
               </Button>
 
-              {/* Demo creds hint */}
-              <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-gray-400">
-                <div className="font-semibold text-secondary mb-1">Demo credentials</div>
-                <div>Email: <span className="text-gray-300">admin@hotelbridge.com</span></div>
-                <div>Password: <span className="text-gray-300">admin123</span></div>
-              </div>
             </form>
 
             <p className="text-center text-xs text-gray-500 mt-8">

@@ -10,7 +10,7 @@ export const AIAssistant = () => {
     {
       role: 'assistant',
       content:
-        "Hello! I'm your HotelBridge AI assistant. I can help you with:\n\n• Adding new group bookings\n• Updating hotel contracts\n• Querying revenue and commission data\n• Providing business insights\n\nTry asking me something like:\n\"Add new group with 30 rooms in Paris for 2 nights at 100 euro from Nexus DMC\"",
+        "Hello! I'm your HotelBridge AI assistant. I can help you with:\n\n• Adding new group bookings\n• Updating hotel contracts\n• Querying revenue and commission data\n• Providing business insights\n\nTry asking me something like:\n\"Add new group with 30 rooms in Paris for 2 nights at 100 euro from Atlas Voyages\"",
       timestamp: new Date(),
     },
   ]);
