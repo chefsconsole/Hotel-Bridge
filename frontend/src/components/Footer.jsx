@@ -48,7 +48,7 @@ export const Footer = () => {
               </div>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              Connecting exceptional European and Asian hotels with the thriving Indian outbound travel market since 2020.
+              Connecting exceptional hotels with the world's most lucrative group travel markets — since 2020.
             </p>
             {/* Social icons */}
             <div className="flex gap-3">
@@ -103,7 +103,7 @@ export const Footer = () => {
               {[
                 { Icon: Mail, text: 'info@hotelbridge.com', href: 'mailto:info@hotelbridge.com' },
                 { Icon: Phone, text: '+91 (0) 123 456 7890', href: 'tel:+911234567890' },
-                { Icon: MapPin, text: 'Mumbai, India', href: null },
+                { Icon: MapPin, text: 'Global · Mumbai HQ', href: null },
               ].map(({ Icon, text, href }) => (
                 <li key={text}>
                   {href ? (

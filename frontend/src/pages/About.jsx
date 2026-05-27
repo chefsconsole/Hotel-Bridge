@@ -9,24 +9,24 @@ import { useRevealAll } from '../hooks/useInView';
 const values = [
   { icon: Target, title: 'Results-Driven', desc: 'We measure success by your growth. Every action is focused on bookings and revenue.' },
   { icon: Heart, title: 'Partnership First', desc: "We're not vendors — we're an extension of your sales team. Long-term over transactional." },
-  { icon: Compass, title: 'Global Perspective', desc: 'International hospitality expertise combined with deep Indian market intelligence.' },
+  { icon: Compass, title: 'Global Perspective', desc: 'International hospitality expertise combined with deep, multi-market source intelligence.' },
   { icon: Flame, title: 'Excellence Always', desc: 'We represent only quality properties and work with reputable, vetted operators.' },
 ];
 
 const milestones = [
-  { year: '2020', title: 'Founded in Mumbai', desc: 'Three hospitality veterans launch HotelBridge to bridge European hotels with Indian operators.' },
+  { year: '2020', title: 'Founded with a Vision', desc: 'Three hospitality veterans launch HotelBridge to connect hotels worldwide with high-growth source markets.' },
   { year: '2021', title: 'First 50 partners', desc: 'Onboarded 50 European hotels across France, Italy, and Switzerland in our first 12 months.' },
   { year: '2022', title: 'CRM platform launched', desc: 'Built proprietary CRM giving partners real-time visibility into bookings, revenue, and analytics.' },
   { year: '2023', title: '€20M+ in bookings', desc: 'Crossed €20M in confirmed group bookings, expanded to Greece, Spain, Austria, and Switzerland.' },
   { year: '2024', title: 'AI assistant goes live', desc: 'GPT-4o-powered assistant enabled instant booking creation, smart insights, and revenue forecasting.' },
-  { year: 'Today', title: '200+ hotels, 15 countries', desc: '500K+ room nights annually. Recognized as the leading India-to-Europe partnership platform.' },
+  { year: 'Today', title: '200+ hotels, 15+ markets', desc: '500K+ room nights annually. Recognised as a leading global hotel-to-operator partnership platform.' },
 ];
 
 const team = [
   {
     name: 'Priya Sharma',
     role: 'Founder & CEO',
-    bio: '15+ years in Indian travel industry. Former Director of Sales at Cox & Kings.',
+    bio: '15+ years in international travel. Former Director of Sales at a leading global tour operator.',
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80'
   },
   {
@@ -87,15 +87,15 @@ export const About = () => {
               <div className="section-divider" style={{ margin: '0 0 1.5rem' }} />
               <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">Our Mission</span>
               <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-6 leading-tight">
-                To make Indian groups<br />
+                To make international group business<br />
                 <span className="text-shimmer">your most predictable revenue stream.</span>
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
-                  India sends <strong className="text-primary">27 million travelers</strong> abroad every year, spending <strong className="text-primary">$30B+</strong> on outbound travel. But for most European hotels, accessing this market is a black box — fragmented, relationship-driven, culturally distinct.
+                  Over <strong className="text-primary">300 million</strong> group travelers move across borders every year, generating <strong className="text-primary">$1.7T+</strong> in global travel spend. But for most hotels, accessing the high-growth source markets — India, China, the Middle East, Southeast Asia — is a black box: fragmented, relationship-driven, culturally distinct.
                 </p>
                 <p>
-                  HotelBridge exists to close that gap. We bring deep dual-side expertise — Indian operator networks and European hospitality fluency — under one roof. Our partners stop guessing and start growing.
+                  HotelBridge exists to close that gap. We bring deep dual-side expertise — global operator networks and international hospitality fluency — under one roof. Our partners stop guessing and start growing.
                 </p>
               </div>
             </div>
@@ -226,16 +226,16 @@ export const About = () => {
             <div className="orb w-96 h-96 bg-secondary/20 -top-20 -right-20" />
             <div className="relative z-10">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full glass text-xs font-medium text-yellow-300 mb-5">
-                <TrendingUp className="w-3 h-3" /> Why Indian outbound matters
+                <TrendingUp className="w-3 h-3" /> Why global group travel matters
               </div>
               <h2 className="font-serif text-3xl md:text-4xl font-bold mb-8 max-w-2xl leading-tight">
-                The world's fastest-growing<br />outbound travel market
+                The world's fastest-growing<br />outbound travel markets
               </h2>
               <div className="grid grid-cols-3 gap-6">
                 {[
-                  { v: '27M+', l: 'Outbound travelers (2024)' },
-                  { v: '15%', l: 'Annual growth rate' },
-                  { v: '$30B+', l: 'Travel spend annually' },
+                  { v: '300M+', l: 'International group travelers' },
+                  { v: '15+', l: 'Source markets covered' },
+                  { v: '$1.7T+', l: 'Global travel spend annually' },
                 ].map((s) => (
                   <div key={s.l} className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-5">
                     <div className="font-serif text-3xl lg:text-4xl font-bold text-shimmer mb-2">{s.v}</div>
@@ -255,7 +255,7 @@ export const About = () => {
             Let's grow together
           </h2>
           <p className="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
-            Partner with HotelBridge and unlock the Indian travel market.
+            Partner with HotelBridge and unlock global group travel markets.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button asChild size="lg" className="btn-gold border-0 text-white rounded-full px-8">

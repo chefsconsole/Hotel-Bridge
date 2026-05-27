@@ -216,9 +216,9 @@ function FAQ() {
     { q: 'How quickly will I see my first group booking?', a: 'Most partners see their first booking confirmed within 60–90 days of activation. Some close within 30 days, depending on lead time and seasonality.' },
     { q: 'What does HotelBridge charge?', a: 'Commission only on confirmed, materialised bookings — typically 10–15% by volume tier. Zero setup fees, zero monthly retainers. You only pay when your hotel is paid.' },
     { q: 'Do I lose direct relationships with operators?', a: 'No — we are an extension of your sales team. All contracts can be co-signed in your name. You retain full ownership of every relationship we open up for you.' },
-    { q: 'Which markets do you cover?', a: 'Core: Indian tour operators and DMCs (200+). Growing reach into Southeast Asian and Middle Eastern outbound markets. Additional markets on request.' },
+    { q: 'Which markets do you cover?', a: 'Our network spans 15+ source markets including India, China, the Middle East, Southeast Asia, Russia, Eastern Europe, and the diaspora segments. Additional markets scoped on request.' },
     { q: 'How does the CRM portal work?', a: 'Every partner gets a dedicated CRM login with real-time bookings, revenue, commissions, and an AI assistant. Mobile-optimised. Updates within seconds of any new booking.' },
-    { q: 'Is my hotel right for HotelBridge?', a: 'We work best with 3–5 star hotels (50+ rooms) in destinations Indian travelers visit. Apply for partnership — we will assess fit within 48 hours.' },
+    { q: 'Is my hotel right for HotelBridge?', a: 'We work best with 3–5 star hotels (50+ rooms) in destinations international group travelers actively visit. Get in touch — we will assess fit within 48 hours.' },
   ];
 
   return (
@@ -277,10 +277,10 @@ function FAQ() {
 const destinations = [
   { name: 'Santorini', country: 'Greece', img: 'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=1200&q=85', icon: Sun, hotels: 28 },
   { name: 'Paris', country: 'France', img: 'https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=85', icon: Heart, hotels: 42 },
+  { name: 'Dubai', country: 'UAE', img: 'https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=85', icon: Crown, hotels: 34 },
   { name: 'Swiss Alps', country: 'Switzerland', img: 'https://images.unsplash.com/photo-1531366936337-7c912a4589a7?w=1200&q=85', icon: Mountain, hotels: 19 },
+  { name: 'Bali', country: 'Indonesia', img: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=85', icon: Sun, hotels: 22 },
   { name: 'Rome', country: 'Italy', img: 'https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1200&q=85', icon: Crown, hotels: 35 },
-  { name: 'Barcelona', country: 'Spain', img: 'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1200&q=85', icon: Sun, hotels: 24 },
-  { name: 'Vienna', country: 'Austria', img: 'https://images.unsplash.com/photo-1516550893923-42d28e5677af?w=1200&q=85', icon: Crown, hotels: 16 },
 ];
 
 function FeaturedDestinations() {
@@ -295,7 +295,7 @@ function FeaturedDestinations() {
             <span className="text-shimmer">most loved destinations</span>
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-            From cinematic Mediterranean coasts to Alpine retreats — we represent properties Indian travelers actively seek out.
+            From cinematic Mediterranean coasts to Alpine retreats — we represent properties international group travelers actively seek out.
           </p>
         </div>
 
@@ -410,14 +410,14 @@ function StorytellingSection() {
           <div className="reveal-right">
             <div className="section-divider" style={{ margin: '0 0 1.5rem' }} />
             <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">
-              The Indian Opportunity
+              The Global Opportunity
             </span>
             <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-6 leading-tight">
-              <span className="text-shimmer">27 million</span> Indians<br />
-              traveling abroad annually
+              <span className="text-shimmer">300 million+</span><br />
+              international group travelers
             </h2>
             <p className="text-gray-500 text-lg leading-relaxed mb-8">
-              Group bookings, longer stays, predictable seasonality, and 15% YoY growth. Your hotel can be on that itinerary — without building an Indian sales team from scratch.
+              Group bookings, longer stays, predictable seasonality, and double-digit YoY growth across emerging source markets. Your hotel can be on those itineraries — without building international sales teams from scratch.
             </p>
 
             <div className="space-y-5 mb-10">
@@ -615,12 +615,12 @@ export const Home = () => {
           {/* Main heading */}
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-[88px] font-bold mb-8 leading-[0.95] animate-fade-up" style={{ animationDelay: '0.1s' }}>
             Connecting Hotels with<br />
-            <span className="text-royal">India's Booming</span><br />
-            Travel Market
+            <span className="text-royal">the World's</span><br />
+            Group Travel Markets
           </h1>
 
           <p className="text-lg md:text-xl mb-12 max-w-2xl mx-auto text-gray-200 leading-relaxed animate-fade-up" style={{ animationDelay: '0.25s' }}>
-            Unlock consistent, high-value group bookings through our network of 200+ premium Indian tour operators and DMCs.
+            Unlock consistent, high-value group bookings through our global network of 200+ premium tour operators and DMCs across 15+ source markets.
           </p>
 
           {/* CTAs with magnetic effect */}
@@ -748,7 +748,7 @@ export const Home = () => {
             <div className="hidden lg:block absolute top-1/2 left-[16%] right-[16%] h-px bg-gradient-to-r from-secondary/0 via-secondary/40 to-secondary/0 -translate-y-12" />
             {[
               { step: '01', icon: MessageCircle, title: 'Discovery & Onboarding', desc: 'We learn your property, capacity, and target demographic. Custom market positioning crafted in week one.', time: 'Week 1–2' },
-              { step: '02', icon: Handshake, title: 'Market Activation', desc: 'We introduce your hotel to our network of 200+ pre-vetted Indian tour operators and DMCs.', time: 'Week 3–6' },
+              { step: '02', icon: Handshake, title: 'Market Activation', desc: 'We introduce your hotel to our network of 200+ pre-vetted tour operators and DMCs across 15+ source markets.', time: 'Week 3–6' },
               { step: '03', icon: TrendingUp, title: 'Bookings & Growth', desc: 'First group bookings arrive. Dedicated account manager optimizes rates, allotments, and renewals.', time: 'Week 7–12' },
             ].map(({ step, icon: Icon, title, desc, time }) => (
               <div key={step} className="reveal">
@@ -791,7 +791,7 @@ export const Home = () => {
               Comprehensive Hotel<br />Sales Services
             </h2>
             <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-              From market entry to revenue growth — end-to-end solutions to help your hotel thrive in the Indian market.
+              From market entry to revenue growth — end-to-end solutions to help your hotel thrive across global markets.
             </p>
           </div>
 
@@ -870,7 +870,7 @@ export const Home = () => {
               <span className="text-royal">Hotel's Reach?</span>
             </h2>
             <p className="text-lg md:text-xl text-gray-300 mb-12 max-w-2xl mx-auto leading-relaxed">
-              Join 200+ hotels successfully entering the Indian travel market. Results in as little as 90 days.
+              Join 200+ hotels successfully entering global group travel markets. Results in as little as 90 days.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">

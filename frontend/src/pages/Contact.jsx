@@ -191,18 +191,18 @@ export const Contact = () => {
                 <div className="orb w-40 h-40 bg-secondary/20 -top-10 -right-10" />
                 <div className="relative z-10">
                   <MapPin className="w-8 h-8 text-secondary mb-3" />
-                  <div className="font-serif text-xl font-bold mb-1">Mumbai HQ</div>
+                  <div className="font-serif text-xl font-bold mb-1">Global Headquarters</div>
                   <p className="text-sm text-gray-300 leading-relaxed mb-5">
                     Bandra Kurla Complex<br />
                     Mumbai 400051<br />
-                    India
+                    Serving hotels worldwide
                   </p>
                   <div className="pt-4 border-t border-white/10 space-y-2 text-xs text-gray-300">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-3 h-3 text-secondary" /> Mon–Fri · 9am–6pm IST
+                      <Clock className="w-3 h-3 text-secondary" /> Mon–Fri · 9am–6pm (multiple time zones)
                     </div>
                     <div className="flex items-center gap-2">
-                      <Globe className="w-3 h-3 text-secondary" /> Serving 15+ countries
+                      <Globe className="w-3 h-3 text-secondary" /> 15+ source markets · 6 continents
                     </div>
                   </div>
                 </div>

@@ -23,7 +23,7 @@ const compareRows = [
 ];
 
 const additionalBenefits = [
-  { icon: Clock, title: 'Time-Tested Expertise', description: 'Years of experience in both hospitality and Indian travel market dynamics.' },
+  { icon: Clock, title: 'Time-Tested Expertise', description: 'Years of experience across hospitality and multiple international source-market dynamics.' },
   { icon: Shield, title: 'Risk-Free Partnership', description: 'Performance-based fees mean we only succeed when you do. No upfront costs.' },
   { icon: HeadphonesIcon, title: 'Dedicated Support', description: 'A dedicated account manager focused on driving your hotel\'s success.' },
   { icon: Target, title: 'Targeted Approach', description: 'Customized strategy aligned with your hotel\'s unique positioning.' },
@@ -51,7 +51,7 @@ export const WhyUs = () => {
           </div>
           <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
             The unfair advantage<br />
-            in <span className="text-shimmer">Indian outbound.</span>
+            in <span className="text-shimmer">global group travel.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto">
             We've spent five years building what you'd otherwise need three full-time hires to replicate.

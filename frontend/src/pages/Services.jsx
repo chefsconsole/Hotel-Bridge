@@ -15,7 +15,7 @@ const iconMap = { Building2, TrendingUp, Users, Handshake, Lightbulb };
 const bentoFeatures = [
   {
     title: 'Direct Operator Access',
-    description: '200+ pre-vetted Indian tour operators and DMCs — exclusive introductions, not cold outreach.',
+    description: '200+ pre-vetted international tour operators and DMCs — exclusive introductions, not cold outreach.',
     icon: Globe,
     span: 'lg:col-span-2', accent: 'from-blue-500/10 to-indigo-500/5',
     visual: (
@@ -72,7 +72,7 @@ export const Services = () => {
           </div>
           <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
             Everything you need<br />
-            to <span className="text-shimmer">win India.</span>
+            to <span className="text-shimmer">win the world.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto">
             From first introduction to long-term partnership — a complete service stack designed for hotels serious about group business.

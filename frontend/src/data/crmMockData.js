@@ -18,7 +18,7 @@ export const mockHotels = [
     ratesHigh: 180,
     blackoutDates: ["2025-12-24", "2025-12-31"],
     status: "active",
-    notes: "Excellent property in central Rome. Preferred partner for Indian groups."
+    notes: "Excellent property in central Rome. Preferred partner for international group tours."
   },
   {
     id: 2,
