@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, LayoutDashboard, Building2, Users, Calendar,
-  DollarSign, Bot, Plus, LogOut, Sparkles, ArrowRight, Command
+  DollarSign, Bot, Plus, LogOut, Sparkles, ArrowRight, Command, Inbox
 } from 'lucide-react';
 
 const COMMANDS = [
   { id: 'dash', label: 'Go to Dashboard', icon: LayoutDashboard, path: '/crm', group: 'Navigation', keywords: 'home overview metrics' },
+  { id: 'leads', label: 'Open Leads inbox', icon: Inbox, path: '/crm/leads', group: 'Navigation', keywords: 'inquiries contact newsletter messages' },
   { id: 'hotels', label: 'View Hotels', icon: Building2, path: '/crm/hotels', group: 'Navigation', keywords: 'properties' },
   { id: 'operators', label: 'View Operators', icon: Users, path: '/crm/operators', group: 'Navigation', keywords: 'dmc tour' },
   { id: 'bookings', label: 'View Bookings', icon: Calendar, path: '/crm/bookings', group: 'Navigation', keywords: 'group reservations' },

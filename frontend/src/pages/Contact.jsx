@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { contactReasons } from '../data/mockData';
 import { useRevealAll } from '../hooks/useInView';
+import { saveLead } from '../lib/leadsStore';
 
 const contactMethods = [
   {
@@ -42,6 +43,7 @@ export const Contact = () => {
     e.preventDefault();
     setSubmitting(true);
     setTimeout(() => {
+      saveLead({ ...form, source: 'contact-form' });
       toast.success('Message sent!', {
         description: "We'll get back to you within 4 business hours."
       });

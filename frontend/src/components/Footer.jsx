@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Linkedin, Facebook, Instagram, ArrowRight } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, Phone, MapPin, Linkedin, Facebook, Instagram, ArrowRight, Send, CheckCircle2 } from 'lucide-react';
+import { saveLead } from '../lib/leadsStore';
 
 const socialLinks = [
   { icon: Linkedin, href: '#', label: 'LinkedIn' },
@@ -25,6 +27,22 @@ const serviceList = [
 
 export const Footer = () => {
   const year = new Date().getFullYear();
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleNewsletter = (e) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    saveLead({
+      name: '',
+      email: email.trim(),
+      message: 'Newsletter subscription from footer',
+      source: 'newsletter',
+    });
+    setSubscribed(true);
+    setEmail('');
+    setTimeout(() => setSubscribed(false), 4000);
+  };
 
   return (
     <footer className="relative overflow-hidden" style={{ background: 'hsl(221, 83%, 14%)' }}>
@@ -137,6 +155,37 @@ export const Footer = () => {
           </div>
         </div>
 
+        {/* Newsletter strip */}
+        <div className="mb-10 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="text-center md:text-left">
+            <h3 className="font-serif text-xl font-bold text-white mb-1">Group travel insights, monthly.</h3>
+            <p className="text-sm text-gray-400">Market trends, partnership openings, and growth tips for hotels.</p>
+          </div>
+          {subscribed ? (
+            <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-green-500/10 border border-green-400/30 text-green-300 text-sm font-semibold">
+              <CheckCircle2 className="w-4 h-4" /> Subscribed — thanks!
+            </div>
+          ) : (
+            <form onSubmit={handleNewsletter} className="flex gap-2 w-full md:w-auto md:min-w-[360px]">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@hotel.com"
+                required
+                className="flex-1 h-11 px-4 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-gray-500 text-sm focus:outline-none focus:bg-white/10 focus:border-secondary transition-all"
+              />
+              <button
+                type="submit"
+                className="h-11 px-5 rounded-xl btn-gold border-0 text-white font-semibold text-sm flex items-center gap-1.5"
+                data-cursor="link"
+              >
+                <Send className="w-3.5 h-3.5" /> Subscribe
+              </button>
+            </form>
+          )}
+        </div>
+
         {/* Divider */}
         <div className="border-t border-white/8 pt-7">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -144,11 +193,12 @@ export const Footer = () => {
               &copy; {year} HotelBridge. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
-              {['Privacy Policy', 'Terms of Service'].map((item) => (
-                <Link key={item} to="#" className="text-gray-500 hover:text-secondary text-xs transition-colors">
-                  {item}
-                </Link>
-              ))}
+              <Link to="/privacy" className="text-gray-500 hover:text-secondary text-xs transition-colors" data-cursor="link">
+                Privacy Policy
+              </Link>
+              <Link to="/terms" className="text-gray-500 hover:text-secondary text-xs transition-colors" data-cursor="link">
+                Terms of Service
+              </Link>
               <Link to="/login" className="text-gray-500 hover:text-secondary text-xs transition-colors">
                 Partner Login
               </Link>

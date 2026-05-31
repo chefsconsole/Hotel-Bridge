@@ -2,17 +2,20 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
-  LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles
+  LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles,
+  Inbox
 } from 'lucide-react';
+import { getLeads } from '../../lib/leadsStore';
 import { CommandPalette, useCommandPalette } from '../../components/CommandPalette';
 
-const menuItems = [
+const baseMenuItems = [
   { name: 'Dashboard', path: '/crm', icon: LayoutDashboard, exact: true },
+  { name: 'Leads', path: '/crm/leads', icon: Inbox, badgeKey: 'newLeads' },
   { name: 'Hotels', path: '/crm/hotels', icon: Building2 },
   { name: 'Operators', path: '/crm/operators', icon: Users },
   { name: 'Bookings', path: '/crm/bookings', icon: Calendar },
   { name: 'Revenue', path: '/crm/revenue', icon: DollarSign },
-  { name: 'AI Assistant', path: '/crm/ai-assistant', icon: Bot, badge: 'NEW' },
+  { name: 'AI Assistant', path: '/crm/ai-assistant', icon: Bot, badge: 'AI' },
 ];
 
 export const CRMLayout = () => {
@@ -41,6 +44,14 @@ export const CRMLayout = () => {
 
   const userEmail = localStorage.getItem('userEmail') || 'admin@hotelbridge.com';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
+
+  // New-leads badge count (refreshes on every route change because component remounts)
+  const newLeadsCount = getLeads().filter((l) => l.status === 'new').length;
+  const menuItems = baseMenuItems.map((m) =>
+    m.badgeKey === 'newLeads' && newLeadsCount > 0
+      ? { ...m, badge: String(newLeadsCount) }
+      : m
+  );
   const currentPage = menuItems.find((m) => isActive(m))?.name || 'Dashboard';
 
   const cmdPalette = useCommandPalette();
