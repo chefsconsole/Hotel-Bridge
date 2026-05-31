@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0c2864"/>
+      <stop offset="0.55" stop-color="#1d4ed8"/>
+      <stop offset="1" stop-color="#0a1e4a"/>
+    </linearGradient>
+    <linearGradient id="goldShine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="0.5" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#a07b1f"/>
+    </linearGradient>
+    <radialGradient id="orb1" cx="0.85" cy="0.15" r="0.5">
+      <stop offset="0" stop-color="#d4af37" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#d4af37" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orb2" cx="0.1" cy="0.95" r="0.4">
+      <stop offset="0" stop-color="#60a5fa" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Base -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#orb1)"/>
+  <rect width="1200" height="630" fill="url(#orb2)"/>
+
+  <!-- Subtle grid overlay -->
+  <g opacity="0.06">
+    <path d="M0 0 H1200 M0 80 H1200 M0 160 H1200 M0 240 H1200 M0 320 H1200 M0 400 H1200 M0 480 H1200 M0 560 H1200" stroke="white" stroke-width="1"/>
+    <path d="M0 0 V630 M80 0 V630 M160 0 V630 M240 0 V630 M320 0 V630 M400 0 V630 M480 0 V630 M560 0 V630 M640 0 V630 M720 0 V630 M800 0 V630 M880 0 V630 M960 0 V630 M1040 0 V630 M1120 0 V630" stroke="white" stroke-width="1"/>
+  </g>
+
+  <!-- HB monogram badge -->
+  <g transform="translate(90 80)">
+    <rect width="84" height="84" rx="20" fill="url(#goldShine)"/>
+    <text x="42" y="58" text-anchor="middle"
+          font-family="Georgia, 'Playfair Display', serif"
+          font-size="42" font-weight="700" fill="#0c2864">HB</text>
+  </g>
+
+  <!-- Wordmark next to badge -->
+  <text x="200" y="138"
+        font-family="Georgia, 'Playfair Display', serif"
+        font-size="38" font-weight="700" fill="white">
+    HotelBridge
+  </text>
+
+  <!-- Trust pill -->
+  <g transform="translate(90 200)">
+    <rect width="380" height="40" rx="20" fill="white" fill-opacity="0.08" stroke="#d4af37" stroke-opacity="0.3"/>
+    <circle cx="22" cy="20" r="4" fill="#fde68a"/>
+    <text x="40" y="26"
+          font-family="-apple-system, 'Inter', system-ui, sans-serif"
+          font-size="13" font-weight="600" fill="#fde68a" letter-spacing="2">
+      TRUSTED BY 200+ HOTELS · 15+ MARKETS
+    </text>
+  </g>
+
+  <!-- Headline -->
+  <text x="90" y="320"
+        font-family="Georgia, 'Playfair Display', serif"
+        font-size="78" font-weight="700" fill="white">
+    Connecting Hotels with
+  </text>
+  <text x="90" y="410"
+        font-family="Georgia, 'Playfair Display', serif"
+        font-size="78" font-weight="700" fill="url(#goldShine)">
+    the World's Group
+  </text>
+  <text x="90" y="500"
+        font-family="Georgia, 'Playfair Display', serif"
+        font-size="78" font-weight="700" fill="url(#goldShine)">
+    Travel Markets.
+  </text>
+
+  <!-- Sub-tagline -->
+  <text x="90" y="568"
+        font-family="-apple-system, 'Inter', system-ui, sans-serif"
+        font-size="22" font-weight="400" fill="#cbd5e1">
+    Unlock consistent, high-value group bookings worldwide.
+  </text>
+
+  <!-- URL pill (bottom right) -->
+  <g transform="translate(900 555)">
+    <rect width="220" height="48" rx="24" fill="url(#goldShine)"/>
+    <text x="110" y="32" text-anchor="middle"
+          font-family="-apple-system, 'Inter', system-ui, sans-serif"
+          font-size="17" font-weight="700" fill="#0c2864">
+      hotelbridge.co  ↗
+    </text>
+  </g>
+</svg>

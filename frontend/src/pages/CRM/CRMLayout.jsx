@@ -3,14 +3,16 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
   LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles,
-  Inbox
+  Inbox, ListTodo
 } from 'lucide-react';
 import { getLeads } from '../../lib/leadsStore';
+import { getTasks, isOverdue, isDueToday } from '../../lib/tasksStore';
 import { CommandPalette, useCommandPalette } from '../../components/CommandPalette';
 
 const baseMenuItems = [
   { name: 'Dashboard', path: '/crm', icon: LayoutDashboard, exact: true },
   { name: 'Leads', path: '/crm/leads', icon: Inbox, badgeKey: 'newLeads' },
+  { name: 'Tasks', path: '/crm/tasks', icon: ListTodo, badgeKey: 'todayTasks' },
   { name: 'Hotels', path: '/crm/hotels', icon: Building2 },
   { name: 'Operators', path: '/crm/operators', icon: Users },
   { name: 'Bookings', path: '/crm/bookings', icon: Calendar },
@@ -42,16 +44,18 @@ export const CRMLayout = () => {
   const isActive = (item) =>
     item.exact ? location.pathname === item.path : location.pathname.startsWith(item.path);
 
-  const userEmail = localStorage.getItem('userEmail') || 'admin@hotelbridge.com';
+  const userEmail = localStorage.getItem('userEmail') || 'admin@hotelbridge.co';
   const userInitials = userEmail.substring(0, 2).toUpperCase();
 
-  // New-leads badge count (refreshes on every route change because component remounts)
+  // Badge counts (refreshes on every route change because component remounts)
   const newLeadsCount = getLeads().filter((l) => l.status === 'new').length;
-  const menuItems = baseMenuItems.map((m) =>
-    m.badgeKey === 'newLeads' && newLeadsCount > 0
-      ? { ...m, badge: String(newLeadsCount) }
-      : m
-  );
+  const tasks = getTasks();
+  const todayTasksCount = tasks.filter((t) => isOverdue(t) || isDueToday(t)).length;
+  const menuItems = baseMenuItems.map((m) => {
+    if (m.badgeKey === 'newLeads' && newLeadsCount > 0) return { ...m, badge: String(newLeadsCount) };
+    if (m.badgeKey === 'todayTasks' && todayTasksCount > 0) return { ...m, badge: String(todayTasksCount) };
+    return m;
+  });
   const currentPage = menuItems.find((m) => isActive(m))?.name || 'Dashboard';
 
   const cmdPalette = useCommandPalette();

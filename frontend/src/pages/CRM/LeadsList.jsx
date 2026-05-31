@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Inbox, Mail, Phone, Building2, MessageSquare, Search,
-  Star, Trash2, X, Filter, ExternalLink, Calendar
+  Star, Trash2, X, ExternalLink, Calendar, Download
 } from 'lucide-react';
 import { Input } from '../../components/ui/input';
 import { toast } from 'sonner';
@@ -75,6 +75,45 @@ export const LeadsList = () => {
     if (selected?.id === id) setSelected({ ...selected, notes });
   };
 
+  const handleExportCSV = () => {
+    if (!filtered.length) {
+      toast.error('Nothing to export — current filter has no leads');
+      return;
+    }
+    const rows = filtered.map((l) => ({
+      Created: new Date(l.createdAt).toISOString(),
+      Status: LEAD_STATUSES[l.status]?.label || l.status,
+      Source: LEAD_SOURCES[l.source] || l.source || '',
+      Name: l.name || '',
+      Email: l.email || '',
+      Phone: l.phone || '',
+      Company: l.company || '',
+      Reason: l.reason || '',
+      Message: (l.message || '').replace(/\n/g, ' '),
+      Notes: (l.notes || '').replace(/\n/g, ' '),
+      Starred: l.starred ? 'Yes' : 'No',
+    }));
+    const headers = Object.keys(rows[0]);
+    const escape = (v) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [
+      headers.join(','),
+      ...rows.map((r) => headers.map((h) => escape(r[h])).join(',')),
+    ].join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hotelbridge-leads-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filtered.length} lead${filtered.length === 1 ? '' : 's'} as CSV`);
+  };
+
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto">
 
@@ -89,8 +128,18 @@ export const LeadsList = () => {
             Every enquiry from your website lands here — newsletter signups, contact forms, and more.
           </p>
         </div>
-        <div className="text-xs text-gray-500">
-          <span className="font-semibold text-primary">{leads.length}</span> total enquiries
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">
+            <span className="font-semibold text-primary">{leads.length}</span> total enquiries
+          </span>
+          <button
+            onClick={handleExportCSV}
+            disabled={!leads.length}
+            className="px-4 py-2 rounded-xl border border-gray-200 text-primary hover:border-primary hover:bg-primary hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-primary"
+            data-cursor="link"
+          >
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
         </div>
       </div>
 

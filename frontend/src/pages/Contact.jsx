@@ -4,7 +4,7 @@ import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  Mail, Phone, MapPin, Send, Sparkles, Clock,
+  Mail, MessageCircle, MapPin, Send, Sparkles, Clock,
   Calendar, Globe, CheckCircle2
 } from 'lucide-react';
 import { contactReasons } from '../data/mockData';
@@ -14,20 +14,20 @@ import { saveLead } from '../lib/leadsStore';
 const contactMethods = [
   {
     icon: Mail, title: 'Email Us',
-    text: 'info@hotelbridge.com',
-    href: 'mailto:info@hotelbridge.com',
+    text: 'info@hotelbridge.co',
+    href: 'mailto:info@hotelbridge.co',
     desc: 'We respond within 4 business hours'
   },
   {
-    icon: Phone, title: 'Call Us',
-    text: '+91 (0) 123 456 7890',
-    href: 'tel:+911234567890',
-    desc: 'Mon–Fri, 9am–6pm IST'
+    icon: MessageCircle, title: 'WhatsApp',
+    text: 'Chat with us',
+    href: 'https://wa.me/911234567890',
+    desc: 'Fastest replies — typically within 1 hour'
   },
   {
     icon: Calendar, title: 'Book a Demo',
     text: 'Schedule a call',
-    href: '#',
+    href: 'mailto:info@hotelbridge.co?subject=Demo%20Request',
     desc: 'See the platform in action'
   },
 ];

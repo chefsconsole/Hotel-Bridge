@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Linkedin, Facebook, Instagram, ArrowRight, Send, CheckCircle2 } from 'lucide-react';
+import { Mail, MapPin, Linkedin, Facebook, Instagram, ArrowRight, Send, CheckCircle2 } from 'lucide-react';
 import { saveLead } from '../lib/leadsStore';
 
 const socialLinks = [
@@ -119,8 +119,7 @@ export const Footer = () => {
             <h3 className="text-white font-semibold mb-5 text-sm tracking-wider uppercase">Get in Touch</h3>
             <ul className="space-y-4">
               {[
-                { Icon: Mail, text: 'info@hotelbridge.com', href: 'mailto:info@hotelbridge.com' },
-                { Icon: Phone, text: '+91 (0) 123 456 7890', href: 'tel:+911234567890' },
+                { Icon: Mail, text: 'info@hotelbridge.co', href: 'mailto:info@hotelbridge.co' },
                 { Icon: MapPin, text: 'Global · Mumbai HQ', href: null },
               ].map(({ Icon, text, href }) => (
                 <li key={text}>

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /crm
+Disallow: /login
+
+Sitemap: https://hotelbridge.co/sitemap.xml

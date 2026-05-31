@@ -16,7 +16,7 @@ export const Login = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (credentials.email === 'admin@hotelbridge.com' && credentials.password === 'admin123') {
+      if (credentials.email === 'admin@hotelbridge.co' && credentials.password === 'admin123') {
         localStorage.setItem('isAuthenticated', 'true');
         localStorage.setItem('userEmail', credentials.email);
         toast.success('Welcome back!', { description: 'Redirecting to your dashboard...' });
@@ -111,7 +111,7 @@ export const Login = () => {
                     type="email"
                     value={credentials.email}
                     onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                    placeholder="you@hotelbridge.com"
+                    placeholder="you@hotelbridge.co"
                     required
                     className="pl-11 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 focus:border-secondary focus:ring-1 focus:ring-secondary transition-all rounded-xl"
                   />
