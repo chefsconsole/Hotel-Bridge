@@ -10,6 +10,7 @@ import {
 import { contactReasons } from '../data/mockData';
 import { useRevealAll } from '../hooks/useInView';
 import { saveLead } from '../lib/leadsStore';
+import { EditorialHero } from '../components/EditorialHero';
 
 const contactMethods = [
   {
@@ -58,30 +59,17 @@ export const Contact = () => {
     <div className="overflow-hidden">
 
       {/* HERO */}
-      <section className="relative pt-24 pb-20 cta-gradient text-white overflow-hidden">
-        <div className="orb w-[500px] h-[500px] bg-secondary/15 -top-40 -right-20 animate-float-slow" />
-        <div className="orb w-72 h-72 bg-white/5 -bottom-20 left-10 animate-float" />
-        <div className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 text-sm font-medium text-yellow-300">
-            <Sparkles className="w-4 h-4" /> Let's Talk
-          </div>
-          <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
-            We'd love to<br /><span className="text-shimmer">hear from you.</span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
-            Hotel partner, tour operator, or just curious — choose your channel below.
-          </p>
-        </div>
-      </section>
+      <EditorialHero
+        chapter="Chapter 06 — Contact"
+        eyebrow="— Let's Talk"
+        headlineTop="We'd love to"
+        headlineMid="hear from you."
+        subtitle="Hotel partner, tour operator, or just curious — choose your channel below."
+        image="https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=2000&q=90"
+      />
 
       {/* CONTACT METHODS */}
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50 -mt-12">
+      <section className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
             {contactMethods.map(({ icon: Icon, title, text, href, desc }) => (

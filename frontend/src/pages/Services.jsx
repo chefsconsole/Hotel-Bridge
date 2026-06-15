@@ -8,6 +8,7 @@ import {
 import { services } from '../data/mockData';
 import { useRevealAll } from '../hooks/useInView';
 import { useTilt } from '../hooks/useTilt';
+import { EditorialHero } from '../components/EditorialHero';
 
 const iconMap = { Building2, TrendingUp, Users, Handshake, Lightbulb };
 
@@ -56,29 +57,14 @@ export const Services = () => {
     <div className="overflow-hidden">
 
       {/* HERO */}
-      <section className="relative pt-24 pb-20 cta-gradient text-white overflow-hidden">
-        <div className="orb w-[500px] h-[500px] bg-secondary/15 -top-40 -right-20 animate-float-slow" />
-        <div className="orb w-72 h-72 bg-white/5 -bottom-20 left-10 animate-float" />
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-4xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 text-sm font-medium text-yellow-300">
-            <Sparkles className="w-4 h-4" /> Comprehensive Hotel Services
-          </div>
-          <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
-            Everything you need<br />
-            to <span className="text-shimmer">win the world.</span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-300 leading-relaxed max-w-2xl mx-auto">
-            From first introduction to long-term partnership — a complete service stack designed for hotels serious about group business.
-          </p>
-        </div>
-      </section>
+      <EditorialHero
+        chapter="Chapter 03 — Services"
+        eyebrow="— What We Do"
+        headlineTop="Everything you need"
+        headlineMid="to win the world."
+        subtitle="From first introduction to long-term partnership — a complete service stack designed for hotels serious about group business."
+        image="https://images.unsplash.com/photo-1582719508461-905c673771fd?w=2000&q=90"
+      />
 
       {/* CORE SERVICES — 3-col bento */}
       <section className="py-24 bg-gradient-to-b from-white via-gray-50/30 to-white">

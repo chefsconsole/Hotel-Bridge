@@ -5,6 +5,7 @@ import {
   Check, X, ArrowRight, Sparkles, Crown, Rocket, Star
 } from 'lucide-react';
 import { useRevealAll } from '../hooks/useInView';
+import { EditorialHero } from '../components/EditorialHero';
 
 const tiers = [
   {
@@ -99,32 +100,17 @@ export const Pricing = () => {
     <div className="overflow-hidden">
 
       {/* HERO */}
-      <section className="relative pt-24 pb-12 cta-gradient text-white overflow-hidden">
-        <div className="orb w-96 h-96 bg-secondary/15 -top-20 -right-20" />
-        <div className="orb w-64 h-64 bg-white/5 -bottom-10 left-20" />
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 text-sm font-medium text-yellow-300">
-            <Sparkles className="w-4 h-4" /> Performance-Based Pricing
-          </div>
-          <h1 className="font-serif text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            You only pay when<br />
-            <span className="text-shimmer">we deliver bookings.</span>
-          </h1>
-          <p className="text-lg text-gray-300 leading-relaxed mb-10 max-w-2xl mx-auto">
-            Zero setup fees. No monthly retainers. Commission only on confirmed, materialised group bookings. Aligned incentives — your success is our revenue.
-          </p>
-        </div>
-      </section>
+      <EditorialHero
+        chapter="Chapter 05 — Pricing"
+        eyebrow="— Performance-Based Pricing"
+        headlineTop="You only pay when"
+        headlineMid="we deliver bookings."
+        subtitle="Zero setup fees. No monthly retainers. Commission only on confirmed, materialised group bookings — aligned incentives, no surprises."
+        image="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=2000&q=90"
+      />
 
       {/* TIERS */}
-      <section className="py-16 bg-gradient-to-b from-white to-gray-50 -mt-16">
+      <section className="py-16 bg-gradient-to-b from-white to-gray-50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {tiers.map((tier, i) => {

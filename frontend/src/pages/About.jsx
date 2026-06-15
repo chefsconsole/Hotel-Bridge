@@ -5,6 +5,7 @@ import {
   Heart, Compass, Flame, TrendingUp
 } from 'lucide-react';
 import { useRevealAll } from '../hooks/useInView';
+import { EditorialHero } from '../components/EditorialHero';
 
 const values = [
   { icon: Target, title: 'Results-Driven', desc: 'We measure success by your growth. Every action is focused on bookings and revenue.' },
@@ -56,28 +57,14 @@ export const About = () => {
     <div className="overflow-hidden">
 
       {/* HERO */}
-      <section className="relative pt-24 pb-20 cta-gradient text-white overflow-hidden">
-        <div className="orb w-[500px] h-[500px] bg-secondary/15 -top-40 -right-20 animate-float-slow" />
-        <div className="orb w-72 h-72 bg-white/5 -bottom-20 left-10 animate-float" />
-        <div className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '60px 60px',
-          }}
-        />
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6 text-sm font-medium text-yellow-300">
-            <Sparkles className="w-4 h-4" /> Our Story
-          </div>
-          <h1 className="font-serif text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-[1.05]">
-            We bridge<br />
-            <span className="text-shimmer">worlds, not just bookings.</span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-300 leading-relaxed">
-            Built by hospitality veterans who saw a gap — exceptional hotels missing out on the world's fastest-growing travel market.
-          </p>
-        </div>
-      </section>
+      <EditorialHero
+        chapter="Chapter 02 — About"
+        eyebrow="— Our Story"
+        headlineTop="We bridge worlds,"
+        headlineMid="not just bookings."
+        subtitle="Built by hospitality veterans who saw a gap — exceptional hotels missing out on the world's fastest-growing travel markets."
+        image="https://images.unsplash.com/photo-1573164574572-cb89e39749b4?w=2000&q=90"
+      />
 
       {/* MISSION */}
       <section className="py-24 bg-white">
