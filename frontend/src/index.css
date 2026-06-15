@@ -187,6 +187,99 @@ button, a, [role="button"], select { cursor: none; }
     transition: transform 0.1s linear;
 }
 
+/* ═════════════════════════════════════════════════════════
+   EDITORIAL CINEMATIC SYSTEM
+   ═════════════════════════════════════════════════════════ */
+
+/* ── Film grain overlay (SVG noise) ─────────────────────── */
+.film-grain {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.18;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+    animation: grain-shift 0.85s steps(4) infinite;
+}
+@keyframes grain-shift {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(-6px, 4px); }
+    50%  { transform: translate(5px, -3px); }
+    75%  { transform: translate(-3px, -5px); }
+    100% { transform: translate(0, 0); }
+}
+
+/* ── Vignette darkening corners ─────────────────────────── */
+.vignette {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(
+            ellipse at center,
+            transparent 35%,
+            rgba(0, 0, 0, 0.35) 80%,
+            rgba(0, 0, 0, 0.65) 100%
+        );
+}
+
+/* ── Ken Burns — slow zoom + pan, used on each slide ─────── */
+@keyframes ken-burns {
+    0%   { transform: scale(1.05) translate(0, 0); }
+    50%  { transform: scale(1.18) translate(-2%, -1.5%); }
+    100% { transform: scale(1.05) translate(0, 0); }
+}
+.ken-burns {
+    animation: ken-burns 18s ease-in-out infinite;
+    will-change: transform;
+    transform-origin: center center;
+}
+
+/* ── Editorial display type ─────────────────────────────── */
+.editorial-display {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.02em;
+    line-height: 0.92;
+}
+.editorial-display-bold {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-weight: 700;
+    font-style: normal;
+    letter-spacing: -0.025em;
+    line-height: 0.92;
+}
+.editorial-eyebrow {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.32em;
+    font-size: 0.65rem;
+}
+.editorial-hairline {
+    height: 1px;
+    background: currentColor;
+    opacity: 0.45;
+}
+
+/* ── Slow upward reveal for editorial type ──────────────── */
+@keyframes editorial-rise {
+    0%   { transform: translateY(45px); opacity: 0; filter: blur(8px); }
+    60%  { filter: blur(0); }
+    100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+.editorial-rise {
+    animation: editorial-rise 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Letter-by-letter stagger ───────────────────────────── */
+.letter-rise > span {
+    display: inline-block;
+    animation: editorial-rise 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i, 0) * 0.04s);
+}
+
 /* ── Fancy underline link ───────────────────────────────── */
 .fancy-link {
     position: relative;

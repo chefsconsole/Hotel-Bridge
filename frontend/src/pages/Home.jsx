@@ -561,9 +561,20 @@ export const Home = () => {
           ════════════════════════════════════════════════ */}
       <section
         ref={heroRef}
-        className="relative min-h-[100vh] flex items-center justify-center overflow-hidden spotlight-wrap"
+        className="relative min-h-screen overflow-hidden bg-[#0a1631]"
       >
-        {/* Layered parallax backgrounds — cross-fading */}
+        {/* ───── CINEMATIC BACKGROUND ───── */}
+        {/* Optional video layer — drop a file at public/hero-video.mp4 and it'll auto-take over */}
+        <video
+          autoPlay muted loop playsInline preload="auto"
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+        </video>
+
+        {/* Image stack — cinematic Ken Burns slow zoom + cross-fade. Acts as
+            both standalone background AND fallback if hero-video.mp4 is absent. */}
         <div ref={heroBgRef} className="absolute inset-0 will-change-transform">
           {heroImages.map((src, i) => (
             <div
@@ -571,123 +582,168 @@ export const Home = () => {
               className="absolute inset-0 transition-opacity ease-in-out"
               style={{ opacity: i === heroImg ? 1 : 0, transitionDuration: '2000ms' }}
             >
-              <img
-                src={src}
-                alt="Hotel"
-                className="w-full h-full object-cover"
-                fetchpriority={i === 0 ? 'high' : 'auto'}
-              />
+              <div className={`w-full h-full ${i === heroImg ? 'ken-burns' : ''}`}>
+                <img
+                  src={src}
+                  alt=""
+                  className="w-full h-full object-cover"
+                  fetchPriority={i === 0 ? 'high' : 'auto'}
+                />
+              </div>
             </div>
           ))}
         </div>
 
-        {/* Gradient overlays for depth */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-primary/60 to-black/80" />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary via-transparent to-transparent opacity-90" />
+        {/* Color grade — warm shadows, cool highlights, deeper richness */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a1631]/40 via-transparent to-[#0a1631]/95" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-[#0a1631]/65 via-transparent to-transparent" />
 
-        {/* Floating glows */}
-        <div className="hero-glow w-[600px] h-[600px] bg-secondary/30 top-[10%] -right-[10%] animate-float-slow" />
-        <div className="hero-glow w-[400px] h-[400px] bg-blue-400/20 -bottom-[10%] left-[5%] animate-float" style={{ animationDelay: '2s' }} />
-        <div className="hero-glow w-[300px] h-[300px] bg-secondary/15 top-[40%] left-[40%] animate-float-slow" style={{ animationDelay: '4s' }} />
+        {/* Vignette darkening edges */}
+        <div className="vignette" />
 
-        {/* Grid overlay */}
-        <div className="absolute inset-0 opacity-[0.08]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
-            backgroundSize: '80px 80px',
-          }}
-        />
+        {/* Film grain — subtle 35mm feel */}
+        <div className="film-grain" />
 
-        {/* Content */}
-        <div ref={heroContentRef} className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center text-white py-32">
+        {/* ───── EDITORIAL CONTENT (asymmetric magazine layout) ───── */}
+        <div ref={heroContentRef} className="relative z-10 min-h-screen flex flex-col">
 
-          {/* Top badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm font-medium text-yellow-300 mb-8 animate-fade-in">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75 animate-ping" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-400" />
-            </span>
-            Trusted by 200+ Hotels Across 15 Countries
+          {/* TOP STRIP — masthead, like a magazine cover bar */}
+          <div className="px-6 lg:px-12 pt-28 lg:pt-32 text-white/80">
+            <div className="flex items-center gap-6">
+              <div className="editorial-eyebrow text-yellow-300/90">Vol. I · Issue 01 — 2026</div>
+              <div className="flex-1 editorial-hairline text-white/40" />
+              <div className="editorial-eyebrow text-white/60">A HotelBridge Production</div>
+            </div>
           </div>
 
-          {/* Main heading */}
-          <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-[88px] font-bold mb-8 leading-[0.95] animate-fade-up" style={{ animationDelay: '0.1s' }}>
-            Connecting Hotels with<br />
-            <span className="text-royal">the World's</span><br />
-            Group Travel Markets
-          </h1>
+          {/* CENTER — massive editorial headline */}
+          <div className="flex-1 flex items-center px-6 lg:px-12 py-12">
+            <div className="max-w-7xl w-full mx-auto">
 
-          <p className="text-lg md:text-xl mb-12 max-w-2xl mx-auto text-gray-200 leading-relaxed animate-fade-up" style={{ animationDelay: '0.25s' }}>
-            Unlock consistent, high-value group bookings through our global network of 200+ premium tour operators and DMCs across 15+ source markets.
-          </p>
-
-          {/* CTAs with magnetic effect */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16 animate-fade-up" style={{ animationDelay: '0.4s' }}>
-            <Magnetic strength={0.4}>
-              <Button
-                asChild size="lg"
-                className="btn-gold text-white border-0 px-10 py-7 rounded-full text-base font-semibold group"
-                data-cursor="link"
-              >
-                <Link to="/contact">
-                  Get in Touch
-                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
-            </Magnetic>
-            <Magnetic strength={0.4}>
-              <Button
-                asChild size="lg"
-                className="glass text-white border border-white/30 px-10 py-7 rounded-full text-base font-semibold hover:bg-white/15 transition-all group"
-                data-cursor="link"
-              >
-                <Link to="/services">
-                  <PlayCircle className="mr-2 w-4 h-4 group-hover:scale-110 transition-transform" />
-                  See How It Works
-                </Link>
-              </Button>
-            </Magnetic>
-          </div>
-
-          {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto pt-12 border-t border-white/10 animate-fade-up" style={{ animationDelay: '0.55s' }}>
-            {[
-              { v: '200+', l: 'Hotel Partners', icon: Building2 },
-              { v: '500K+', l: 'Room Nights / Year', icon: Calendar },
-              { v: '15', l: 'Countries', icon: Globe },
-              { v: '95%', l: 'Renewal Rate', icon: Award },
-            ].map(({ v, l, icon: Icon }) => (
-              <div key={l} className="text-center group cursor-none">
-                <Icon className="w-4 h-4 text-secondary mx-auto mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
-                <div className="font-serif text-3xl md:text-4xl font-bold text-shimmer mb-1 tabular-nums">
-                  <CountUp target={v} />
-                </div>
-                <div className="text-[10px] text-gray-400 uppercase tracking-widest">{l}</div>
+              {/* Eyebrow */}
+              <div className="editorial-eyebrow text-yellow-300/90 mb-8 editorial-rise" style={{ animationDelay: '0.1s' }}>
+                — A Global Hospitality Partnership
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/40 text-[10px] uppercase tracking-widest animate-fade-up" style={{ animationDelay: '0.8s' }}>
-          <div className="w-5 h-9 rounded-full border border-white/30 flex items-start justify-center p-1">
-            <div className="w-1 h-2 bg-white/60 rounded-full animate-float" />
-          </div>
-          Scroll
-        </div>
+              {/* Massive display headline — asymmetric, descending magazine hierarchy */}
+              <h1 className="text-white mb-8">
+                <div className="editorial-display-bold text-[clamp(56px,8.5vw,128px)] editorial-rise" style={{ animationDelay: '0.2s' }}>
+                  Connecting Hotels
+                </div>
+                <div className="editorial-display text-[clamp(48px,7.5vw,116px)] text-yellow-200/95 editorial-rise pl-[6%]" style={{ animationDelay: '0.45s' }}>
+                  with the world's
+                </div>
+                <div className="editorial-display-bold text-[clamp(40px,6vw,92px)] editorial-rise pl-[3%]" style={{ animationDelay: '0.7s' }}>
+                  group travel markets.
+                </div>
+              </h1>
 
-        {/* Image indicator dots */}
-        <div className="absolute bottom-6 right-6 z-10 flex gap-2">
-          {heroImages.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setHeroImg(i)}
-              data-cursor="link"
-              className={`h-1 rounded-full transition-all duration-500 ${
-                i === heroImg ? 'w-8 bg-secondary' : 'w-1 bg-white/40 hover:bg-white/60'
-              }`}
-            />
-          ))}
+              {/* Body + meta strip side-by-side */}
+              <div className="grid lg:grid-cols-3 gap-8 lg:gap-12 mt-12">
+                <div className="lg:col-span-2 editorial-rise" style={{ animationDelay: '0.95s' }}>
+                  <p className="text-white/85 text-lg md:text-xl leading-[1.6] max-w-2xl font-light">
+                    Unlock consistent, high-value group bookings through our network of
+                    <span className="text-yellow-200 italic"> 200+ premium tour operators </span>
+                    and DMCs — across India, China, the Middle East, Southeast Asia, and beyond.
+                  </p>
+
+                  <div className="flex flex-wrap gap-4 mt-10">
+                    <Magnetic strength={0.4}>
+                      <Button
+                        asChild size="lg"
+                        className="btn-gold text-white border-0 px-8 py-6 rounded-none text-sm font-semibold tracking-wider uppercase group"
+                        data-cursor="link"
+                      >
+                        <Link to="/contact">
+                          Begin a Conversation
+                          <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </Link>
+                      </Button>
+                    </Magnetic>
+                    <Magnetic strength={0.4}>
+                      <Button
+                        asChild size="lg"
+                        className="bg-transparent text-white border border-white/30 px-8 py-6 rounded-none text-sm font-semibold tracking-wider uppercase hover:bg-white hover:text-primary transition-all"
+                        data-cursor="link"
+                      >
+                        <Link to="/services">
+                          <PlayCircle className="mr-2 w-4 h-4" />
+                          Read the Edition
+                        </Link>
+                      </Button>
+                    </Magnetic>
+                  </div>
+                </div>
+
+                {/* Right column — featured destination card (magazine "feature" tile) */}
+                <div className="lg:col-span-1 lg:pl-8 lg:border-l lg:border-white/20 editorial-rise" style={{ animationDelay: '1.15s' }}>
+                  <div className="editorial-eyebrow text-yellow-300/90 mb-4">Currently Featuring</div>
+                  <div className="editorial-display-bold text-white text-3xl mb-2">
+                    {['Santorini', 'Paris', 'Dubai', 'Bali'][heroImg] || 'Santorini'}
+                  </div>
+                  <div className="text-xs text-white/60 italic mb-6">
+                    {['Cyclades, Greece', 'Île-de-France', 'United Arab Emirates', 'Indonesia'][heroImg] || 'Cyclades, Greece'}
+                  </div>
+
+                  <div className="editorial-hairline text-white/30 mb-6" />
+
+                  <div className="space-y-3 text-xs text-white/70">
+                    <div className="flex justify-between">
+                      <span className="text-white/50">Hotel Partners</span>
+                      <span className="text-white tabular-nums font-semibold">200+</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/50">Source Markets</span>
+                      <span className="text-white tabular-nums font-semibold">15+</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/50">Room Nights / Year</span>
+                      <span className="text-white tabular-nums font-semibold">500K+</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/50">Renewal Rate</span>
+                      <span className="text-yellow-200 tabular-nums font-semibold">95%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* BOTTOM STRIP — slide dots + scroll cue */}
+          <div className="px-6 lg:px-12 pb-8">
+            <div className="flex items-center justify-between">
+              {/* Slide dots */}
+              <div className="flex items-center gap-3">
+                {heroImages.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHeroImg(i)}
+                    data-cursor="link"
+                    className="group flex items-center gap-2"
+                    aria-label={`Slide ${i + 1}`}
+                  >
+                    <span className={`block h-px transition-all duration-700 ${
+                      i === heroImg ? 'w-12 bg-yellow-300' : 'w-4 bg-white/30 group-hover:bg-white/60'
+                    }`} />
+                    <span className={`editorial-eyebrow tabular-nums transition-colors ${
+                      i === heroImg ? 'text-yellow-300' : 'text-white/30'
+                    }`}>
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Scroll cue */}
+              <div className="flex items-center gap-3 text-white/50 editorial-eyebrow">
+                <span>Continue</span>
+                <span className="block w-12 h-px bg-white/30 relative overflow-hidden">
+                  <span className="absolute inset-0 bg-yellow-300 animate-marquee" style={{ width: '50%' }} />
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
