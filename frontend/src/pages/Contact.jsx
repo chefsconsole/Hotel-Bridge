@@ -22,7 +22,7 @@ const contactMethods = [
   {
     icon: MessageCircle, title: 'WhatsApp',
     text: 'Chat with us',
-    href: 'https://wa.me/911234567890',
+    href: 'https://wa.me/917021620577',
     desc: 'Fastest replies — typically within 1 hour'
   },
   {

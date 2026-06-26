@@ -10,7 +10,7 @@ import { MessageCircle, ArrowUp, Calendar } from 'lucide-react';
  *
  * Hidden inside CRM and on the Login page (they have their own UX).
  */
-const WHATSAPP_NUMBER = '911234567890'; // E.164 without +, change to real one anytime
+const WHATSAPP_NUMBER = '917021620577'; // E.164 without +, change to real one anytime
 const WHATSAPP_MSG = encodeURIComponent(
   "Hi HotelBridge! I'm interested in learning more about your services for my hotel."
 );
