@@ -23,33 +23,6 @@ const milestones = [
   { year: 'Today', title: '200+ hotels, 15+ markets', desc: '500K+ room nights annually. Recognised as a leading global hotel-to-operator partnership platform.' },
 ];
 
-const team = [
-  {
-    name: 'Priya Sharma',
-    role: 'Founder & CEO',
-    bio: '15+ years in international travel. Former Director of Sales at a leading global tour operator.',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&q=80'
-  },
-  {
-    name: 'Marco Bianchi',
-    role: 'Co-Founder & COO',
-    bio: 'Former GM of Luxury Hotels Group, Rome. Deep European hospitality network.',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80'
-  },
-  {
-    name: 'Raj Patel',
-    role: 'Co-Founder & CTO',
-    bio: 'Ex-Booking.com engineering. Built the AI and CRM stack from scratch.',
-    image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&q=80'
-  },
-  {
-    name: 'Sophie Laurent',
-    role: 'Head of Partner Success',
-    bio: 'Ensures every hotel partner gets measurable results within 90 days.',
-    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&q=80'
-  },
-];
-
 export const About = () => {
   useRevealAll();
 
@@ -166,42 +139,6 @@ export const About = () => {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TEAM */}
-      <section className="py-24 bg-gradient-to-b from-white to-gray-50">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-14 reveal">
-            <div className="section-divider" />
-            <span className="text-secondary text-sm font-semibold tracking-widest uppercase mb-3 block">The Team</span>
-            <h2 className="font-serif text-4xl md:text-5xl font-bold text-primary mb-4">
-              Built by hospitality insiders
-            </h2>
-            <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-              Decades of combined experience — running hotels, building DMC networks, and shipping software.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger max-w-6xl mx-auto">
-            {team.map((m) => (
-              <div key={m.name} className="reveal group">
-                <div className="relative rounded-3xl overflow-hidden mb-4 aspect-[3/4]">
-                  <img
-                    src={m.image}
-                    alt={m.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4 text-white">
-                    <div className="font-serif font-bold text-lg leading-tight">{m.name}</div>
-                    <div className="text-xs text-secondary font-semibold">{m.role}</div>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500 leading-relaxed">{m.bio}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
