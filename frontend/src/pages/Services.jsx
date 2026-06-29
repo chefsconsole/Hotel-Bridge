@@ -207,14 +207,14 @@ export const Services = () => {
               Ready to start growing?
             </h2>
             <p className="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
-              Apply for partnership — we will review your property and respond within 48 hours.
+              Tell us about your property and we'll respond within 48 hours.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button asChild size="lg" className="btn-gold border-0 text-white rounded-full px-8">
                 <Link to="/contact">Get in Touch <ArrowRight className="ml-2 w-4 h-4" /></Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="rounded-full px-8 border-2 border-primary text-primary hover:bg-primary hover:text-white">
-                <Link to="/pricing">View Pricing</Link>
+                <Link to="/why-us">Why Work With Us</Link>
               </Button>
             </div>
           </div>
