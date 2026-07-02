@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HotelBridge — Partnership Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --navy:#0a1f47;
+    --gold:#d4af37;
+    --gold-lt:#f0d98a;
+    --ink:#0a1a33;
+    --mist:#8ea2c4;
+    --muted:#6b7a90;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--navy);color:#fff;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .serif{font-family:'Playfair Display',serif}
+  .shimmer{background:linear-gradient(110deg,#fff 0%,var(--gold-lt) 30%,var(--gold) 50%,var(--gold-lt) 70%,#fff 100%);background-size:200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:sh 6s linear infinite}
+  @keyframes sh{to{background-position:200% center}}
+
+  .deck{scroll-snap-type:y mandatory;height:100vh;overflow-y:scroll;scroll-behavior:smooth}
+  .slide{min-height:100vh;scroll-snap-align:start;position:relative;display:flex;align-items:center;justify-content:center;padding:80px 6vw;overflow:hidden}
+  .wrap{width:100%;max-width:1150px;position:relative;z-index:5}
+
+  .bg-navy{background:radial-gradient(circle at 70% 20%,#123069 0%,var(--navy) 55%),var(--navy)}
+  .bg-deep{background:linear-gradient(160deg,#081733 0%,#0a1f47 60%,#0c2864 100%)}
+  .bg-paper{background:linear-gradient(180deg,#fff 0%,#f5f7fb 100%);color:var(--ink)}
+  .bg-gold{background:linear-gradient(150deg,#0c2864 0%,#0a1f47 60%,#081733 100%)}
+
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;pointer-events:none}
+  .grid-ov{position:absolute;inset:0;opacity:.06;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px);background-size:64px 64px}
+  .grid-ov.dark{background-image:linear-gradient(rgba(10,31,71,.4) 1px,transparent 1px),linear-gradient(90deg,rgba(10,31,71,.4) 1px,transparent 1px);opacity:.05}
+
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);margin-bottom:22px}
+  .eyebrow::before{content:'';width:28px;height:1px;background:var(--gold)}
+  .eyebrow.center{justify-content:center}
+  .bg-paper .eyebrow{color:#b8891e}
+
+  h1.big{font-size:clamp(40px,7vw,86px);font-weight:700;line-height:1.02;letter-spacing:-.02em}
+  h2.title{font-size:clamp(32px,5vw,60px);font-weight:700;line-height:1.05;letter-spacing:-.01em}
+  .lead{font-size:clamp(16px,1.6vw,20px);line-height:1.7;color:var(--mist);max-width:640px}
+  .bg-paper .lead{color:var(--muted)}
+
+  .pill{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:100px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px);font-size:13px;font-weight:500;color:var(--gold-lt)}
+  .dot-live{width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(212,175,55,.5)}70%{box-shadow:0 0 0 12px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
+
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:16px 32px;border-radius:100px;font-weight:600;font-size:15px;text-decoration:none;transition:.3s;cursor:pointer;border:none}
+  .btn-gold{background:linear-gradient(135deg,var(--gold) 0%,#c99b2e 100%);color:#1a1204;box-shadow:0 10px 30px rgba(212,175,55,.3)}
+  .btn-gold:hover{transform:translateY(-3px);box-shadow:0 16px 40px rgba(212,175,55,.45)}
+  .btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);color:#fff}
+  .btn-ghost:hover{background:rgba(255,255,255,.14)}
+
+  .rv{opacity:0;transform:translateY(34px);transition:opacity .9s cubic-bezier(.22,1,.36,1),transform .9s cubic-bezier(.22,1,.36,1)}
+  .rv.in{opacity:1;transform:none}
+  .rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}
+  .rv.d4{transition-delay:.32s}.rv.d5{transition-delay:.40s}
+
+  .grid{display:grid;gap:20px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .card{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:30px;transition:.35s;position:relative}
+  .card:hover{transform:translateY(-6px);border-color:rgba(212,175,55,.4);background:rgba(255,255,255,.07)}
+  .bg-paper .card{background:#fff;border:1px solid #e8edf5;box-shadow:0 8px 30px rgba(10,31,71,.05)}
+  .bg-paper .card:hover{border-color:rgba(212,175,55,.5);box-shadow:0 20px 50px rgba(10,31,71,.1)}
+  .ic{width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,rgba(212,175,55,.22),rgba(212,175,55,.06));font-size:24px;margin-bottom:20px}
+  .card h3{font-size:19px;font-weight:600;margin-bottom:10px}
+  .card p{font-size:14px;line-height:1.6;color:var(--mist)}
+  .bg-paper .card p{color:var(--muted)}
+  .card .num{position:absolute;top:22px;right:26px;font-family:'Playfair Display',serif;font-size:44px;font-weight:700;color:rgba(212,175,55,.14)}
+
+  .stat .v{font-family:'Playfair Display',serif;font-size:clamp(40px,5vw,60px);font-weight:700;line-height:1}
+  .stat .l{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mist);margin-top:10px}
+
+  .navdots{position:fixed;right:26px;top:50%;transform:translateY(-50%);z-index:50;display:flex;flex-direction:column;gap:14px}
+  .navdots button{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);background:transparent;cursor:pointer;padding:0;transition:.3s}
+  .navdots button.on{background:var(--gold);border-color:var(--gold);transform:scale(1.3)}
+  .navdots button:hover{border-color:var(--gold)}
+  .prog{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--gold-lt));z-index:60;width:0;transition:width .2s}
+  .brandmark{position:fixed;top:26px;left:32px;z-index:50;display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;letter-spacing:-.01em;mix-blend-mode:difference;color:#fff}
+  .brandmark .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#c99b2e);display:flex;align-items:center;justify-content:center;color:#1a1204;font-family:'Playfair Display',serif;font-weight:700;font-size:18px}
+  .hint{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:50;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.5);display:flex;flex-direction:column;align-items:center;gap:8px}
+  .mouse{width:22px;height:34px;border:1.5px solid rgba(255,255,255,.4);border-radius:12px;display:flex;justify-content:center;padding-top:6px}
+  .mouse span{width:3px;height:7px;background:var(--gold);border-radius:2px;animation:sw 1.6s infinite}
+  @keyframes sw{0%{opacity:0;transform:translateY(-3px)}50%{opacity:1}100%{opacity:0;transform:translateY(6px)}}
+
+  .imgcard{border-radius:24px;overflow:hidden;position:relative;height:100%}
+  .imgcard img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s cubic-bezier(.22,1,.36,1)}
+  .imgcard:hover img{transform:scale(1.07)}
+  .imgcard .cap{position:absolute;inset:auto 0 0 0;padding:22px;background:linear-gradient(transparent,rgba(5,15,35,.92))}
+
+  .flag{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:100px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-size:13px;margin:5px}
+  .check{color:var(--gold);font-weight:700}
+  a.plain{color:var(--gold-lt);text-decoration:none;border-bottom:1px solid rgba(212,175,55,.4);transition:.2s}
+  a.plain:hover{color:#fff;border-color:#fff}
+
+  @media(max-width:860px){
+    .g2,.g3{grid-template-columns:1fr}
+    .slide{padding:90px 7vw}
+    .navdots{right:12px;gap:10px}
+    .brandmark{left:18px;font-size:16px}
+    .hide-m{display:none!important}
+    .row-2{grid-template-columns:1fr!important}
+  }
+  .center{text-align:center}
+  .mt-m{margin-top:26px}.mt-l{margin-top:40px}
+  .flexbtns{display:flex;gap:14px;flex-wrap:wrap}
+  .flexbtns.center{justify-content:center}
+</style>
+</head>
+<body>
+
+<div class="prog" id="prog"></div>
+<div class="brandmark"><span class="logo">H</span> Hotel<span style="color:var(--gold)">Bridge</span></div>
+<div class="navdots" id="navdots"></div>
+<div class="hint hide-m"><div class="mouse"><span></span></div>Scroll</div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 · COVER -->
+  <section class="slide bg-navy" data-name="Cover">
+    <div class="orb" style="width:620px;height:620px;background:rgba(212,175,55,.28);top:-8%;right:-6%"></div>
+    <div class="orb" style="width:420px;height:420px;background:rgba(40,90,190,.35);bottom:-10%;left:-6%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap center">
+      <div class="rv"><span class="pill"><span class="dot-live"></span> Partnership Deck · 2026</span></div>
+      <h1 class="big serif rv d1 mt-m">Connecting Hotels<br>with the <span class="shimmer">World's</span><br>Group Travel Markets</h1>
+      <p class="lead rv d2 mt-m" style="margin-left:auto;margin-right:auto">A specialist sales bridge between exceptional hotels and the world's fastest-growing tour operators, DMCs &amp; travel agencies.</p>
+      <div class="flexbtns center rv d3 mt-l">
+        <a class="btn btn-gold" href="https://hotelbridge.co" target="_blank" rel="noopener">Visit hotelbridge.co →</a>
+        <a class="btn btn-ghost" href="https://wa.me/917021620577" target="_blank" rel="noopener">Talk to us on WhatsApp</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · OPPORTUNITY -->
+  <section class="slide bg-deep" data-name="Opportunity">
+    <div class="orb" style="width:500px;height:500px;background:rgba(212,175,55,.18);top:10%;left:-8%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap">
+      <div class="rv"><span class="eyebrow">The Opportunity</span></div>
+      <h2 class="title serif rv d1">One of the largest, fastest-growing<br>movements of <span class="shimmer">money in travel.</span></h2>
+      <p class="lead rv d2 mt-m">Group and leisure travel from emerging source markets — India, China, the Middle East, Southeast Asia — is booming. Hotels positioned early capture longer stays, higher occupancy, and demand they can actually plan around.</p>
+      <div class="grid g3 mt-l">
+        <div class="card rv d2 stat"><div class="v shimmer">300M+</div><div class="l">International group travelers / year</div></div>
+        <div class="card rv d3 stat"><div class="v shimmer">$1.7T+</div><div class="l">Global travel spend annually</div></div>
+        <div class="card rv d4 stat"><div class="v shimmer">2×</div><div class="l">Faster growth in emerging markets</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · PROBLEM -->
+  <section class="slide bg-navy" data-name="Challenge">
+    <div class="orb" style="width:460px;height:460px;background:rgba(190,60,60,.16);bottom:-8%;right:-6%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap">
+      <div class="rv"><span class="eyebrow">The Challenge</span></div>
+      <h2 class="title serif rv d1">Most hotels are locked out of<br>these markets — <span class="shimmer">not by choice.</span></h2>
+      <div class="grid g3 mt-l">
+        <div class="card rv d2"><div class="ic">🧩</div><h3>Fragmented networks</h3><p>Hundreds of operators and DMCs across dozens of markets. No single door to knock on.</p></div>
+        <div class="card rv d3"><div class="ic">🌐</div><h3>Cultural distance</h3><p>Pricing norms, expectations, and relationships differ market to market. Cold outreach rarely converts.</p></div>
+        <div class="card rv d4"><div class="ic">⏳</div><h3>No dedicated team</h3><p>Building an international sales desk in-house costs six figures and 6–12 months before the first booking.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 · SOLUTION -->
+  <section class="slide bg-gold" data-name="Solution">
+    <div class="orb" style="width:560px;height:560px;background:rgba(212,175,55,.24);top:-10%;right:-8%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap">
+      <div class="grid g2 row-2" style="align-items:center;gap:50px">
+        <div>
+          <div class="rv"><span class="eyebrow">The Solution</span></div>
+          <h2 class="title serif rv d1">HotelBridge is your<br><span class="shimmer">global sales bridge.</span></h2>
+          <p class="lead rv d2 mt-m">We act as your dedicated international sales team — representing your property to a pre-vetted network of tour operators, DMCs, and agencies across the highest-growth source markets. You focus on hospitality. We bring the groups.</p>
+          <div class="rv d3 mt-m">
+            <span class="flag"><span class="check">✓</span> Zero setup fees</span>
+            <span class="flag"><span class="check">✓</span> Performance-based</span>
+            <span class="flag"><span class="check">✓</span> You keep the relationship</span>
+          </div>
+        </div>
+        <div class="imgcard rv d3 hide-m" style="min-height:440px">
+          <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1000&q=85" alt="Luxury hotel"/>
+          <div class="cap"><div class="serif" style="font-size:22px;font-weight:700">Where hospitality meets opportunity</div><div style="font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--mist);margin-top:6px">Representing properties worldwide</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 · WHAT WE DO -->
+  <section class="slide bg-deep" data-name="What We Do">
+    <div class="grid-ov"></div>
+    <div class="orb" style="width:480px;height:480px;background:rgba(212,175,55,.16);bottom:-10%;left:-6%"></div>
+    <div class="wrap">
+      <div class="rv center"><span class="eyebrow center">What We Do</span></div>
+      <h2 class="title serif rv d1 center">A complete sales stack for your hotel</h2>
+      <div class="grid g3 mt-l">
+        <div class="card rv d2"><span class="num">01</span><div class="ic">🏛️</div><h3>Sales Representation</h3><p>We are your dedicated voice in international markets — presenting your property to the right buyers, all year round.</p></div>
+        <div class="card rv d2"><span class="num">02</span><div class="ic">📈</div><h3>Market Development</h3><p>Strategic entry into the highest-growth outbound segments, with positioning built around your strengths.</p></div>
+        <div class="card rv d3"><span class="num">03</span><div class="ic">🤝</div><h3>Group Contracting</h3><p>Rate negotiation, allotment planning, and multi-currency contracts that keep occupancy predictable.</p></div>
+        <div class="card rv d3"><span class="num">04</span><div class="ic">🌍</div><h3>Operator Partnerships</h3><p>Direct access to a vetted network of tour operators &amp; DMCs across 15+ source markets.</p></div>
+        <div class="card rv d4"><span class="num">05</span><div class="ic">💡</div><h3>Hospitality Consulting</h3><p>Guidance on service, cultural fluency, and revenue strategy for diverse international guests.</p></div>
+        <div class="card rv d4" style="background:linear-gradient(135deg,rgba(212,175,55,.16),rgba(212,175,55,.04));border-color:rgba(212,175,55,.3)"><div class="ic">✨</div><h3>One partner, end-to-end</h3><p>From first introduction to renewed contracts — a single, accountable relationship.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 · HOW IT WORKS -->
+  <section class="slide bg-navy" data-name="How It Works">
+    <div class="grid-ov"></div>
+    <div class="orb" style="width:520px;height:520px;background:rgba(40,90,190,.28);top:-8%;right:-8%"></div>
+    <div class="wrap">
+      <div class="rv center"><span class="eyebrow center">How It Works</span></div>
+      <h2 class="title serif rv d1 center">From first call to booked rooms</h2>
+      <div class="grid g3 mt-l">
+        <div class="card rv d2"><span class="num">01</span><div class="ic">🔍</div><h3>Understand</h3><p>We learn your property inside out — positioning, capacity, ideal guest, and the markets where you can win.</p></div>
+        <div class="card rv d3"><span class="num">02</span><div class="ic">🤝</div><h3>Introduce</h3><p>We open the right doors: pre-vetted operators and DMCs, with tailored offerings built around your property.</p></div>
+        <div class="card rv d4"><span class="num">03</span><div class="ic">📈</div><h3>Grow</h3><p>Bookings become a predictable revenue stream. We optimise rates, allotments and renewals so it compounds.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · WHY US -->
+  <section class="slide bg-paper" data-name="Why Us">
+    <div class="grid-ov dark"></div>
+    <div class="wrap">
+      <div class="rv"><span class="eyebrow">Why Partner With Us</span></div>
+      <h2 class="title serif rv d1" style="color:var(--ink)">The advantage you can't<br>build overnight.</h2>
+      <div class="grid g2 mt-l">
+        <div class="card rv d2"><div class="ic">🎯</div><h3 style="color:var(--ink)">Aligned incentives</h3><p>Performance-based model. We only win when you win — no retainers, no risk.</p></div>
+        <div class="card rv d2"><div class="ic">🔗</div><h3 style="color:var(--ink)">Ready-made network</h3><p>Skip years of relationship-building. Tap into vetted operators from day one.</p></div>
+        <div class="card rv d3"><div class="ic">🧭</div><h3 style="color:var(--ink)">Real market fluency</h3><p>We understand both hospitality and the cultures of the buyers we sell to.</p></div>
+        <div class="card rv d3"><div class="ic">🤝</div><h3 style="color:var(--ink)">You own the relationship</h3><p>We're an extension of your team, not a middleman. Contracts stay in your name.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 · WHO IT'S FOR -->
+  <section class="slide bg-deep" data-name="Who We Work With">
+    <div class="grid-ov"></div>
+    <div class="orb" style="width:460px;height:460px;background:rgba(212,175,55,.16);top:0;left:-6%"></div>
+    <div class="wrap">
+      <div class="rv center"><span class="eyebrow center">Who We Work With</span></div>
+      <h2 class="title serif rv d1 center">Built for both sides of the booking</h2>
+      <div class="grid g2 mt-l" style="gap:24px">
+        <div class="card rv d2"><div class="ic">🏨</div><h3>Hotels &amp; Resorts</h3><p style="margin-bottom:14px">3–5 star properties (50+ rooms) ready to grow group and leisure business from international markets.</p><div><span class="flag" style="margin:3px 4px"><span class="check">✓</span> Predictable occupancy</span><span class="flag" style="margin:3px 4px"><span class="check">✓</span> New revenue streams</span></div></div>
+        <div class="card rv d3"><div class="ic">🌍</div><h3>DMCs, Operators &amp; Agencies</h3><p style="margin-bottom:14px">Buyers seeking reliable, well-represented hotel inventory with clean rates and responsive contracting.</p><div><span class="flag" style="margin:3px 4px"><span class="check">✓</span> Vetted properties</span><span class="flag" style="margin:3px 4px"><span class="check">✓</span> One point of contact</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · MODEL -->
+  <section class="slide bg-gold" data-name="The Model">
+    <div class="orb" style="width:540px;height:540px;background:rgba(212,175,55,.22);bottom:-12%;right:-8%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap center">
+      <div class="rv"><span class="eyebrow center">The Model</span></div>
+      <h2 class="title serif rv d1">You only pay when<br>we <span class="shimmer">deliver bookings.</span></h2>
+      <p class="lead rv d2 mt-m" style="margin-left:auto;margin-right:auto">No setup fees. No monthly retainers. We earn a commission only on confirmed, materialised bookings — so our goals are perfectly aligned with yours from day one.</p>
+      <div class="grid g3 mt-l">
+        <div class="card rv d2 stat"><div class="v shimmer">€0</div><div class="l">Setup fee</div></div>
+        <div class="card rv d3 stat"><div class="v shimmer">€0</div><div class="l">Monthly retainer</div></div>
+        <div class="card rv d4 stat"><div class="v shimmer">100%</div><div class="l">Performance-aligned</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · CONTACT -->
+  <section class="slide bg-navy" data-name="Contact">
+    <div class="orb" style="width:640px;height:640px;background:rgba(212,175,55,.26);top:-10%;right:-8%"></div>
+    <div class="orb" style="width:420px;height:420px;background:rgba(40,90,190,.3);bottom:-12%;left:-6%"></div>
+    <div class="grid-ov"></div>
+    <div class="wrap center">
+      <div class="rv"><span class="pill"><span class="dot-live"></span> Let's build something together</span></div>
+      <h1 class="big serif rv d1 mt-m">Ready to reach<br>the <span class="shimmer">world?</span></h1>
+      <p class="lead rv d2 mt-m" style="margin-left:auto;margin-right:auto">Whether you're a hotel seeking representation or an operator seeking inventory — let's talk. We respond within 48 hours.</p>
+      <div class="flexbtns center rv d3 mt-l">
+        <a class="btn btn-gold" href="https://wa.me/917021620577" target="_blank" rel="noopener">WhatsApp +91 70216 20577</a>
+        <a class="btn btn-ghost" href="mailto:info@hotelbridge.co">info@hotelbridge.co</a>
+      </div>
+      <div class="rv d4 mt-l" style="display:flex;gap:26px;justify-content:center;flex-wrap:wrap;font-size:14px;color:var(--mist)">
+        <a class="plain" href="https://hotelbridge.co" target="_blank" rel="noopener">hotelbridge.co</a>
+        <span>·</span><span>Global · Mumbai HQ</span><span>·</span><span>Serving hotels worldwide</span>
+      </div>
+      <div class="rv d5" style="margin-top:54px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.35)">
+        HotelBridge — Connecting Hotels with the World's Group Travel Markets
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  const deck=document.getElementById('deck');
+  const slides=[...document.querySelectorAll('.slide')];
+  const prog=document.getElementById('prog');
+  const navdots=document.getElementById('navdots');
+
+  slides.forEach((s)=>{
+    const b=document.createElement('button');
+    b.title=s.dataset.name||'';
+    b.onclick=()=>s.scrollIntoView({behavior:'smooth'});
+    navdots.appendChild(b);
+  });
+  const dots=[...navdots.children];
+
+  const io=new IntersectionObserver((es)=>{
+    es.forEach(e=>{
+      if(e.isIntersecting){
+        e.target.querySelectorAll('.rv').forEach(el=>el.classList.add('in'));
+        const idx=slides.indexOf(e.target);
+        dots.forEach((d,i)=>d.classList.toggle('on',i===idx));
+      }
+    });
+  },{threshold:.55});
+  slides.forEach(s=>io.observe(s));
+
+  deck.addEventListener('scroll',()=>{
+    const p=deck.scrollTop/(deck.scrollHeight-deck.clientHeight);
+    prog.style.width=(p*100)+'%';
+  },{passive:true});
+
+  function activeIndex(){return Math.round(deck.scrollTop/deck.clientHeight);}
+  function go(n){const i=Math.max(0,Math.min(slides.length-1,n));slides[i].scrollIntoView({behavior:'smooth'});}
+  window.addEventListener('keydown',(e)=>{
+    if(['ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(activeIndex()+1)}
+    if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(activeIndex()-1)}
+    if(e.key==='Home'){e.preventDefault();go(0)}
+    if(e.key==='End'){e.preventDefault();go(slides.length-1)}
+  });
+  window.addEventListener('load',()=>{
+    slides[0].querySelectorAll('.rv').forEach(el=>el.classList.add('in'));
+    dots[0].classList.add('on');
+  });
+</script>
+</body>
+</html>
