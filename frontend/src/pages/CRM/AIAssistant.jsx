@@ -32,35 +32,24 @@ export const AIAssistant = () => {
     setInput('');
     setIsLoading(true);
 
-    try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL;
-      const response = await fetch(`${API_URL}/api/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: currentInput,
-          session_id: 'user-session-' + Date.now(),
-        }),
-      });
-      if (!response.ok) throw new Error('Failed to get AI response');
-      const data = await response.json();
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: data.response, timestamp: new Date() },
-      ]);
-    } catch {
+    // AI is parked for a later phase (no paid LLM key wired yet).
+    // Respond locally so the screen never errors during testing.
+    setTimeout(() => {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: "I'm having trouble processing your request right now. Please try again or rephrase your question.",
+          content:
+            "The AI Assistant is coming in a later phase of HotelBridge.\n\n" +
+            "Once your CRM database is connected, I'll be able to answer questions " +
+            "about your hotels, operators, bookings and commissions — and even draft " +
+            "outreach emails to hotels and DMCs for you.\n\n" +
+            "For now, everything else in the CRM is fully usable. 🚀",
           timestamp: new Date(),
-          isError: true,
         },
       ]);
-    } finally {
       setIsLoading(false);
-    }
+    }, 700);
   };
 
   const handleKeyDown = (e) => {
