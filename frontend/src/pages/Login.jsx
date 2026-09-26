@@ -16,9 +16,12 @@ export const Login = () => {
     setIsLoading(true);
 
     setTimeout(() => {
-      if (credentials.email === 'admin@hotelbridge.co' && credentials.password === 'admin123') {
+      // Normalize so mobile auto-capitalization, stray spaces, or .co/.com don't block login
+      const email = credentials.email.trim().toLowerCase();
+      const validEmail = email === 'admin@hotelbridge.co' || email === 'admin@hotelbridge.com';
+      if (validEmail && credentials.password === 'admin123') {
         localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userEmail', credentials.email);
+        localStorage.setItem('userEmail', 'admin@hotelbridge.co');
         toast.success('Welcome back!', { description: 'Redirecting to your dashboard...' });
         navigate('/crm');
       } else {
