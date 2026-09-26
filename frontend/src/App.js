@@ -1,5 +1,6 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
@@ -30,11 +31,27 @@ const ProtectedRoute = ({ children }) => {
   return isAuth ? children : <Navigate to="/login" replace />;
 };
 
+// On the CRM subdomain (app.hotelbridge.co) the root should open the CRM,
+// not the public marketing homepage. No-op on hotelbridge.co.
+const CrmHostGate = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    const isAppHost =
+      typeof window !== 'undefined' && /^app\./i.test(window.location.hostname);
+    if (isAppHost && location.pathname === '/') {
+      navigate('/crm', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+  return null;
+};
+
 function App() {
   return (
     <div className="App">
       <CustomCursor />
       <BrowserRouter>
+        <CrmHostGate />
         <FloatingActions />
         <CookieBanner />
         <Routes>
