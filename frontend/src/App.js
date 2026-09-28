@@ -4,7 +4,6 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
-import { CustomCursor } from "./components/CustomCursor";
 import { FloatingActions } from "./components/FloatingActions";
 import { CookieBanner } from "./components/CookieBanner";
 import Home from "./pages/Home";
@@ -24,6 +23,7 @@ import RevenueList from "./pages/CRM/RevenueList";
 import AIAssistant from "./pages/CRM/AIAssistant";
 import LeadsList from "./pages/CRM/LeadsList";
 import TasksList from "./pages/CRM/TasksList";
+import InvoicesList from "./pages/CRM/InvoicesList";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -49,7 +49,6 @@ const CrmHostGate = () => {
 function App() {
   return (
     <div className="App">
-      <CustomCursor />
       <BrowserRouter>
         <CrmHostGate />
         <FloatingActions />
@@ -144,6 +143,7 @@ function App() {
             <Route path="operators" element={<OperatorsList />} />
             <Route path="bookings" element={<BookingsList />} />
             <Route path="revenue" element={<RevenueList />} />
+            <Route path="invoices" element={<InvoicesList />} />
             <Route path="ai-assistant" element={<AIAssistant />} />
           </Route>
 

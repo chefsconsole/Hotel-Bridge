@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
   LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles,
-  Inbox, ListTodo
+  Inbox, ListTodo, Receipt
 } from 'lucide-react';
 import { getLeads } from '../../lib/leadsStore';
 import { getTasks, isOverdue, isDueToday } from '../../lib/tasksStore';
@@ -17,6 +17,7 @@ const baseMenuItems = [
   { name: 'Operators', path: '/crm/operators', icon: Users },
   { name: 'Bookings', path: '/crm/bookings', icon: Calendar },
   { name: 'Revenue', path: '/crm/revenue', icon: DollarSign },
+  { name: 'Invoices', path: '/crm/invoices', icon: Receipt },
   { name: 'AI Assistant', path: '/crm/ai-assistant', icon: Bot, badge: 'AI' },
 ];
 
@@ -77,12 +78,12 @@ export const CRMLayout = () => {
 
         {/* Brand */}
         <div className="relative z-10 px-6 py-6 border-b border-white/5 flex items-center justify-between">
-          <Link to="/" className={`flex items-center gap-2 ${collapsed ? 'lg:justify-center lg:w-full' : ''}`}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-yellow-400 flex items-center justify-center font-bold text-white text-sm shrink-0">
-              H
+          <Link to="/crm" className={`flex items-center gap-2.5 ${collapsed ? 'lg:justify-center lg:w-full' : ''}`}>
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-lg ring-1 ring-white/10 overflow-hidden">
+              <img src="/hotelbridge-logo.png" alt="HotelBridge" className="w-8 h-auto object-contain" />
             </div>
             {!collapsed && (
-              <div className="text-xl font-bold text-white whitespace-nowrap">
+              <div className="text-xl font-bold text-white whitespace-nowrap font-serif">
                 Hotel<span className="text-shimmer">Bridge</span>
               </div>
             )}
