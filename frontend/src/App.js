@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Header } from "./components/Header";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
-import { CustomCursor } from "./components/CustomCursor";
 import { FloatingActions } from "./components/FloatingActions";
 import { CookieBanner } from "./components/CookieBanner";
 import Home from "./pages/Home";
@@ -33,7 +32,6 @@ const ProtectedRoute = ({ children }) => {
 function App() {
   return (
     <div className="App">
-      <CustomCursor />
       <BrowserRouter>
         <FloatingActions />
         <CookieBanner />
