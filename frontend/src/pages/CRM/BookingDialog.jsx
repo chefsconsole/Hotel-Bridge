@@ -12,6 +12,11 @@ export const BookingDialog = ({ open, onClose, booking, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [hotels, setHotels] = useState([]);
   const [operators, setOperators] = useState([]);
+  // Inline quick-add (so you never leave the booking form)
+  const [quickAdd, setQuickAdd] = useState(null); // 'operator' | 'hotel' | null
+  const [qSaving, setQSaving] = useState(false);
+  const [qOperator, setQOperator] = useState({ companyName: '', country: '', type: 'operator' });
+  const [qHotel, setQHotel] = useState({ name: '', city: '', country: '', commission: 10 });
   const [formData, setFormData] = useState({
     groupName: '',
     operatorId: '',
@@ -103,6 +108,50 @@ export const BookingDialog = ({ open, onClose, booking, onSuccess }) => {
     }
   };
 
+  const saveQuickOperator = async () => {
+    if (!qOperator.companyName.trim()) return toast.error('Enter an operator name');
+    setQSaving(true);
+    try {
+      const res = await operatorsAPI.create({
+        companyName: qOperator.companyName.trim(),
+        contactPerson: '', country: qOperator.country.trim(),
+        type: qOperator.type, email: '', phone: '',
+        businessPotential: 'medium', notes: ''
+      });
+      const newOp = res.data;
+      const list = (await operatorsAPI.getAll()).data;
+      setOperators(list);
+      setFormData(f => ({ ...f, operatorId: newOp.id, operatorName: newOp.companyName }));
+      setQuickAdd(null);
+      setQOperator({ companyName: '', country: '', type: 'operator' });
+      toast.success(`Operator "${newOp.companyName}" added & selected`);
+    } catch {
+      toast.error('Failed to add operator');
+    } finally { setQSaving(false); }
+  };
+
+  const saveQuickHotel = async () => {
+    if (!qHotel.name.trim()) return toast.error('Enter a hotel name');
+    setQSaving(true);
+    try {
+      const res = await hotelsAPI.create({
+        name: qHotel.name.trim(), city: qHotel.city.trim(), country: qHotel.country.trim(),
+        contactPerson: '', email: '', phone: '', rooms: 0, starCategory: 4,
+        contractType: 'commission', commission: Number(qHotel.commission) || 10,
+        ratesLow: 0, ratesMid: 0, ratesHigh: 0, blackoutDates: [], status: 'active', notes: ''
+      });
+      const newHotel = res.data;
+      const list = (await hotelsAPI.getAll()).data;
+      setHotels(list);
+      setFormData(f => ({ ...f, hotelId: newHotel.id, hotelName: newHotel.name, destination: newHotel.city }));
+      setQuickAdd(null);
+      setQHotel({ name: '', city: '', country: '', commission: 10 });
+      toast.success(`Hotel "${newHotel.name}" added & selected`);
+    } catch {
+      toast.error('Failed to add hotel');
+    } finally { setQSaving(false); }
+  };
+
   const calculateNights = (checkIn, checkOut) => {
     if (checkIn && checkOut) {
       const start = new Date(checkIn);
@@ -173,31 +222,96 @@ export const BookingDialog = ({ open, onClose, booking, onSuccess }) => {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* OPERATOR */}
             <div>
-              <Label htmlFor="operator">Operator *</Label>
-              <Select value={formData.operatorId} onValueChange={handleOperatorChange} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select operator" />
-                </SelectTrigger>
-                <SelectContent>
-                  {operators.map(op => (
-                    <SelectItem key={op.id} value={op.id}>{op.companyName}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="operator">Operator *</Label>
+                {quickAdd !== 'operator' && (
+                  <button type="button" onClick={() => setQuickAdd('operator')}
+                    className="text-xs font-semibold text-secondary hover:underline inline-flex items-center gap-0.5">
+                    + New
+                  </button>
+                )}
+              </div>
+              {quickAdd === 'operator' ? (
+                <div className="p-3 rounded-lg border border-secondary/40 bg-secondary/5 space-y-2">
+                  <Input autoFocus placeholder="Operator / company name *" value={qOperator.companyName}
+                    onChange={(e) => setQOperator({ ...qOperator, companyName: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveQuickOperator(); } }} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="Country" value={qOperator.country}
+                      onChange={(e) => setQOperator({ ...qOperator, country: e.target.value })} />
+                    <select value={qOperator.type} onChange={(e) => setQOperator({ ...qOperator, type: e.target.value })}
+                      className="h-10 rounded-md border border-gray-200 bg-white px-2 text-sm outline-none focus:border-secondary">
+                      <option value="operator">Operator</option>
+                      <option value="DMC">DMC</option>
+                      <option value="agent">Agent</option>
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" onClick={saveQuickOperator} disabled={qSaving} className="bg-secondary hover:bg-secondary/90">
+                      {qSaving ? 'Adding…' : 'Add & Select'}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setQuickAdd(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <Select value={formData.operatorId} onValueChange={handleOperatorChange} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select operator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {operators.map(op => (
+                      <SelectItem key={op.id} value={op.id}>{op.companyName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
+            {/* HOTEL */}
             <div>
-              <Label htmlFor="hotel">Hotel *</Label>
-              <Select value={formData.hotelId} onValueChange={handleHotelChange} required>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select hotel" />
-                </SelectTrigger>
-                <SelectContent>
-                  {hotels.map(hotel => (
-                    <SelectItem key={hotel.id} value={hotel.id}>{hotel.name} - {hotel.city}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="hotel">Hotel *</Label>
+                {quickAdd !== 'hotel' && (
+                  <button type="button" onClick={() => setQuickAdd('hotel')}
+                    className="text-xs font-semibold text-secondary hover:underline inline-flex items-center gap-0.5">
+                    + New
+                  </button>
+                )}
+              </div>
+              {quickAdd === 'hotel' ? (
+                <div className="p-3 rounded-lg border border-secondary/40 bg-secondary/5 space-y-2">
+                  <Input autoFocus placeholder="Hotel name *" value={qHotel.name}
+                    onChange={(e) => setQHotel({ ...qHotel, name: e.target.value })}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveQuickHotel(); } }} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input placeholder="City" value={qHotel.city}
+                      onChange={(e) => setQHotel({ ...qHotel, city: e.target.value })} />
+                    <Input placeholder="Country" value={qHotel.country}
+                      onChange={(e) => setQHotel({ ...qHotel, country: e.target.value })} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input type="number" placeholder="Commission %" value={qHotel.commission}
+                      onChange={(e) => setQHotel({ ...qHotel, commission: e.target.value })} className="w-32" />
+                    <Button type="button" size="sm" onClick={saveQuickHotel} disabled={qSaving} className="bg-secondary hover:bg-secondary/90">
+                      {qSaving ? 'Adding…' : 'Add & Select'}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => setQuickAdd(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <Select value={formData.hotelId} onValueChange={handleHotelChange} required>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select hotel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {hotels.map(hotel => (
+                      <SelectItem key={hotel.id} value={hotel.id}>{hotel.name} - {hotel.city}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

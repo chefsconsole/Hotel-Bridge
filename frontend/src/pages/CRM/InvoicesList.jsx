@@ -8,7 +8,7 @@ import {
   getInvoices, saveInvoice, updateInvoice, deleteInvoice,
   INVOICE_STATUS, COMPANY, computeTotals,
 } from '../../lib/invoicesStore';
-import { bookingsAPI } from '../../services/api';
+import { bookingsAPI, hotelsAPI } from '../../services/api';
 
 const money = (n, c = '€') => `${c}${(Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
@@ -30,12 +30,16 @@ export const InvoicesList = () => {
   const [preview, setPreview] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [bookings, setBookings] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  // Commission calculator (excl. taxes, per hotel terms)
+  const [calc, setCalc] = useState(null); // { gross, base, pct, desc } | null
 
   const refresh = () => setInvoices(getInvoices());
   useEffect(() => { refresh(); }, []);
   useEffect(() => {
     if (createOpen) {
       bookingsAPI.getAll().then((r) => setBookings((r.data || []).filter((b) => b.status === 'confirmed')));
+      hotelsAPI.getAll().then((r) => setHotels(r.data || []));
     }
   }, [createOpen]);
 
@@ -47,20 +51,42 @@ export const InvoicesList = () => {
 
   const openNew = () => { setForm(emptyForm()); setCreateOpen(true); };
 
+  const buildItem = (b, base, pct) => ({
+    description: `Commission on "${b.groupName}" — ${b.rooms} rooms × ${b.nights} nights via ${b.operatorName} (commissionable €${(Number(base) || 0).toLocaleString()} @ ${pct}%)`,
+    qty: 1,
+    rate: Math.round((Number(base) || 0) * ((Number(pct) || 0) / 100) * 100) / 100,
+  });
+
   const prefillFromBooking = (id) => {
     const b = bookings.find((x) => String(x.id) === String(id));
     if (!b) return;
-    const pct = 12;
-    const commission = (b.totalRevenue || 0) * (pct / 100);
+    // Invoice is billed TO THE HOTEL, for our commission.
+    // % comes from the specific booking's deal (varies per operator/DMC), else the hotel's default.
+    const hotel = hotels.find((h) => String(h.id) === String(b.hotelId));
+    const pct = b.commissionPercent ?? hotel?.commission ?? 12;
+    const gross = b.totalRevenue || 0;
+    setCalc({ bookingId: b.id, gross, base: gross, pct });
     setForm((f) => ({
       ...f,
-      billTo: { name: b.operatorName || '', company: b.operatorName || '', email: '', address: b.destination || '' },
-      items: [{
-        description: `Commission — ${b.groupName} @ ${b.hotelName} (${b.rooms} rooms × ${b.nights} nights, ${pct}%)`,
-        qty: 1,
-        rate: Math.round(commission * 100) / 100,
-      }],
+      billTo: {
+        name: b.hotelName || '',
+        company: b.hotelName || '',
+        email: hotel?.email || '',
+        address: [hotel?.city, hotel?.country].filter(Boolean).join(', ') || b.destination || '',
+      },
+      items: [buildItem(b, gross, pct)],
     }));
+  };
+
+  // Recompute the commission line when the base (excl. taxes) or % changes
+  const updateCalc = (patch) => {
+    setCalc((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      const b = bookings.find((x) => String(x.id) === String(next.bookingId));
+      if (b) setForm((f) => ({ ...f, items: [buildItem(b, next.base, next.pct)] }));
+      return next;
+    });
   };
 
   const setItem = (idx, key, val) =>
@@ -115,7 +141,7 @@ export const InvoicesList = () => {
         <div>
           <div className="text-xs font-semibold text-secondary uppercase tracking-widest mb-2">Billing</div>
           <h1 className="font-serif text-3xl lg:text-4xl font-bold text-primary leading-tight">Invoices</h1>
-          <p className="text-sm text-gray-500 mt-2">Generate branded commission invoices and send them to operators &amp; hotels.</p>
+          <p className="text-sm text-gray-500 mt-2">Generate branded commission invoices billed to your hotel partners.</p>
         </div>
         <button onClick={openNew} className="rounded-xl btn-gold text-white border-0 px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
           <Plus className="w-4 h-4" /> New Invoice
@@ -210,16 +236,44 @@ export const InvoicesList = () => {
               {bookings.length > 0 && (
                 <div className="p-3 rounded-xl bg-secondary/5 border border-secondary/20">
                   <label className="text-xs font-semibold text-secondary uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                    <Sparkles className="w-3 h-3" /> Prefill from a confirmed booking
+                    <Sparkles className="w-3 h-3" /> Prefill from a confirmed booking (bills the hotel for your commission)
                   </label>
                   <select onChange={(e) => prefillFromBooking(e.target.value)} defaultValue="" className="w-full h-10 rounded-lg border border-gray-200 bg-white text-sm px-3 outline-none focus:border-secondary">
                     <option value="" disabled>Select a booking…</option>
                     {bookings.map((b) => (
                       <option key={b.id} value={b.id}>
-                        {`${b.groupName} — ${b.operatorName} (€${(b.totalRevenue || 0).toLocaleString()})`}
+                        {`${b.groupName} @ ${b.hotelName} — via ${b.operatorName} (€${(b.totalRevenue || 0).toLocaleString()})`}
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {/* Commission calculator (excl. taxes, per this deal's %) */}
+              {calc && (
+                <div className="p-4 rounded-xl border border-secondary/30 bg-gradient-to-br from-secondary/5 to-transparent">
+                  <div className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Commission Calculator</div>
+                  <div className="grid grid-cols-2 gap-3 items-start">
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Commissionable amount (excl. taxes) €</label>
+                      <input type="number" min="0" step="0.01" value={calc.base}
+                        onChange={(e) => updateCalc({ base: e.target.value })}
+                        className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                      <div className="text-[10px] text-gray-400 mt-1">Booking gross: €{(calc.gross || 0).toLocaleString()} — trim taxes/city tax per the hotel's terms</div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Commission % (this operator/DMC deal)</label>
+                      <input type="number" min="0" step="0.1" value={calc.pct}
+                        onChange={(e) => updateCalc({ pct: e.target.value })}
+                        className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-secondary/20">
+                    <span className="text-sm text-gray-600">Your commission (invoice total)</span>
+                    <span className="font-serif text-xl font-bold text-shimmer">
+                      {money((Number(calc.base) || 0) * ((Number(calc.pct) || 0) / 100))}
+                    </span>
+                  </div>
                 </div>
               )}
 
