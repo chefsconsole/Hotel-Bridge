@@ -18,7 +18,8 @@ const plusDays = (d) => { const x = new Date(); x.setDate(x.getDate() + d); retu
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
 const emptyForm = () => ({
-  billTo: { name: '', company: '', email: '', address: '' },
+  billTo: { name: '', company: '', email: '', address: '', vat: '', attn: '' },
+  refs: { bookingFile: '', voucher: '', hotelInvoiceRef: '', hotelInvoiceDate: '' },
   items: [{ description: '', qty: 1, rate: 0 }],
   taxPercent: 0,
   issueDate: today(),
@@ -103,6 +104,14 @@ export const InvoicesList = () => {
         company: b.hotelName || '',
         email: hotel?.email || '',
         address: [hotel?.city, hotel?.country].filter(Boolean).join(', ') || b.destination || '',
+        vat: hotel?.vat || hotel?.gstin || '',
+        attn: b.reservationContact || hotel?.email || '',
+      },
+      refs: {
+        bookingFile: b.bookingFile || b.fileNo || '',
+        voucher: b.voucher || b.voucherNo || '',
+        hotelInvoiceRef: b.hotelInvoiceRef || '',
+        hotelInvoiceDate: b.hotelInvoiceDate || '',
       },
       items: [buildItem(b, gross, pct)],
       meta: {
@@ -376,9 +385,22 @@ export const InvoicesList = () => {
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Bill To</label>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  <input placeholder="Company / Operator name" value={form.billTo.company} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, company: e.target.value, name: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input placeholder="Hotel / Company name" value={form.billTo.company} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, company: e.target.value, name: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
                   <input placeholder="Contact email" value={form.billTo.email} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, email: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
                   <input placeholder="Address / City / Country" value={form.billTo.address} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, address: e.target.value } }))} className="sm:col-span-2 h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input placeholder="VAT / Tax No. (optional)" value={form.billTo.vat} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, vat: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input placeholder="Attn / Reservations contact (optional)" value={form.billTo.attn} onChange={(e) => setForm((f) => ({ ...f, billTo: { ...f.billTo, attn: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                </div>
+              </div>
+
+              {/* Booking references (printed on the invoice) */}
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Booking References <span className="font-normal normal-case text-gray-400">(optional — printed on the invoice)</span></label>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <input placeholder="Booking file no." value={form.refs.bookingFile} onChange={(e) => setForm((f) => ({ ...f, refs: { ...f.refs, bookingFile: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input placeholder="Reservation / Voucher no." value={form.refs.voucher} onChange={(e) => setForm((f) => ({ ...f, refs: { ...f.refs, voucher: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input placeholder="Hotel invoice ref." value={form.refs.hotelInvoiceRef} onChange={(e) => setForm((f) => ({ ...f, refs: { ...f.refs, hotelInvoiceRef: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input type="date" title="Hotel invoice date" value={form.refs.hotelInvoiceDate} onChange={(e) => setForm((f) => ({ ...f, refs: { ...f.refs, hotelInvoiceDate: e.target.value } }))} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
                 </div>
               </div>
 
@@ -447,19 +469,22 @@ export const InvoicesList = () => {
 
       {/* ── BANK DETAILS EDITOR ─────────────────────── */}
       {bankOpen && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center px-4 bg-primary/40 backdrop-blur-sm" onClick={() => setBankOpen(false)}>
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="fixed inset-0 z-[85] flex items-center justify-center px-4 py-6 bg-primary/40 backdrop-blur-sm" onClick={() => setBankOpen(false)}>
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
               <h3 className="font-serif text-xl font-bold text-primary flex items-center gap-2"><Landmark className="w-5 h-5 text-secondary" /> Bank Details</h3>
               <button onClick={() => setBankOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 overflow-y-auto">
               <p className="text-xs text-gray-500">These appear on every invoice so hotels know where to pay your commission.</p>
               {[
-                ['accountName', 'Account name'],
+                ['accountName', 'Account holder name'],
                 ['bankName', 'Bank name'],
+                ['branch', 'Branch'],
                 ['accountNumber', 'Account number'],
-                ['iban', 'IBAN'],
+                ['accountType', 'Account type (e.g. Savings / Current)'],
+                ['ifsc', 'IFSC (India)'],
+                ['iban', 'IBAN (international)'],
                 ['swift', 'SWIFT / BIC'],
                 ['accountantEmail', 'Accountant / CA email (auto-CC on send)'],
               ].map(([k, label]) => (
@@ -470,7 +495,7 @@ export const InvoicesList = () => {
                 </div>
               ))}
             </div>
-            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
               <button onClick={() => { setBank(getBank()); setBankOpen(false); }} className="px-4 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
               <button onClick={() => { saveBank(bank); setBankOpen(false); toast.success('Bank details saved'); }} className="px-5 py-2 rounded-xl btn-gold text-white text-sm font-semibold">Save</button>
             </div>
@@ -528,12 +553,14 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
                 </div>
                 <div className="text-white">
                   <div className="font-serif text-2xl font-bold leading-none">Hotel<span style={{ color: '#e9cf7e' }}>Bridge</span></div>
-                  <div className="text-[10px] tracking-widest uppercase mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>{COMPANY.location}</div>
+                  <div className="text-[10px] tracking-wide mt-1" style={{ color: 'rgba(255,255,255,0.72)' }}>{COMPANY.legalName || COMPANY.tagline}</div>
+                  {COMPANY.gstin && <div className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>GSTIN: {COMPANY.gstin}</div>}
                 </div>
               </div>
               <div className="text-right text-white">
                 <div className="font-serif text-3xl font-bold" style={{ color: '#e9cf7e' }}>INVOICE</div>
                 <div className="text-sm mt-1">{inv.number}</div>
+                {COMPANY.address && <div className="text-[10px] mt-2 max-w-[220px] ml-auto leading-snug" style={{ color: 'rgba(255,255,255,0.55)' }}>{COMPANY.address}</div>}
               </div>
             </div>
           </div>
@@ -543,12 +570,17 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
             <div>
               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Billed To</div>
               <div className="font-serif text-lg font-bold text-primary">{inv.billTo?.company || inv.billTo?.name || '—'}</div>
-              {inv.billTo?.email && <div className="text-sm text-gray-500">{inv.billTo.email}</div>}
               {inv.billTo?.address && <div className="text-sm text-gray-500">{inv.billTo.address}</div>}
+              {inv.billTo?.email && <div className="text-sm text-gray-500">{inv.billTo.email}</div>}
+              {inv.billTo?.attn && <div className="text-sm text-gray-500"><span className="text-gray-400">Attn: </span>{inv.billTo.attn}</div>}
+              {inv.billTo?.vat && <div className="text-sm text-gray-500"><span className="text-gray-400">VAT / Tax No.: </span>{inv.billTo.vat}</div>}
             </div>
             <div className="text-right space-y-1">
               <div className="flex justify-between text-sm"><span className="text-gray-400">Issue Date</span><span className="text-primary font-medium">{fmtDate(inv.issueDate)}</span></div>
               <div className="flex justify-between text-sm"><span className="text-gray-400">Due Date</span><span className="text-primary font-medium">{fmtDate(inv.dueDate)}</span></div>
+              {inv.refs?.bookingFile && <div className="flex justify-between text-sm"><span className="text-gray-400">Booking File</span><span className="text-primary font-medium">{inv.refs.bookingFile}</span></div>}
+              {inv.refs?.voucher && <div className="flex justify-between text-sm"><span className="text-gray-400">Reservation / Voucher</span><span className="text-primary font-medium">{inv.refs.voucher}</span></div>}
+              {inv.refs?.hotelInvoiceRef && <div className="flex justify-between text-sm"><span className="text-gray-400">Hotel Invoice Ref.</span><span className="text-primary font-medium">{inv.refs.hotelInvoiceRef}{inv.refs.hotelInvoiceDate ? ` · ${fmtDate(inv.refs.hotelInvoiceDate)}` : ''}</span></div>}
               <div className="flex justify-between text-sm"><span className="text-gray-400">Status</span><span className="font-semibold" style={{ color: inv.status === 'paid' ? '#16a34a' : '#b8891e' }}>{(INVOICE_STATUS[inv.status] || INVOICE_STATUS.draft).label}</span></div>
             </div>
           </div>
@@ -636,9 +668,10 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Details</div>
               {bank && (bank.bankName || bank.accountNumber || bank.iban) ? (
                 <div className="text-sm text-gray-700 space-y-0.5">
-                  {bank.accountName && <div><span className="text-gray-400">Account: </span>{bank.accountName}</div>}
-                  {bank.bankName && <div><span className="text-gray-400">Bank: </span>{bank.bankName}</div>}
-                  {bank.accountNumber && <div><span className="text-gray-400">A/C No: </span>{bank.accountNumber}</div>}
+                  {bank.accountName && <div><span className="text-gray-400">Account Holder: </span>{bank.accountName}</div>}
+                  {bank.bankName && <div><span className="text-gray-400">Bank: </span>{bank.bankName}{bank.branch ? `, ${bank.branch}` : ''}</div>}
+                  {bank.accountNumber && <div><span className="text-gray-400">A/C No: </span>{bank.accountNumber}{bank.accountType ? ` (${bank.accountType})` : ''}</div>}
+                  {bank.ifsc && <div><span className="text-gray-400">IFSC: </span>{bank.ifsc}</div>}
                   {bank.iban && <div><span className="text-gray-400">IBAN: </span>{bank.iban}</div>}
                   {bank.swift && <div><span className="text-gray-400">SWIFT: </span>{bank.swift}</div>}
                   <div className="text-xs text-gray-400 pt-1">{bank.ref}</div>
@@ -656,6 +689,7 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
             <span className="inline-flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" style={{ color: '#b8891e' }} /> {COMPANY.web}</span>
             <span>{COMPANY.email}</span>
             <span>{COMPANY.phone}</span>
+            {COMPANY.gstin && <span>GSTIN: {COMPANY.gstin}</span>}
           </div>
         </div>
       </div>

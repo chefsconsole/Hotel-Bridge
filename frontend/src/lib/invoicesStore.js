@@ -6,10 +6,13 @@ const SEQ_KEY = 'hotelbridge.crm.invoiceSeq';
 
 export const COMPANY = {
   name: 'HotelBridge',
+  legalName: 'HotelBridge — Global Hospitality Partners',
   tagline: 'Connecting Hotels with the World’s Group Travel Markets',
   email: 'info@hotelbridge.co',
   phone: '+91 70216 20577',
   web: 'hotelbridge.co',
+  address: 'Sunrise, Charkop, Kandivali West, Mumbai 400067, Maharashtra, India',
+  gstin: '27GUIPD5416D1ZT',
   location: 'Global · Mumbai HQ',
   logo: '/hotelbridge-logo.png',
 };
@@ -17,10 +20,13 @@ export const COMPANY = {
 // Bank details shown on invoices (where the hotel pays your commission).
 // Editable in the app (Invoices → Bank details) and stored per-browser.
 export const DEFAULT_BANK = {
-  accountName: 'HotelBridge',
+  accountName: '',     // account holder name
   bankName: '',
+  branch: '',
   accountNumber: '',
-  iban: '',
+  accountType: '',     // e.g. Savings / Current
+  ifsc: '',            // Indian banks
+  iban: '',            // international
   swift: '',
   ref: 'Please quote the invoice number as payment reference.',
   accountantEmail: '', // your CA — auto-CC'd on sends & used for the accounting export
@@ -50,13 +56,17 @@ function writeAll(list) {
   try { localStorage.setItem(KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
 
+// Commission-invoice number: HB-COMM-YYYY-### (resets sequence each calendar year)
 function nextNumber() {
-  let seq = 0;
-  try { seq = parseInt(localStorage.getItem(SEQ_KEY) || '0', 10) || 0; } catch { seq = 0; }
-  seq += 1;
-  try { localStorage.setItem(SEQ_KEY, String(seq)); } catch { /* ignore */ }
   const year = new Date().getFullYear();
-  return `HB-${year}-${String(seq).padStart(4, '0')}`;
+  let store = {};
+  try { store = JSON.parse(localStorage.getItem(SEQ_KEY) || '{}'); } catch { store = {}; }
+  // Back-compat: older builds stored a bare integer counter
+  if (typeof store === 'number') store = {};
+  const seq = (Number(store[year]) || 0) + 1;
+  store[year] = seq;
+  try { localStorage.setItem(SEQ_KEY, JSON.stringify(store)); } catch { /* ignore */ }
+  return `HB-COMM-${year}-${String(seq).padStart(3, '0')}`;
 }
 
 export function computeTotals(items, taxPercent = 0) {
@@ -76,7 +86,11 @@ export function saveInvoice(data) {
     currency: '€',
     taxPercent: 0,
     notes: 'Payment due within 30 days. Thank you for your partnership.',
+    // Booking references printed on the invoice (from the confirmed booking)
+    refs: { bookingFile: '', voucher: '', hotelInvoiceRef: '', hotelInvoiceDate: '' },
     ...data,
+    // billTo may carry vat + attn (contact) in addition to name/company/email/address
+    billTo: { name: '', company: '', email: '', address: '', vat: '', attn: '', ...(data.billTo || {}) },
     subtotal, tax, total,
   };
   writeAll([inv, ...list]);
