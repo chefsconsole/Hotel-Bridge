@@ -183,7 +183,7 @@ export const LeadsList = () => {
 
       {/* Empty state */}
       {leads.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+        <div className="card-lux p-16 text-center">
           <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mb-4">
             <Inbox className="w-10 h-10 text-gray-300" />
           </div>
@@ -193,7 +193,7 @@ export const LeadsList = () => {
           </p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+        <div className="card-lux p-12 text-center">
           <p className="text-sm text-gray-500">No leads match your filters.</p>
         </div>
       ) : (
@@ -251,7 +251,7 @@ export const LeadsList = () => {
           {/* Detail */}
           <div className="lg:col-span-2 lg:sticky lg:top-24 lg:self-start">
             {selected ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+              <div className="card-lux p-6 space-y-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-blue-700 text-white font-bold text-sm flex items-center justify-center shrink-0">
@@ -370,7 +370,7 @@ export const LeadsList = () => {
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+              <div className="card-lux p-10 text-center">
                 <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                 <p className="text-sm text-gray-500">Select a lead to view details</p>
               </div>

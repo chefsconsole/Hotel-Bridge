@@ -208,7 +208,7 @@ export const CRMLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Top bar */}
-        <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-xl border-b border-gray-100 flex items-center justify-between px-4 lg:px-8 gap-4">
+        <header className="sticky top-0 z-30 h-16 bg-white/70 backdrop-blur-2xl border-b border-gray-200/70 shadow-[0_1px_0_rgba(255,255,255,0.6),0_8px_24px_-16px_rgba(12,40,100,0.25)] flex items-center justify-between px-4 lg:px-8 gap-4">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden p-2 -ml-2 text-gray-600 hover:text-primary"
@@ -246,8 +246,10 @@ export const CRMLayout = () => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-4 md:p-6 lg:p-8 mesh-bg min-w-0">
-          <Outlet />
+        <main className="flex-1 p-4 md:p-6 lg:p-8 crm-bg min-w-0">
+          <div className="lux-rise">
+            <Outlet />
+          </div>
         </main>
       </div>
 

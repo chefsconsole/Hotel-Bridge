@@ -217,7 +217,7 @@ export const RequirementsList = () => {
 
       {/* List */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+        <div className="card-lux p-16 text-center">
           <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mb-4">
             <ClipboardList className="w-10 h-10 text-gray-300" />
           </div>
@@ -233,7 +233,7 @@ export const RequirementsList = () => {
             const st = RFQ_STATUS[r.status] || RFQ_STATUS.new;
             const isOpen = expanded === r.id;
             return (
-              <div key={r.id} className="bg-white rounded-2xl border border-gray-100 hover:border-secondary/30 transition-all">
+              <div key={r.id} className="card-lux hover:border-secondary/30 transition-all">
                 {/* Row */}
                 <div className="p-5">
                   <div className="flex items-start justify-between gap-3">

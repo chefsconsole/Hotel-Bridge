@@ -47,15 +47,26 @@ export const Login = () => {
           backgroundSize: '60px 60px',
         }}
       />
+      {/* Cinematic depth */}
+      <div className="film-grain" />
+      <div className="vignette" />
 
       <div className="relative z-10 w-full max-w-6xl px-4 grid lg:grid-cols-2 gap-10 items-center">
 
         {/* Left side — branding & marketing */}
         <div className="hidden lg:block text-white animate-fade-up">
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-secondary mb-12 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-gray-300 hover:text-secondary mb-10 transition-colors">
             <ArrowRight className="w-4 h-4 rotate-180" />
             Back to website
           </Link>
+
+          {/* Brand lockup */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center shadow-xl ring-1 ring-white/20 overflow-hidden">
+              <img src="/hotelbridge-logo.png" alt="HotelBridge" className="w-10 h-auto object-contain" />
+            </div>
+            <div className="text-2xl font-bold font-serif">Hotel<span className="text-shimmer">Bridge</span></div>
+          </div>
 
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm font-medium text-yellow-300 mb-8">
             <Sparkles className="w-4 h-4" />
@@ -91,12 +102,13 @@ export const Login = () => {
 
         {/* Right side — login card */}
         <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto animate-scale-in">
-          <div className="glass-dark rounded-3xl p-8 lg:p-10 shadow-2xl border border-white/10">
+          <div className="glass-dark rounded-3xl p-8 lg:p-10 shadow-2xl border border-white/10 ring-1 ring-secondary/10">
             {/* Logo */}
-            <Link to="/" className="inline-block mb-8 lg:hidden">
-              <div className="text-3xl font-bold text-white">
-                Hotel<span className="text-shimmer">Bridge</span>
+            <Link to="/" className="inline-flex items-center gap-3 mb-8">
+              <div className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center shadow-lg ring-1 ring-white/20 overflow-hidden">
+                <img src="/hotelbridge-logo.png" alt="HotelBridge" className="w-9 h-auto object-contain" />
               </div>
+              <div className="text-2xl font-bold text-white font-serif">Hotel<span className="text-shimmer">Bridge</span></div>
             </Link>
 
             <h2 className="font-serif text-3xl font-bold text-white mb-2">Sign in</h2>

@@ -292,7 +292,7 @@ export const InvoicesList = () => {
 
       {/* List */}
       {invoices.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center">
+        <div className="card-lux p-16 text-center">
           <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mb-4">
             <Receipt className="w-10 h-10 text-gray-300" />
           </div>
@@ -303,10 +303,10 @@ export const InvoicesList = () => {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-br from-gray-50 to-gray-100/50">
+        <div className="card-lux overflow-hidden">
+          <div className="overflow-x-auto scroll-lux">
+            <table className="w-full table-lux">
+              <thead>
                 <tr>
                   {['Invoice', 'Billed To', 'Issued', 'Due', 'Amount', 'Status', ''].map((h) => (
                     <th key={h} className="text-left py-4 px-5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">{h}</th>

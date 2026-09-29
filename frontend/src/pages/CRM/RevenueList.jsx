@@ -194,10 +194,10 @@ export const RevenueList = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gradient-to-br from-gray-50 to-gray-100/50">
+      <div className="card-lux overflow-hidden">
+        <div className="overflow-x-auto scroll-lux">
+          <table className="w-full table-lux">
+            <thead>
               <tr>
                 {['Group', 'Booking Value', 'Margin', 'Comm %', 'Commission', 'Due Date', 'Status'].map((h) => (
                   <th key={h} className="text-left py-4 px-6 text-[10px] font-bold text-gray-500 uppercase tracking-widest">{h}</th>

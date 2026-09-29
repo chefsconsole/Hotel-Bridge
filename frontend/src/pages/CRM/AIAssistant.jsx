@@ -97,7 +97,7 @@ export const AIAssistant = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── Chat ─────────────────────────────────── */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col h-[680px]">
+        <div className="lg:col-span-2 card-lux overflow-hidden flex flex-col h-[680px]">
           {/* Chat header */}
           <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 bg-gradient-to-r from-gray-50 to-white">
             <div className="relative">
@@ -202,7 +202,7 @@ export const AIAssistant = () => {
         {/* ── Sidebar ──────────────────────────────── */}
         <div className="space-y-5">
           {/* Quick commands */}
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="card-lux overflow-hidden">
             <div className="p-4 border-b border-gray-100">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-secondary" />
