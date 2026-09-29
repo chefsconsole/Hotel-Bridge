@@ -17,14 +17,30 @@ const today = () => new Date().toISOString().slice(0, 10);
 const plusDays = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.toISOString().slice(0, 10); };
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
+// Payment terms → due date + display label + note
+const TERMS = {
+  receipt: { label: 'Due on receipt', days: 0, note: 'Payment due on receipt.' },
+  net15:   { label: 'Net 15',         days: 15, note: 'Payment due within 15 days.' },
+  net30:   { label: 'Net 30',         days: 30, note: 'Payment due within 30 days.' },
+  custom:  { label: 'Custom date',    days: null, note: 'Payment due by the date shown.' },
+};
+const dueFor = (issue, terms) => {
+  const d = TERMS[terms];
+  if (!d || d.days == null) return issue;
+  const x = new Date(issue); x.setDate(x.getDate() + d.days);
+  return x.toISOString().slice(0, 10);
+};
+
 const emptyForm = () => ({
   billTo: { name: '', company: '', email: '', address: '', vat: '', attn: '' },
   refs: { bookingFile: '', voucher: '', hotelInvoiceRef: '', hotelInvoiceDate: '' },
   items: [{ description: '', qty: 1, rate: 0 }],
   taxPercent: 0,
   issueDate: today(),
-  dueDate: plusDays(30),
-  notes: 'Payment due within 30 days. Thank you for your partnership.',
+  terms: 'receipt',
+  dueDate: today(),
+  showOperator: false, // operator hidden on the hotel-facing invoice by default
+  notes: 'Payment due on receipt. Thank you for your partnership.',
   meta: null, // booking summary shown on the invoice
 });
 
@@ -82,8 +98,9 @@ export const InvoicesList = () => {
 
   const openNew = () => { setForm(emptyForm()); setCreateOpen(true); };
 
-  const buildItem = (b, base, pct) => ({
-    description: `Commission on "${b.groupName}" — ${b.rooms} rooms × ${b.nights} nights via ${b.operatorName} (commissionable €${(Number(base) || 0).toLocaleString()} @ ${pct}%)`,
+  const eur2 = (n) => (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const buildItem = (b, base, pct, showOp) => ({
+    description: `Commission on "${b.groupName}" — ${b.rooms} rooms × ${b.nights} night${Number(b.nights) > 1 ? 's' : ''}${showOp && b.operatorName ? ` via ${b.operatorName}` : ''} · commissionable €${eur2(base)} @ ${pct}%`,
     qty: 1,
     rate: Math.round((Number(base) || 0) * ((Number(pct) || 0) / 100) * 100) / 100,
   });
@@ -99,6 +116,7 @@ export const InvoicesList = () => {
     setCalc({ bookingId: b.id, gross, base: gross, pct });
     setForm((f) => ({
       ...f,
+      dueDate: dueFor(f.issueDate, f.terms),
       billTo: {
         name: b.hotelName || '',
         company: b.hotelName || '',
@@ -113,12 +131,15 @@ export const InvoicesList = () => {
         hotelInvoiceRef: b.hotelInvoiceRef || '',
         hotelInvoiceDate: b.hotelInvoiceDate || '',
       },
-      items: [buildItem(b, gross, pct)],
+      items: [buildItem(b, gross, pct, f.showOperator)],
       meta: {
         groupName: b.groupName, operatorName: b.operatorName, hotelName: b.hotelName,
         destination: b.destination, checkIn: b.checkIn, checkOut: b.checkOut,
-        nights: b.nights, rooms: b.rooms, bookingValue: gross,
-        commissionable: gross, commissionPct: pct,
+        nights: b.nights, rooms: b.rooms,
+        grossValue: gross,       // total booking value incl. tax (editable below)
+        bookingValue: gross,     // kept for back-compat
+        commissionable: gross,   // net, excl. tax
+        commissionPct: pct,
       },
     }));
   };
@@ -131,8 +152,8 @@ export const InvoicesList = () => {
       const b = bookings.find((x) => String(x.id) === String(next.bookingId));
       if (b) setForm((f) => ({
         ...f,
-        items: [buildItem(b, next.base, next.pct)],
-        meta: f.meta ? { ...f.meta, commissionable: next.base, commissionPct: next.pct } : f.meta,
+        items: [buildItem(b, next.base, next.pct, f.showOperator)],
+        meta: f.meta ? { ...f.meta, commissionable: next.base, commissionPct: next.pct, grossValue: next.gross, bookingValue: next.gross } : f.meta,
       }));
       return next;
     });
@@ -209,7 +230,7 @@ export const InvoicesList = () => {
     // Opens an email draft to the hotel, auto-CC'ing your CA if set.
     const subject = encodeURIComponent(`Invoice ${inv.number} from ${COMPANY.name}`);
     const body = encodeURIComponent(
-      `Dear ${inv.billTo.name || inv.billTo.company},\n\nPlease find our commission invoice ${inv.number} for ${money(inv.total, inv.currency)} (due ${new Date(inv.dueDate).toLocaleDateString('en-GB')}).\nPayment details are on the invoice.\n\nBest regards,\n${COMPANY.name}\n${COMPANY.web}`
+      `Dear ${inv.billTo.name || inv.billTo.company},\n\nPlease find our commission invoice ${inv.number} for ${money(inv.total, inv.currency)} (${inv.terms === 'receipt' ? 'payable on receipt' : `due ${new Date(inv.dueDate).toLocaleDateString('en-GB')}`}).\nPayment details are on the invoice.\n\nBest regards,\n${COMPANY.name}\n${COMPANY.web}`
     );
     const cc = bank.accountantEmail ? `&cc=${encodeURIComponent(bank.accountantEmail)}` : '';
     window.location.href = `mailto:${inv.billTo.email || ''}?subject=${subject}${cc}&body=${body}`;
@@ -357,21 +378,38 @@ export const InvoicesList = () => {
               {calc && (
                 <div className="p-4 rounded-xl border border-secondary/30 bg-gradient-to-br from-secondary/5 to-transparent">
                   <div className="text-xs font-semibold text-secondary uppercase tracking-wider mb-3">Commission Calculator</div>
-                  <div className="grid grid-cols-2 gap-3 items-start">
+                  <div className="grid grid-cols-3 gap-3 items-start">
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1 block">Commissionable amount (excl. taxes) €</label>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Total booking value (incl. tax) €</label>
+                      <input type="number" min="0" step="0.01" value={calc.gross}
+                        onChange={(e) => updateCalc({ gross: e.target.value })}
+                        className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                      <div className="text-[10px] text-gray-400 mt-1">Gross the hotel billed (incl. VAT / city tax)</div>
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Commissionable (excl. tax) €</label>
                       <input type="number" min="0" step="0.01" value={calc.base}
                         onChange={(e) => updateCalc({ base: e.target.value })}
                         className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
-                      <div className="text-[10px] text-gray-400 mt-1">Booking gross: €{(calc.gross || 0).toLocaleString()} — trim taxes/city tax per the hotel's terms</div>
+                      <div className="text-[10px] text-gray-400 mt-1">Net figure — commission is charged on this</div>
                     </div>
                     <div>
-                      <label className="text-[11px] text-gray-500 mb-1 block">Commission % (this operator/DMC deal)</label>
+                      <label className="text-[11px] text-gray-500 mb-1 block">Commission % (this deal)</label>
                       <input type="number" min="0" step="0.1" value={calc.pct}
                         onChange={(e) => updateCalc({ pct: e.target.value })}
                         className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
                     </div>
                   </div>
+                  <label className="flex items-center gap-2 mt-3 text-xs text-gray-600 cursor-pointer select-none">
+                    <input type="checkbox" checked={!!form.showOperator}
+                      onChange={(e) => setForm((f) => {
+                        const show = e.target.checked;
+                        const b = bookings.find((x) => String(x.id) === String(calc.bookingId));
+                        return { ...f, showOperator: show, items: b ? [buildItem(b, calc.base, calc.pct, show)] : f.items };
+                      })}
+                      className="w-4 h-4 rounded border-gray-300 text-secondary focus:ring-secondary" />
+                    Show operator / DMC name on the invoice
+                  </label>
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-secondary/20">
                     <span className="text-sm text-gray-600">Your commission (invoice total)</span>
                     <span className="font-serif text-xl font-bold text-shimmer">
@@ -404,15 +442,27 @@ export const InvoicesList = () => {
                 </div>
               </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Dates + payment terms */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Issue Date</label>
-                  <input type="date" value={form.issueDate} onChange={(e) => setForm((f) => ({ ...f, issueDate: e.target.value }))} className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input type="date" value={form.issueDate}
+                    onChange={(e) => setForm((f) => ({ ...f, issueDate: e.target.value, dueDate: f.terms === 'custom' ? f.dueDate : dueFor(e.target.value, f.terms) }))}
+                    className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Payment Terms</label>
+                  <select value={form.terms}
+                    onChange={(e) => { const t = e.target.value; setForm((f) => ({ ...f, terms: t, dueDate: t === 'custom' ? f.dueDate : dueFor(f.issueDate, t), notes: `${TERMS[t].note} Thank you for your partnership.` })); }}
+                    className="w-full h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-secondary">
+                    {Object.entries(TERMS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Due Date</label>
-                  <input type="date" value={form.dueDate} onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                  <input type="date" value={form.dueDate} disabled={form.terms !== 'custom'}
+                    onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                    className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary disabled:bg-gray-50 disabled:text-gray-400" />
                 </div>
               </div>
 
@@ -577,7 +627,7 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
             </div>
             <div className="text-right space-y-1">
               <div className="flex justify-between text-sm"><span className="text-gray-400">Issue Date</span><span className="text-primary font-medium">{fmtDate(inv.issueDate)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-gray-400">Due Date</span><span className="text-primary font-medium">{fmtDate(inv.dueDate)}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-400">Due Date</span><span className="text-primary font-medium">{inv.terms === 'receipt' ? 'Due on receipt' : fmtDate(inv.dueDate)}</span></div>
               {inv.refs?.bookingFile && <div className="flex justify-between text-sm"><span className="text-gray-400">Booking File</span><span className="text-primary font-medium">{inv.refs.bookingFile}</span></div>}
               {inv.refs?.voucher && <div className="flex justify-between text-sm"><span className="text-gray-400">Reservation / Voucher</span><span className="text-primary font-medium">{inv.refs.voucher}</span></div>}
               {inv.refs?.hotelInvoiceRef && <div className="flex justify-between text-sm"><span className="text-gray-400">Hotel Invoice Ref.</span><span className="text-primary font-medium">{inv.refs.hotelInvoiceRef}{inv.refs.hotelInvoiceDate ? ` · ${fmtDate(inv.refs.hotelInvoiceDate)}` : ''}</span></div>}
@@ -594,12 +644,12 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
                   {[
                     ['Group', m.groupName || '—'],
                     ['Hotel', m.hotelName || '—'],
-                    ['Via Operator', m.operatorName || '—'],
+                    ...(inv.showOperator ? [['Via Operator', m.operatorName || '—']] : []),
                     ['Destination', m.destination || '—'],
+                    ['Rooms', m.rooms || '—'],
                     ['Check-in', fmtDate(m.checkIn) || '—'],
                     ['Check-out', fmtDate(m.checkOut) || '—'],
                     ['Nights', m.nights || '—'],
-                    ['Rooms', m.rooms || '—'],
                   ].map(([k, v]) => (
                     <div key={k} className="bg-white px-4 py-2">
                       <div className="text-[9px] uppercase tracking-wider text-gray-400">{k}</div>
@@ -608,7 +658,7 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPa
                   ))}
                 </div>
                 <div className="grid grid-cols-3 gap-px" style={{ background: '#eef1f6' }}>
-                  <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Total Booking Value</div><div className="text-sm font-semibold text-primary">{money(m.bookingValue, c)}</div></div>
+                  <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Total Booking Value (incl. tax)</div><div className="text-sm font-semibold text-primary">{money(m.grossValue ?? m.bookingValue, c)}</div></div>
                   <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Commissionable (excl. tax)</div><div className="text-sm font-semibold text-primary">{money(m.commissionable, c)}</div></div>
                   <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Commission Rate</div><div className="text-sm font-semibold" style={{ color: '#b8891e' }}>{m.commissionPct}%</div></div>
                 </div>
