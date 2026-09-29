@@ -162,6 +162,28 @@ export const InvoicesList = () => {
 
   const handleDownload = () => window.print();
 
+  const exportForCA = () => {
+    if (!invoices.length) return toast.error('No invoices to export');
+    const header = ['Invoice No', 'Issue Date', 'Due Date', 'Hotel', 'Group', 'Booking Value', 'Commissionable', 'Commission %', 'Invoice Amount', 'Paid', 'Balance', 'Status'];
+    const rows = [header];
+    invoices.forEach((i) => {
+      const m = i.meta || {};
+      rows.push([
+        i.number, i.issueDate, i.dueDate,
+        i.billTo?.company || i.billTo?.name || '', m.groupName || '',
+        m.bookingValue || '', m.commissionable || '', m.commissionPct || '',
+        i.total || 0, paidOf(i), balanceOf(i),
+        (INVOICE_STATUS[i.status] || INVOICE_STATUS.draft).label,
+      ]);
+    });
+    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `hotelbridge-invoices-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Invoice ledger exported for your accountant');
+  };
+
   const handlePayment = (inv) => {
     const bal = Math.max(0, (inv.total || 0) - (inv.status === 'paid' ? (inv.total || 0) : (Number(inv.amountPaid) || 0)));
     const input = window.prompt(`Record a payment for ${inv.number}\nOutstanding: ${money(bal, inv.currency)}\n\nAmount received (${inv.currency || '€'}):`, bal ? String(Math.round(bal * 100) / 100) : '');
@@ -175,15 +197,25 @@ export const InvoicesList = () => {
   };
 
   const handleSend = (inv) => {
-    // Email send activates once the mail service (Resend) is connected.
+    // Opens an email draft to the hotel, auto-CC'ing your CA if set.
     const subject = encodeURIComponent(`Invoice ${inv.number} from ${COMPANY.name}`);
     const body = encodeURIComponent(
-      `Dear ${inv.billTo.name || inv.billTo.company},\n\nPlease find attached invoice ${inv.number} for ${money(inv.total, inv.currency)}.\n\nBest regards,\n${COMPANY.name}\n${COMPANY.web}`
+      `Dear ${inv.billTo.name || inv.billTo.company},\n\nPlease find our commission invoice ${inv.number} for ${money(inv.total, inv.currency)} (due ${new Date(inv.dueDate).toLocaleDateString('en-GB')}).\nPayment details are on the invoice.\n\nBest regards,\n${COMPANY.name}\n${COMPANY.web}`
     );
-    window.location.href = `mailto:${inv.billTo.email || ''}?subject=${subject}&body=${body}`;
+    const cc = bank.accountantEmail ? `&cc=${encodeURIComponent(bank.accountantEmail)}` : '';
+    window.location.href = `mailto:${inv.billTo.email || ''}?subject=${subject}${cc}&body=${body}`;
     updateInvoice(inv.id, { status: 'sent' });
     refresh();
     setPreview((p) => (p ? { ...p, status: 'sent' } : p));
+  };
+
+  const handleSendToCA = (inv) => {
+    if (!bank.accountantEmail) { setBankOpen(true); return toast.error('Add your accountant/CA email first'); }
+    const subject = encodeURIComponent(`Invoice ${inv.number} — ${inv.billTo?.company || ''} — ${money(inv.total, inv.currency)}`);
+    const body = encodeURIComponent(
+      `Hi,\n\nFor your records — commission invoice ${inv.number}:\n• Hotel: ${inv.billTo?.company || ''}\n• Amount: ${money(inv.total, inv.currency)}\n• Issued: ${new Date(inv.issueDate).toLocaleDateString('en-GB')}  Due: ${new Date(inv.dueDate).toLocaleDateString('en-GB')}\n• Status: ${(INVOICE_STATUS[inv.status] || INVOICE_STATUS.draft).label}\n\nRegards,\n${COMPANY.name}`
+    );
+    window.location.href = `mailto:${encodeURIComponent(bank.accountantEmail)}?subject=${subject}&body=${body}`;
   };
 
   return (
@@ -196,6 +228,11 @@ export const InvoicesList = () => {
           <p className="text-sm text-gray-500 mt-2">Generate branded commission invoices billed to your hotel partners.</p>
         </div>
         <div className="flex gap-2">
+          {invoices.length > 0 && (
+            <button onClick={exportForCA} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2" title="CSV ledger of all invoices">
+              <Download className="w-4 h-4" /> For Accountant
+            </button>
+          )}
           <button onClick={() => setBankOpen(true)} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
             <Landmark className="w-4 h-4" /> Bank details
           </button>
@@ -402,6 +439,7 @@ export const InvoicesList = () => {
           onClose={() => setPreview(null)}
           onDownload={handleDownload}
           onSend={() => handleSend(preview)}
+          onSendCA={() => handleSendToCA(preview)}
           onPayment={() => handlePayment(preview)}
           onStatus={(s) => setStatus(preview, s)}
         />
@@ -423,6 +461,7 @@ export const InvoicesList = () => {
                 ['accountNumber', 'Account number'],
                 ['iban', 'IBAN'],
                 ['swift', 'SWIFT / BIC'],
+                ['accountantEmail', 'Accountant / CA email (auto-CC on send)'],
               ].map(([k, label]) => (
                 <div key={k}>
                   <label className="text-[11px] text-gray-500 mb-1 block">{label}</label>
@@ -443,7 +482,7 @@ export const InvoicesList = () => {
 };
 
 /* ── Branded, print-ready invoice ─────────────────── */
-function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onPayment, onStatus }) {
+function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onSendCA, onPayment, onStatus }) {
   const c = inv.currency || '€';
   const m = inv.meta;
   const paid = inv.status === 'paid' ? (inv.total || 0) : (Number(inv.amountPaid) || 0);
@@ -470,7 +509,8 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onPayment, onS
         <div className="flex items-center gap-2">
           <button onClick={onPayment} className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 inline-flex items-center gap-1.5"><Wallet className="w-4 h-4" /> Record Payment</button>
           <button onClick={() => onStatus('paid')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Mark Paid</button>
-          <button onClick={onSend} className="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1.5"><Send className="w-4 h-4" /> Send</button>
+          <button onClick={onSend} className="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1.5" title="Email the hotel (CCs your CA)"><Send className="w-4 h-4" /> Send to Hotel</button>
+          <button onClick={onSendCA} className="px-3 py-2 rounded-xl text-xs font-semibold bg-purple-50 text-purple-700 hover:bg-purple-100 inline-flex items-center gap-1.5" title="Email a copy to your accountant"><Landmark className="w-4 h-4" /> To CA</button>
           <button onClick={onDownload} className="px-4 py-2 rounded-xl btn-gold text-white text-xs font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" /> Download PDF</button>
         </div>
       </div>

@@ -23,6 +23,7 @@ export const DEFAULT_BANK = {
   iban: '',
   swift: '',
   ref: 'Please quote the invoice number as payment reference.',
+  accountantEmail: '', // your CA — auto-CC'd on sends & used for the accounting export
 };
 const BANK_KEY = 'hotelbridge.crm.bank';
 export function getBank() {
