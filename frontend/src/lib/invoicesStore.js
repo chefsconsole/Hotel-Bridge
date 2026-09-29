@@ -96,3 +96,22 @@ export function updateInvoice(id, patch) {
 export function deleteInvoice(id) {
   writeAll(getInvoices().filter((x) => x.id !== id));
 }
+
+// Record a (partial or full) payment against an invoice
+export function recordPayment(id, amount) {
+  const list = getInvoices().map((x) => {
+    if (x.id !== id) return x;
+    const paid = Math.max(0, (Number(x.amountPaid) || 0) + (Number(amount) || 0));
+    const status = paid >= (x.total || 0) && x.total > 0 ? 'paid' : x.status;
+    return { ...x, amountPaid: paid, status };
+  });
+  writeAll(list);
+  return getInvoices().find((x) => x.id === id);
+}
+
+// Days overdue (0 if not overdue / paid)
+export function daysOverdue(inv) {
+  if (!inv || inv.status === 'paid' || !inv.dueDate) return 0;
+  const diff = Math.floor((Date.now() - new Date(inv.dueDate).getTime()) / 864e5);
+  return diff > 0 ? diff : 0;
+}

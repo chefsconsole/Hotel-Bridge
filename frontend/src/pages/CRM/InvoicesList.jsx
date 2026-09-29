@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Send, Trash2, X, Eye, CheckCircle2,
-  Building2, Sparkles, Receipt, Landmark,
+  Building2, Sparkles, Receipt, Landmark, Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getInvoices, saveInvoice, updateInvoice, deleteInvoice,
   INVOICE_STATUS, COMPANY, computeTotals, getBank, saveBank,
+  recordPayment, daysOverdue,
 } from '../../lib/invoicesStore';
 import { bookingsAPI, hotelsAPI } from '../../services/api';
 
@@ -36,6 +38,9 @@ export const InvoicesList = () => {
   const [calc, setCalc] = useState(null); // { gross, base, pct, desc } | null
   const [bank, setBank] = useState(getBank());
   const [bankOpen, setBankOpen] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const refresh = () => setInvoices(getInvoices());
   useEffect(() => { refresh(); }, []);
@@ -46,10 +51,32 @@ export const InvoicesList = () => {
     }
   }, [createOpen]);
 
+  // Deep-link: /crm/invoices?booking=<id> auto-opens + prefills a new invoice
+  useEffect(() => {
+    const bid = new URLSearchParams(location.search).get('booking');
+    if (bid) {
+      setForm(emptyForm());
+      setCreateOpen(true);
+      setPendingBooking(bid);
+      navigate('/crm/invoices', { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (pendingBooking && bookings.length && hotels.length) {
+      prefillFromBooking(pendingBooking);
+      setPendingBooking(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingBooking, bookings, hotels]);
+
+  const paidOf = (i) => (i.status === 'paid' ? (i.total || 0) : (Number(i.amountPaid) || 0));
+  const balanceOf = (i) => Math.max(0, (i.total || 0) - paidOf(i));
   const totals = {
     invoiced: invoices.reduce((s, i) => s + (i.total || 0), 0),
-    paid: invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + (i.total || 0), 0),
-    outstanding: invoices.filter((i) => i.status !== 'paid').reduce((s, i) => s + (i.total || 0), 0),
+    paid: invoices.reduce((s, i) => s + paidOf(i), 0),
+    outstanding: invoices.reduce((s, i) => s + balanceOf(i), 0),
+    overdue: invoices.filter((i) => daysOverdue(i) > 0).reduce((s, i) => s + balanceOf(i), 0),
   };
 
   const openNew = () => { setForm(emptyForm()); setCreateOpen(true); };
@@ -135,6 +162,18 @@ export const InvoicesList = () => {
 
   const handleDownload = () => window.print();
 
+  const handlePayment = (inv) => {
+    const bal = Math.max(0, (inv.total || 0) - (inv.status === 'paid' ? (inv.total || 0) : (Number(inv.amountPaid) || 0)));
+    const input = window.prompt(`Record a payment for ${inv.number}\nOutstanding: ${money(bal, inv.currency)}\n\nAmount received (${inv.currency || '€'}):`, bal ? String(Math.round(bal * 100) / 100) : '');
+    if (input == null) return;
+    const amt = Number(String(input).replace(/[^\d.]/g, ''));
+    if (!amt) return;
+    const updated = recordPayment(inv.id, amt);
+    refresh();
+    setPreview((p) => (p && p.id === inv.id ? updated : p));
+    toast.success(updated.status === 'paid' ? 'Invoice fully paid ✓' : `Payment of ${money(amt, inv.currency)} recorded`);
+  };
+
   const handleSend = (inv) => {
     // Email send activates once the mail service (Resend) is connected.
     const subject = encodeURIComponent(`Invoice ${inv.number} from ${COMPANY.name}`);
@@ -167,11 +206,12 @@ export const InvoicesList = () => {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Total Invoiced', value: money(totals.invoiced), accent: 'from-blue-500 to-indigo-600' },
           { label: 'Paid', value: money(totals.paid), accent: 'from-green-500 to-emerald-600' },
           { label: 'Outstanding', value: money(totals.outstanding), accent: 'from-secondary to-yellow-500' },
+          { label: 'Overdue', value: money(totals.overdue), accent: 'from-orange-500 to-red-500' },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl p-4 border border-gray-100 flex items-center gap-3">
             <div className={`w-2 h-12 rounded-full bg-gradient-to-b ${s.accent}`} />
@@ -362,6 +402,7 @@ export const InvoicesList = () => {
           onClose={() => setPreview(null)}
           onDownload={handleDownload}
           onSend={() => handleSend(preview)}
+          onPayment={() => handlePayment(preview)}
           onStatus={(s) => setStatus(preview, s)}
         />
       )}
@@ -402,9 +443,12 @@ export const InvoicesList = () => {
 };
 
 /* ── Branded, print-ready invoice ─────────────────── */
-function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onStatus }) {
+function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onPayment, onStatus }) {
   const c = inv.currency || '€';
   const m = inv.meta;
+  const paid = inv.status === 'paid' ? (inv.total || 0) : (Number(inv.amountPaid) || 0);
+  const balance = Math.max(0, (inv.total || 0) - paid);
+  const overdue = daysOverdue(inv);
   return (
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-primary/50 backdrop-blur-sm">
       <style>{`
@@ -424,6 +468,7 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onStatus }) {
           <span className="text-sm font-serif font-bold text-primary">{inv.number}</span>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={onPayment} className="px-3 py-2 rounded-xl text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 inline-flex items-center gap-1.5"><Wallet className="w-4 h-4" /> Record Payment</button>
           <button onClick={() => onStatus('paid')} className="px-3 py-2 rounded-xl text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 inline-flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> Mark Paid</button>
           <button onClick={onSend} className="px-3 py-2 rounded-xl text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 inline-flex items-center gap-1.5"><Send className="w-4 h-4" /> Send</button>
           <button onClick={onDownload} className="px-4 py-2 rounded-xl btn-gold text-white text-xs font-semibold inline-flex items-center gap-1.5"><Download className="w-4 h-4" /> Download PDF</button>
@@ -529,9 +574,19 @@ function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onStatus }) {
               <div className="flex justify-between text-sm"><span className="text-gray-500">Subtotal</span><span className="text-primary">{money(inv.subtotal, c)}</span></div>
               {inv.taxPercent > 0 && <div className="flex justify-between text-sm"><span className="text-gray-500">Tax ({inv.taxPercent}%)</span><span className="text-primary">{money(inv.tax, c)}</span></div>}
               <div className="flex justify-between items-center pt-3" style={{ borderTop: '2px solid #0a1f47' }}>
-                <span className="font-serif font-bold text-primary">Total Due</span>
-                <span className="font-serif text-2xl font-bold" style={{ color: '#b8891e' }}>{money(inv.total, c)}</span>
+                <span className="font-serif font-bold text-primary">Total</span>
+                <span className="font-serif text-xl font-bold text-primary">{money(inv.total, c)}</span>
               </div>
+              {paid > 0 && (
+                <div className="flex justify-between text-sm"><span className="text-gray-500">Amount Paid</span><span style={{ color: '#16a34a' }}>−{money(paid, c)}</span></div>
+              )}
+              <div className="flex justify-between items-center pt-2">
+                <span className="font-serif font-bold text-primary">{balance <= 0 ? 'Paid in Full' : 'Balance Due'}</span>
+                <span className="font-serif text-2xl font-bold" style={{ color: balance <= 0 ? '#16a34a' : '#b8891e' }}>{money(balance, c)}</span>
+              </div>
+              {overdue > 0 && balance > 0 && (
+                <div className="text-right text-xs font-semibold" style={{ color: '#dc2626' }}>{overdue} day{overdue > 1 ? 's' : ''} overdue</div>
+              )}
             </div>
           </div>
 

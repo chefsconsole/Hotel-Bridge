@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
   Plus, Search, Calendar, Building2, Users, MapPin, Pencil, Trash2,
-  Download, X, Filter
+  Download, X, Filter, Receipt
 } from 'lucide-react';
 import { bookingsAPI } from '../../services/api';
 import { BookingDialog } from './BookingDialog';
@@ -22,6 +23,7 @@ const STATUS_STYLES = {
 };
 
 export const BookingsList = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [bookings, setBookings] = useState([]);
@@ -217,6 +219,15 @@ export const BookingsList = () => {
                       <div className="font-serif text-2xl font-bold text-shimmer">€{b.totalRevenue?.toLocaleString()}</div>
                     </div>
                     <div className="flex gap-2">
+                      {b.status === 'confirmed' && (
+                        <button
+                          onClick={() => navigate(`/crm/invoices?booking=${b.id}`)}
+                          className="h-9 px-3 rounded-xl bg-secondary/10 hover:bg-secondary hover:text-white text-secondary flex items-center justify-center gap-1.5 text-xs font-semibold transition-all"
+                          title="Create commission invoice"
+                        >
+                          <Receipt className="w-4 h-4" /> Invoice
+                        </button>
+                      )}
                       <button
                         onClick={() => { setSelectedBooking(b); setDialogOpen(true); }}
                         className="w-9 h-9 rounded-xl bg-primary/5 hover:bg-primary hover:text-white text-primary flex items-center justify-center transition-all"

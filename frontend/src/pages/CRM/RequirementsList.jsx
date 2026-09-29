@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, X, Trash2, ClipboardList, Sparkles, Upload, ChevronDown, ChevronUp,
-  MapPin, Calendar, Users, BedDouble, Building2,
+  MapPin, Calendar, Users, BedDouble, Building2, ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getRequirements, saveRequirement, saveRequirementsBulk, updateRequirement,
   deleteRequirement, parseSpreadsheet, RFQ_STATUS, OFFER_STATUS,
 } from '../../lib/requirementsStore';
+import { bookingsAPI, operatorsAPI } from '../../services/api';
 
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const num = (n) => (Number(String(n).replace(/[^\d.]/g, '')) || 0);
@@ -18,6 +20,7 @@ const emptyReq = () => ({
 });
 
 export const RequirementsList = () => {
+  const navigate = useNavigate();
   const [reqs, setReqs] = useState([]);
   const [filter, setFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -26,9 +29,29 @@ export const RequirementsList = () => {
   const [importText, setImportText] = useState('');
   const [expanded, setExpanded] = useState(null);
   const [offerDraft, setOfferDraft] = useState({ hotelName: '', rate: '', meal: 'BB', status: 'waiting' });
+  const [operators, setOperators] = useState([]);
+  const [opAdd, setOpAdd] = useState(false);
+  const [opDraft, setOpDraft] = useState({ companyName: '', country: '', type: 'DMC' });
 
   const refresh = () => setReqs(getRequirements());
   useEffect(() => { refresh(); }, []);
+  useEffect(() => { if (createOpen) operatorsAPI.getAll().then((r) => setOperators(r.data || [])); }, [createOpen]);
+
+  const saveQuickOperator = async () => {
+    if (!opDraft.companyName.trim()) return toast.error('Enter operator name');
+    try {
+      const res = await operatorsAPI.create({
+        companyName: opDraft.companyName.trim(), contactPerson: '', country: opDraft.country.trim(),
+        type: opDraft.type, email: '', phone: '', businessPotential: 'medium', notes: '',
+      });
+      const list = (await operatorsAPI.getAll()).data;
+      setOperators(list);
+      setForm((f) => ({ ...f, operatorName: res.data.companyName }));
+      setOpAdd(false);
+      setOpDraft({ companyName: '', country: '', type: 'DMC' });
+      toast.success(`${res.data.companyName} added & selected`);
+    } catch { toast.error('Failed to add operator'); }
+  };
 
   const filtered = filter === 'all' ? reqs : reqs.filter((r) => r.status === filter);
   const open = reqs.filter((r) => !['won', 'lost'].includes(r.status));
@@ -76,6 +99,38 @@ export const RequirementsList = () => {
   const removeOffer = (r, oid) => {
     updateRequirement(r.id, { offers: (r.offers || []).filter((o) => o.id !== oid) });
     refresh();
+  };
+
+  // Contract a requirement → create a confirmed Booking from the winning hotel offer
+  const contractToBooking = async (r) => {
+    const offers = r.offers || [];
+    const winner = offers.find((o) => o.status === 'confirmed')
+      || offers.find((o) => o.status === 'shortlisted')
+      || offers[0];
+    if (!winner) return toast.error('Add a hotel option first, then contract it');
+    const nights = num(r.nights) || 1;
+    const checkOut = r.checkIn
+      ? new Date(new Date(r.checkIn).getTime() + nights * 864e5).toISOString().slice(0, 10)
+      : '';
+    try {
+      await bookingsAPI.create({
+        groupName: r.groupName || 'Group',
+        operatorId: '', operatorName: r.operatorName || '',
+        destination: r.destination || '',
+        hotelId: '', hotelName: winner.hotelName || '',
+        checkIn: r.checkIn || '', checkOut,
+        nights, rooms: num(r.rooms) || 0,
+        ratePerRoom: num(winner.rate) || 0,
+        status: 'confirmed',
+        notes: `Contracted from ${r.ref}`,
+      });
+      updateRequirement(r.id, { status: 'won' });
+      refresh();
+      toast.success(`Contracted → booking created at ${winner.hotelName}`);
+      navigate('/crm/bookings');
+    } catch {
+      toast.error('Could not create booking');
+    }
   };
 
   return (
@@ -215,6 +270,15 @@ export const RequirementsList = () => {
                       </select>
                       <button onClick={() => addOffer(r)} className="h-9 px-4 rounded-lg btn-gold text-white text-sm font-semibold">Add option</button>
                     </div>
+                    {(r.offers?.length > 0) && r.status !== 'won' && (
+                      <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Won this? Contract the confirmed/shortlisted hotel into a booking.</span>
+                        <button onClick={() => contractToBooking(r)}
+                          className="h-9 px-4 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold inline-flex items-center gap-1.5">
+                          Contract → Booking <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -233,7 +297,34 @@ export const RequirementsList = () => {
             </div>
             <div className="p-6 grid grid-cols-2 gap-3">
               <input placeholder="Group name" value={form.groupName} onChange={(e) => setForm({ ...form, groupName: e.target.value })} className="col-span-2 h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
-              <input placeholder="Operator / DMC" value={form.operatorName} onChange={(e) => setForm({ ...form, operatorName: e.target.value })} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+              <div>
+                {opAdd ? (
+                  <div className="p-2.5 rounded-xl border border-secondary/40 bg-secondary/5 space-y-2">
+                    <input autoFocus placeholder="Operator / DMC name *" value={opDraft.companyName}
+                      onChange={(e) => setOpDraft({ ...opDraft, companyName: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveQuickOperator(); } }}
+                      className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input placeholder="Country" value={opDraft.country} onChange={(e) => setOpDraft({ ...opDraft, country: e.target.value })} className="h-9 rounded-lg border border-gray-200 px-2 text-sm outline-none focus:border-secondary" />
+                      <select value={opDraft.type} onChange={(e) => setOpDraft({ ...opDraft, type: e.target.value })} className="h-9 rounded-lg border border-gray-200 bg-white px-2 text-sm outline-none focus:border-secondary">
+                        <option value="DMC">DMC</option><option value="operator">Operator</option><option value="agent">Agent</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={saveQuickOperator} className="h-8 px-3 rounded-lg btn-gold text-white text-xs font-semibold">Add &amp; Select</button>
+                      <button type="button" onClick={() => setOpAdd(false)} className="h-8 px-3 rounded-lg border border-gray-200 text-xs text-gray-600">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <select value={form.operatorName} onChange={(e) => setForm({ ...form, operatorName: e.target.value })} className="flex-1 h-11 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:border-secondary">
+                      <option value="">Operator / DMC…</option>
+                      {operators.map((o) => <option key={o.id} value={o.companyName}>{o.companyName}</option>)}
+                    </select>
+                    <button type="button" onClick={() => setOpAdd(true)} title="Add new operator" className="h-11 px-3 rounded-xl border border-gray-200 text-secondary hover:border-secondary text-sm font-semibold whitespace-nowrap">+ New</button>
+                  </div>
+                )}
+              </div>
               <input placeholder="Destination / City" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
               <div><label className="text-[11px] text-gray-500">Check-in</label><input type="date" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} className="w-full h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary" /></div>
               <input placeholder="Nights" value={form.nights} onChange={(e) => setForm({ ...form, nights: e.target.value })} className="h-11 rounded-xl border border-gray-200 px-3 text-sm outline-none focus:border-secondary self-end" />

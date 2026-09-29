@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, LayoutDashboard, Building2, Users, Calendar,
-  DollarSign, Bot, Plus, LogOut, Sparkles, ArrowRight, Command, Inbox, ListTodo
+  DollarSign, Bot, Plus, LogOut, Sparkles, ArrowRight, Command, Inbox, ListTodo,
+  Receipt, ClipboardList
 } from 'lucide-react';
+import { hotelsAPI, operatorsAPI, bookingsAPI } from '../services/api';
+import { getRequirements } from '../lib/requirementsStore';
+import { getInvoices } from '../lib/invoicesStore';
 
 const COMMANDS = [
   { id: 'dash', label: 'Go to Dashboard', icon: LayoutDashboard, path: '/crm', group: 'Navigation', keywords: 'home overview metrics' },
@@ -29,28 +33,41 @@ const COMMANDS = [
 export function CommandPalette({ open, onClose }) {
   const [query, setQuery] = useState('');
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [data, setData] = useState([]);
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  // Focus input on open
+  // Focus input on open + load searchable records
   useEffect(() => {
     if (open) {
       setQuery('');
       setSelectedIdx(0);
       setTimeout(() => inputRef.current?.focus(), 50);
+      Promise.all([hotelsAPI.getAll(), operatorsAPI.getAll(), bookingsAPI.getAll()])
+        .then(([h, o, b]) => {
+          const recs = [
+            ...(h.data || []).map((x) => ({ id: `h-${x.id}`, label: x.name, sub: [x.city, x.country].filter(Boolean).join(', '), icon: Building2, path: '/crm/hotels', group: 'Hotels' })),
+            ...(o.data || []).map((x) => ({ id: `o-${x.id}`, label: x.companyName, sub: [x.type, x.country].filter(Boolean).join(' · '), icon: Users, path: '/crm/operators', group: 'Operators' })),
+            ...(b.data || []).map((x) => ({ id: `b-${x.id}`, label: x.groupName, sub: `${x.hotelName || ''} · ${x.destination || ''}`, icon: Calendar, path: '/crm/bookings', group: 'Bookings' })),
+            ...getRequirements().map((x) => ({ id: `r-${x.id}`, label: `${x.ref} ${x.groupName || ''}`, sub: [x.destination, x.operatorName].filter(Boolean).join(' · '), icon: ClipboardList, path: '/crm/requirements', group: 'Requirements' })),
+            ...getInvoices().map((x) => ({ id: `i-${x.id}`, label: `${x.number} ${x.billTo?.company || ''}`, sub: x.status, icon: Receipt, path: '/crm/invoices', group: 'Invoices' })),
+          ];
+          setData(recs);
+        })
+        .catch(() => setData([]));
     }
   }, [open]);
 
-  // Filter
+  // Filter — nav/actions + live data records
+  const q = query.toLowerCase();
+  const matchData = query
+    ? data.filter((d) => d.label.toLowerCase().includes(q) || (d.sub || '').toLowerCase().includes(q)).slice(0, 12)
+    : [];
   const filtered = query
-    ? COMMANDS.filter((c) => {
-        const q = query.toLowerCase();
-        return (
-          c.label.toLowerCase().includes(q) ||
-          c.keywords?.toLowerCase().includes(q) ||
-          c.group.toLowerCase().includes(q)
-        );
-      })
+    ? [
+        ...COMMANDS.filter((c) => c.label.toLowerCase().includes(q) || c.keywords?.toLowerCase().includes(q) || c.group.toLowerCase().includes(q)),
+        ...matchData,
+      ]
     : COMMANDS;
 
   // Group by category

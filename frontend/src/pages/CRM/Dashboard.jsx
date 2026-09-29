@@ -2,13 +2,66 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   DollarSign, Calendar, TrendingUp, Clock, Building2, Users as UsersIcon,
-  ArrowUpRight, Sparkles, ChevronRight
+  ArrowUpRight, Sparkles, ChevronRight, Receipt, ClipboardList, ListTodo, Inbox, AlertCircle
 } from 'lucide-react';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, Area, AreaChart, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Area, AreaChart, Cell
 } from 'recharts';
 import { dashboardAPI, bookingsAPI } from '../../services/api';
+import { getInvoices, daysOverdue } from '../../lib/invoicesStore';
+import { getRequirements } from '../../lib/requirementsStore';
+import { getTasks, isOverdue, isDueToday } from '../../lib/tasksStore';
+import { getLeads } from '../../lib/leadsStore';
+
+/* ── Needs Attention: the daily action list ─────────── */
+function NeedsAttention() {
+  const invoices = getInvoices();
+  const overdueInv = invoices.filter((i) => daysOverdue(i) > 0);
+  const reqs = getRequirements();
+  const staleRfq = reqs.filter((r) => ['new', 'sourcing'].includes(r.status) &&
+    ((r.offers || []).length === 0 || (Date.now() - new Date(r.createdAt).getTime()) > 3 * 864e5));
+  const tasks = getTasks();
+  const dueTasks = tasks.filter((t) => isOverdue(t) || isDueToday(t));
+  const newLeads = getLeads().filter((l) => l.status === 'new');
+
+  const items = [
+    { n: overdueInv.length, icon: Receipt, label: 'overdue invoice', link: '/crm/invoices', accent: 'from-orange-500 to-red-500', tint: 'bg-red-50 text-red-600' },
+    { n: staleRfq.length, icon: ClipboardList, label: 'RFQ needs sourcing', link: '/crm/requirements', accent: 'from-amber-500 to-yellow-500', tint: 'bg-amber-50 text-amber-700' },
+    { n: dueTasks.length, icon: ListTodo, label: 'task due', link: '/crm/tasks', accent: 'from-blue-500 to-indigo-600', tint: 'bg-blue-50 text-blue-700' },
+    { n: newLeads.length, icon: Inbox, label: 'new lead', link: '/crm/leads', accent: 'from-green-500 to-emerald-600', tint: 'bg-green-50 text-green-700' },
+  ].filter((x) => x.n > 0);
+
+  if (!items.length) {
+    return (
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center"><Sparkles className="w-5 h-5 text-green-600" /></div>
+        <div><div className="font-serif font-bold text-primary">You're all caught up 🎉</div><div className="text-xs text-gray-500">No overdue invoices, stale RFQs, due tasks, or new leads.</div></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+      <div className="flex items-center gap-2 mb-4">
+        <AlertCircle className="w-4 h-4 text-secondary" />
+        <h3 className="font-serif text-lg font-bold text-primary">Needs your attention today</h3>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {items.map((it) => {
+          const Icon = it.icon;
+          return (
+            <Link key={it.label} to={it.link} className="group rounded-xl border border-gray-100 hover:border-secondary/40 hover:shadow-md p-4 transition-all">
+              <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${it.accent} flex items-center justify-center mb-3`}><Icon className="w-4 h-4 text-white" /></div>
+              <div className="font-serif text-2xl font-bold text-primary">{it.n}</div>
+              <div className="text-xs text-gray-500 group-hover:text-secondary transition-colors">{it.label}{it.n > 1 ? 's' : ''}</div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 /* ── Animated counter ───────────────────────────── */
 function CountUp({ end, prefix = '', suffix = '', duration = 1500 }) {
@@ -268,6 +321,9 @@ export const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* ── Needs attention (daily action list) ── */}
+      <NeedsAttention />
 
       {/* ── Stat cards ─────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 stagger">
