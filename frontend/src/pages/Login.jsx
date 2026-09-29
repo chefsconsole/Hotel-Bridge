@@ -59,7 +59,7 @@ export const Login = () => {
 
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass text-sm font-medium text-yellow-300 mb-8">
             <Sparkles className="w-4 h-4" />
-            Partner CRM Portal
+            HotelBridge Team Workspace
           </div>
 
           <h1 className="font-serif text-5xl lg:text-6xl font-bold leading-[1.05] mb-6">
@@ -100,7 +100,7 @@ export const Login = () => {
             </Link>
 
             <h2 className="font-serif text-3xl font-bold text-white mb-2">Sign in</h2>
-            <p className="text-sm text-gray-400 mb-8">Access your hotel partner dashboard</p>
+            <p className="text-sm text-gray-400 mb-8">Sign in to your HotelBridge workspace</p>
 
             <form onSubmit={handleLogin} className="space-y-5">
               {/* Email */}
@@ -172,10 +172,7 @@ export const Login = () => {
             </form>
 
             <p className="text-center text-xs text-gray-500 mt-8">
-              Not a partner yet?{' '}
-              <Link to="/contact" className="text-secondary hover:text-yellow-300 font-semibold transition-colors">
-                Get in touch
-              </Link>
+              Authorised HotelBridge team members only.
             </p>
           </div>
         </div>
