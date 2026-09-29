@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  Plus, FileText, Download, Send, Trash2, X, Eye, CheckCircle2,
-  Building2, Sparkles, Receipt,
+  Plus, Download, Send, Trash2, X, Eye, CheckCircle2,
+  Building2, Sparkles, Receipt, Landmark,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   getInvoices, saveInvoice, updateInvoice, deleteInvoice,
-  INVOICE_STATUS, COMPANY, computeTotals,
+  INVOICE_STATUS, COMPANY, computeTotals, getBank, saveBank,
 } from '../../lib/invoicesStore';
 import { bookingsAPI, hotelsAPI } from '../../services/api';
 
@@ -22,6 +22,7 @@ const emptyForm = () => ({
   issueDate: today(),
   dueDate: plusDays(30),
   notes: 'Payment due within 30 days. Thank you for your partnership.',
+  meta: null, // booking summary shown on the invoice
 });
 
 export const InvoicesList = () => {
@@ -33,6 +34,8 @@ export const InvoicesList = () => {
   const [hotels, setHotels] = useState([]);
   // Commission calculator (excl. taxes, per hotel terms)
   const [calc, setCalc] = useState(null); // { gross, base, pct, desc } | null
+  const [bank, setBank] = useState(getBank());
+  const [bankOpen, setBankOpen] = useState(false);
 
   const refresh = () => setInvoices(getInvoices());
   useEffect(() => { refresh(); }, []);
@@ -75,6 +78,12 @@ export const InvoicesList = () => {
         address: [hotel?.city, hotel?.country].filter(Boolean).join(', ') || b.destination || '',
       },
       items: [buildItem(b, gross, pct)],
+      meta: {
+        groupName: b.groupName, operatorName: b.operatorName, hotelName: b.hotelName,
+        destination: b.destination, checkIn: b.checkIn, checkOut: b.checkOut,
+        nights: b.nights, rooms: b.rooms, bookingValue: gross,
+        commissionable: gross, commissionPct: pct,
+      },
     }));
   };
 
@@ -84,7 +93,11 @@ export const InvoicesList = () => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
       const b = bookings.find((x) => String(x.id) === String(next.bookingId));
-      if (b) setForm((f) => ({ ...f, items: [buildItem(b, next.base, next.pct)] }));
+      if (b) setForm((f) => ({
+        ...f,
+        items: [buildItem(b, next.base, next.pct)],
+        meta: f.meta ? { ...f.meta, commissionable: next.base, commissionPct: next.pct } : f.meta,
+      }));
       return next;
     });
   };
@@ -143,9 +156,14 @@ export const InvoicesList = () => {
           <h1 className="font-serif text-3xl lg:text-4xl font-bold text-primary leading-tight">Invoices</h1>
           <p className="text-sm text-gray-500 mt-2">Generate branded commission invoices billed to your hotel partners.</p>
         </div>
-        <button onClick={openNew} className="rounded-xl btn-gold text-white border-0 px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Invoice
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setBankOpen(true)} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
+            <Landmark className="w-4 h-4" /> Bank details
+          </button>
+          <button onClick={openNew} className="rounded-xl btn-gold text-white border-0 px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Invoice
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -340,19 +358,53 @@ export const InvoicesList = () => {
       {preview && (
         <InvoicePreview
           inv={preview}
+          bank={bank}
           onClose={() => setPreview(null)}
           onDownload={handleDownload}
           onSend={() => handleSend(preview)}
           onStatus={(s) => setStatus(preview, s)}
         />
       )}
+
+      {/* ── BANK DETAILS EDITOR ─────────────────────── */}
+      {bankOpen && (
+        <div className="fixed inset-0 z-[85] flex items-center justify-center px-4 bg-primary/40 backdrop-blur-sm" onClick={() => setBankOpen(false)}>
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-serif text-xl font-bold text-primary flex items-center gap-2"><Landmark className="w-5 h-5 text-secondary" /> Bank Details</h3>
+              <button onClick={() => setBankOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-gray-500">These appear on every invoice so hotels know where to pay your commission.</p>
+              {[
+                ['accountName', 'Account name'],
+                ['bankName', 'Bank name'],
+                ['accountNumber', 'Account number'],
+                ['iban', 'IBAN'],
+                ['swift', 'SWIFT / BIC'],
+              ].map(([k, label]) => (
+                <div key={k}>
+                  <label className="text-[11px] text-gray-500 mb-1 block">{label}</label>
+                  <input value={bank[k] || ''} onChange={(e) => setBank({ ...bank, [k]: e.target.value })}
+                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm outline-none focus:border-secondary" />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+              <button onClick={() => { setBank(getBank()); setBankOpen(false); }} className="px-4 py-2 rounded-xl text-sm text-gray-600 hover:bg-gray-100">Cancel</button>
+              <button onClick={() => { saveBank(bank); setBankOpen(false); toast.success('Bank details saved'); }} className="px-5 py-2 rounded-xl btn-gold text-white text-sm font-semibold">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 /* ── Branded, print-ready invoice ─────────────────── */
-function InvoicePreview({ inv, onClose, onDownload, onSend, onStatus }) {
+function InvoicePreview({ inv, bank, onClose, onDownload, onSend, onStatus }) {
   const c = inv.currency || '€';
+  const m = inv.meta;
   return (
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-primary/50 backdrop-blur-sm">
       <style>{`
@@ -416,6 +468,37 @@ function InvoicePreview({ inv, onClose, onDownload, onSend, onStatus }) {
             </div>
           </div>
 
+          {/* Booking summary */}
+          {m && (
+            <div className="px-10 pb-2">
+              <div className="rounded-xl border border-gray-100 overflow-hidden">
+                <div className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white" style={{ background: '#0a1f47' }}>Booking Summary</div>
+                <div className="grid grid-cols-4 gap-px" style={{ background: '#eef1f6' }}>
+                  {[
+                    ['Group', m.groupName || '—'],
+                    ['Hotel', m.hotelName || '—'],
+                    ['Via Operator', m.operatorName || '—'],
+                    ['Destination', m.destination || '—'],
+                    ['Check-in', fmtDate(m.checkIn) || '—'],
+                    ['Check-out', fmtDate(m.checkOut) || '—'],
+                    ['Nights', m.nights || '—'],
+                    ['Rooms', m.rooms || '—'],
+                  ].map(([k, v]) => (
+                    <div key={k} className="bg-white px-4 py-2">
+                      <div className="text-[9px] uppercase tracking-wider text-gray-400">{k}</div>
+                      <div className="text-sm font-medium text-primary truncate">{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-px" style={{ background: '#eef1f6' }}>
+                  <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Total Booking Value</div><div className="text-sm font-semibold text-primary">{money(m.bookingValue, c)}</div></div>
+                  <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Commissionable (excl. tax)</div><div className="text-sm font-semibold text-primary">{money(m.commissionable, c)}</div></div>
+                  <div className="bg-white px-4 py-2"><div className="text-[9px] uppercase tracking-wider text-gray-400">Commission Rate</div><div className="text-sm font-semibold" style={{ color: '#b8891e' }}>{m.commissionPct}%</div></div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Items */}
           <div className="px-10">
             <table className="w-full">
@@ -452,10 +535,27 @@ function InvoicePreview({ inv, onClose, onDownload, onSend, onStatus }) {
             </div>
           </div>
 
-          {/* Notes + footer */}
-          <div className="px-10 pb-4">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Notes</div>
-            <div className="text-sm text-gray-600">{inv.notes}</div>
+          {/* Payment / bank details + notes */}
+          <div className="px-10 pb-4 grid grid-cols-2 gap-8">
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Payment Details</div>
+              {bank && (bank.bankName || bank.accountNumber || bank.iban) ? (
+                <div className="text-sm text-gray-700 space-y-0.5">
+                  {bank.accountName && <div><span className="text-gray-400">Account: </span>{bank.accountName}</div>}
+                  {bank.bankName && <div><span className="text-gray-400">Bank: </span>{bank.bankName}</div>}
+                  {bank.accountNumber && <div><span className="text-gray-400">A/C No: </span>{bank.accountNumber}</div>}
+                  {bank.iban && <div><span className="text-gray-400">IBAN: </span>{bank.iban}</div>}
+                  {bank.swift && <div><span className="text-gray-400">SWIFT: </span>{bank.swift}</div>}
+                  <div className="text-xs text-gray-400 pt-1">{bank.ref}</div>
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 italic">Add your bank details in Invoices → “Bank details”.</div>
+              )}
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Notes</div>
+              <div className="text-sm text-gray-600">{inv.notes}</div>
+            </div>
           </div>
           <div className="px-10 py-5 mt-2 flex flex-wrap items-center justify-between gap-2 text-xs" style={{ background: '#f8fafc', color: '#64748b' }}>
             <span className="inline-flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" style={{ color: '#b8891e' }} /> {COMPANY.web}</span>

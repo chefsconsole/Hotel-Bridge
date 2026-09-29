@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
   LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles,
-  Inbox, ListTodo, Receipt
+  Inbox, ListTodo, Receipt, ClipboardList
 } from 'lucide-react';
 import { getLeads } from '../../lib/leadsStore';
 import { getTasks, isOverdue, isDueToday } from '../../lib/tasksStore';
@@ -15,6 +15,7 @@ const baseMenuItems = [
   { name: 'Tasks', path: '/crm/tasks', icon: ListTodo, badgeKey: 'todayTasks' },
   { name: 'Hotels', path: '/crm/hotels', icon: Building2 },
   { name: 'Operators', path: '/crm/operators', icon: Users },
+  { name: 'Requirements', path: '/crm/requirements', icon: ClipboardList },
   { name: 'Bookings', path: '/crm/bookings', icon: Calendar },
   { name: 'Revenue', path: '/crm/revenue', icon: DollarSign },
   { name: 'Invoices', path: '/crm/invoices', icon: Receipt },

@@ -24,6 +24,7 @@ import AIAssistant from "./pages/CRM/AIAssistant";
 import LeadsList from "./pages/CRM/LeadsList";
 import TasksList from "./pages/CRM/TasksList";
 import InvoicesList from "./pages/CRM/InvoicesList";
+import RequirementsList from "./pages/CRM/RequirementsList";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -141,6 +142,7 @@ function App() {
             <Route path="tasks" element={<TasksList />} />
             <Route path="hotels" element={<HotelsList />} />
             <Route path="operators" element={<OperatorsList />} />
+            <Route path="requirements" element={<RequirementsList />} />
             <Route path="bookings" element={<BookingsList />} />
             <Route path="revenue" element={<RevenueList />} />
             <Route path="invoices" element={<InvoicesList />} />

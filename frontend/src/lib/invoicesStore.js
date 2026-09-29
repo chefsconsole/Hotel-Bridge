@@ -14,6 +14,26 @@ export const COMPANY = {
   logo: '/hotelbridge-logo.png',
 };
 
+// Bank details shown on invoices (where the hotel pays your commission).
+// Editable in the app (Invoices → Bank details) and stored per-browser.
+export const DEFAULT_BANK = {
+  accountName: 'HotelBridge',
+  bankName: '',
+  accountNumber: '',
+  iban: '',
+  swift: '',
+  ref: 'Please quote the invoice number as payment reference.',
+};
+const BANK_KEY = 'hotelbridge.crm.bank';
+export function getBank() {
+  try { return { ...DEFAULT_BANK, ...JSON.parse(localStorage.getItem(BANK_KEY) || '{}') }; }
+  catch { return { ...DEFAULT_BANK }; }
+}
+export function saveBank(bank) {
+  try { localStorage.setItem(BANK_KEY, JSON.stringify(bank)); } catch { /* ignore */ }
+  return getBank();
+}
+
 export const INVOICE_STATUS = {
   draft: { label: 'Draft',    color: 'bg-gray-100 text-gray-600 border-gray-200',    dot: 'bg-gray-400'   },
   sent:  { label: 'Sent',     color: 'bg-blue-50 text-blue-700 border-blue-200',      dot: 'bg-blue-500'   },
