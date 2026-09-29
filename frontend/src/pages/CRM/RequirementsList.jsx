@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, X, Trash2, ClipboardList, Sparkles, Upload, ChevronDown, ChevronUp,
-  MapPin, Calendar, Users, BedDouble, Building2, ArrowRight,
+  MapPin, Calendar, Users, BedDouble, Building2, ArrowRight, Copy, Check, Mail,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -13,6 +13,28 @@ import { bookingsAPI, operatorsAPI } from '../../services/api';
 
 const fmtDate = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const num = (n) => (Number(String(n).replace(/[^\d.]/g, '')) || 0);
+
+// Email-ready formatting
+const dateRange = (checkIn, nights) => {
+  if (!checkIn) return '';
+  const ci = new Date(checkIn);
+  if (isNaN(ci)) return '';
+  const co = new Date(ci.getTime() + (num(nights) || 1) * 864e5);
+  const o = { day: '2-digit', month: 'short' };
+  return `${ci.toLocaleDateString('en-GB', o)}–${co.toLocaleDateString('en-GB', o)} ${ci.getFullYear()}`;
+};
+const reqLine = (r) => {
+  const after = [];
+  const range = dateRange(r.checkIn, r.nights);
+  if (range) after.push(range + (r.nights ? ` (${r.nights} nights)` : ''));
+  if (r.rooms) after.push(`${r.rooms} rooms`);
+  if (r.pax) after.push(`${r.pax} pax`);
+  if (r.meal) after.push(r.meal);
+  if (r.targetRate) after.push(`target €${r.targetRate}`);
+  return `• ${r.groupName || 'Group'}${after.length ? ' — ' + after.join(' · ') : ''}`;
+};
+const cityBlockText = (city, list) =>
+  `Group requirements — ${city || 'Various'}\n\n${list.map(reqLine).join('\n')}\n\nKindly share your best group rates & availability. Thank you.`;
 
 const emptyReq = () => ({
   groupName: '', operatorName: '', destination: '', checkIn: '', nights: '',
@@ -32,6 +54,14 @@ export const RequirementsList = () => {
   const [operators, setOperators] = useState([]);
   const [opAdd, setOpAdd] = useState(false);
   const [opDraft, setOpDraft] = useState({ companyName: '', country: '', type: 'DMC' });
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
+
+  const doCopy = (key, text) => {
+    const done = () => { setCopiedKey(key); setTimeout(() => setCopiedKey(null), 1500); toast.success('Copied — paste into your email'); };
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(done).catch(() => toast.error('Copy failed'));
+    else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch { toast.error('Copy failed'); } document.body.removeChild(ta); }
+  };
 
   const refresh = () => setReqs(getRequirements());
   useEffect(() => { refresh(); }, []);
@@ -143,6 +173,11 @@ export const RequirementsList = () => {
           <p className="text-sm text-gray-500 mt-2">Group &amp; series requirements from operators — source hotels and track every quote in one place.</p>
         </div>
         <div className="flex gap-2">
+          {reqs.length > 0 && (
+            <button onClick={() => setCopyOpen(true)} className="rounded-xl border border-gray-200 text-gray-600 hover:border-secondary hover:text-secondary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
+              <Mail className="w-4 h-4" /> Copy for Email
+            </button>
+          )}
           <button onClick={() => setImportOpen(true)} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
             <Upload className="w-4 h-4" /> Import from Excel
           </button>
@@ -379,6 +414,46 @@ export const RequirementsList = () => {
           </div>
         </div>
       )}
+
+      {/* ── COPY FOR EMAIL (city-wise) ─────────────── */}
+      {copyOpen && (() => {
+        const cityGroups = Object.entries(
+          reqs.reduce((acc, r) => { const c = r.destination || 'Unspecified'; (acc[c] = acc[c] || []).push(r); return acc; }, {})
+        ).sort((a, b) => a[0].localeCompare(b[0]));
+        const allText = cityGroups.map(([c, list]) => cityBlockText(c, list)).join('\n\n———\n\n');
+        return (
+          <div className="fixed inset-0 z-[80] flex items-start justify-center pt-10 pb-10 px-4 overflow-y-auto bg-primary/40 backdrop-blur-sm" onClick={() => setCopyOpen(false)}>
+            <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <h3 className="font-serif text-xl font-bold text-primary flex items-center gap-2"><Mail className="w-5 h-5 text-secondary" /> Copy for Email — by City</h3>
+                <button onClick={() => setCopyOpen(false)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-6 space-y-3 max-h-[65vh] overflow-y-auto">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-500">Copy a city block and paste it straight into your email to that city's hotels.</p>
+                  <button onClick={() => doCopy('__all__', allText)} className="text-xs font-semibold text-secondary inline-flex items-center gap-1">
+                    {copiedKey === '__all__' ? <><Check className="w-3 h-3" /> Copied</> : <><Copy className="w-3 h-3" /> Copy all</>}
+                  </button>
+                </div>
+                {cityGroups.map(([city, list]) => {
+                  const text = cityBlockText(city, list);
+                  return (
+                    <div key={city} className="rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50">
+                        <div className="font-serif font-bold text-primary flex items-center gap-2"><MapPin className="w-4 h-4 text-secondary" /> {city} <span className="text-xs font-normal text-gray-400">· {list.length} group{list.length > 1 ? 's' : ''}</span></div>
+                        <button onClick={() => doCopy(city, text)} className="text-xs font-semibold rounded-lg px-3 py-1.5 bg-secondary/10 text-secondary hover:bg-secondary hover:text-white inline-flex items-center gap-1.5 transition-all">
+                          {copiedKey === city ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
+                        </button>
+                      </div>
+                      <pre className="px-4 py-3 text-xs text-gray-600 whitespace-pre-wrap font-sans leading-relaxed">{text}</pre>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
