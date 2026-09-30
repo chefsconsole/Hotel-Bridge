@@ -68,7 +68,24 @@ function crud(key) {
   };
 }
 
-export const hotelsAPI    = crud(KEYS.hotels);
+export const hotelsAPI    = {
+  ...crud(KEYS.hotels),
+  // Bulk import (e.g. a partner portfolio). De-dupes by name+city so re-running is safe.
+  bulkCreate: (items) => {
+    const existing = read(KEYS.hotels);
+    const norm = (h) => `${(h.name || '').trim().toLowerCase()}|${(h.city || '').trim().toLowerCase()}`;
+    const seen = new Set(existing.map(norm));
+    const toAdd = [];
+    (items || []).forEach((it, i) => {
+      const k = norm(it);
+      if (!it.name || seen.has(k)) return;
+      seen.add(k);
+      toAdd.push({ id: `${uid()}-${i}`, createdAt: new Date().toISOString(), ...it });
+    });
+    write(KEYS.hotels, [...toAdd, ...existing]);
+    return ok({ added: toAdd.length, skipped: (items || []).length - toAdd.length });
+  },
+};
 export const operatorsAPI = crud(KEYS.operators);
 
 // Bookings: auto-calc totalRevenue, and auto-create a commission when confirmed
