@@ -34,7 +34,7 @@ function NeedsAttention() {
 
   if (!items.length) {
     return (
-      <div className="bg-white rounded-2xl p-5 border border-gray-100 flex items-center gap-3">
+      <div className="card-lux p-5 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center"><Sparkles className="w-5 h-5 text-green-600" /></div>
         <div><div className="font-serif font-bold text-primary">You're all caught up 🎉</div><div className="text-xs text-gray-500">No overdue invoices, stale RFQs, due tasks, or new leads.</div></div>
       </div>
@@ -42,7 +42,7 @@ function NeedsAttention() {
   }
 
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100">
+    <div className="card-lux p-5">
       <div className="flex items-center gap-2 mb-4">
         <AlertCircle className="w-4 h-4 text-secondary" />
         <h3 className="font-serif text-lg font-bold text-primary">Needs your attention today</h3>
@@ -123,12 +123,12 @@ function Sparkline({ data, color = '#d4af37' }) {
 function StatCard({ icon: Icon, label, value, delta, trend, accent, sparkData, prefix = '', suffix = '' }) {
   const isPositive = delta >= 0;
   return (
-    <div className="reveal group relative bg-white rounded-2xl p-5 border border-gray-100 hover:border-gray-200 hover:shadow-xl transition-all duration-300 overflow-hidden">
+    <div className="reveal group relative card-lux card-lux-hover accent-top p-5 overflow-hidden">
       {/* Accent corner */}
-      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl ${accent}`} />
+      <div className={`absolute top-0 right-0 w-32 h-32 rounded-full opacity-10 blur-2xl ${accent} transition-opacity duration-300 group-hover:opacity-20`} />
 
       <div className="relative z-10 flex items-start justify-between mb-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${accent}`}>
+        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg ring-1 ring-white/40 ${accent} transition-transform duration-300 group-hover:scale-105 group-hover:-rotate-3`}>
           <Icon className="w-5 h-5 text-white" />
         </div>
         <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full ${
@@ -336,7 +336,7 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Revenue chart */}
-        <div className="reveal lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100">
+        <div className="reveal lg:col-span-2 card-lux p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-serif text-lg font-bold text-primary">Revenue & Commission</h3>
@@ -374,7 +374,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Top hotels */}
-        <div className="reveal bg-white rounded-2xl p-6 border border-gray-100">
+        <div className="reveal card-lux p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="font-serif text-lg font-bold text-primary">Top Hotels</h3>
@@ -402,7 +402,7 @@ export const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* Operators table */}
-        <div className="reveal lg:col-span-3 bg-white rounded-2xl p-6 border border-gray-100">
+        <div className="reveal lg:col-span-3 card-lux p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-serif text-lg font-bold text-primary">Top Operators</h3>
@@ -439,7 +439,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Recent bookings */}
-        <div className="reveal lg:col-span-2 bg-white rounded-2xl p-6 border border-gray-100">
+        <div className="reveal lg:col-span-2 card-lux p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-serif text-lg font-bold text-primary">Recent Bookings</h3>
             <Link to="/crm/bookings" className="text-xs text-secondary font-semibold hover:underline flex items-center gap-1">
