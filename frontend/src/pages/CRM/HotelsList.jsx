@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import {
@@ -9,6 +9,7 @@ import { hotelsAPI, bookingsAPI } from '../../services/api';
 import { HotelDialog } from './HotelDialog';
 import { toast } from 'sonner';
 import { exportHotelsToCSV } from '../../utils/exportUtils';
+import { parseHotelFile } from '../../utils/importHotels';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -39,6 +40,9 @@ export const HotelsList = () => {
   const [visibleCities, setVisibleCities] = useState(CITY_PAGE);
   const [importing, setImporting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [parsed, setParsed] = useState(null);      // hotels parsed from the uploaded file
+  const [importName, setImportName] = useState(''); // uploaded file name
+  const fileRef = useRef(null);
 
   const fetchHotels = async () => {
     try {
@@ -108,20 +112,40 @@ export const HotelsList = () => {
     try { exportHotelsToCSV(filtered); toast.success('Exported'); } catch { toast.error('Export failed'); }
   };
 
-  const runImport = async () => {
+  const onFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
     setImporting(true);
     try {
-      const res = await fetch('/data/lhg-hotels.json', { cache: 'no-store' });
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      const out = await hotelsAPI.bulkCreate(data);
+      const rows = await parseHotelFile(file);
+      if (!rows.length) {
+        toast.error('No hotels found in that file', { description: 'Check it has hotel name / city columns.' });
+        return;
+      }
+      setParsed(rows);
+      setImportName(file.name);
+      setImportOpen(true);
+    } catch (err) {
+      toast.error('Could not read that file', { description: 'Supported: .xlsx, .xls, .csv' });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!parsed) return;
+    setImporting(true);
+    try {
+      const out = await hotelsAPI.bulkCreate(parsed);
       await fetchHotels();
       toast.success(`Imported ${out.data.added} hotels`, {
-        description: out.data.skipped ? `${out.data.skipped} already in your portfolio (skipped)` : 'Louvre Hotels Group portfolio added',
+        description: out.data.skipped ? `${out.data.skipped} already in your portfolio (skipped)` : 'Portfolio added, grouped city-wise',
       });
       setImportOpen(false);
-    } catch (e) {
-      toast.error('Import failed', { description: 'Could not load the portfolio file.' });
+      setParsed(null);
+    } catch {
+      toast.error('Import failed');
     } finally {
       setImporting(false);
     }
@@ -144,8 +168,9 @@ export const HotelsList = () => {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setImportOpen(true)} variant="outline" className="rounded-xl border-secondary/40 text-secondary hover:bg-secondary/10 hover:text-secondary">
-            <Upload className="w-4 h-4 mr-2" /> Import portfolio
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={onFileChange} className="hidden" />
+          <Button onClick={() => fileRef.current?.click()} disabled={importing} variant="outline" className="rounded-xl border-secondary/40 text-secondary hover:bg-secondary/10 hover:text-secondary">
+            <Upload className="w-4 h-4 mr-2" /> {importing && !importOpen ? 'Reading…' : 'Import portfolio'}
           </Button>
           <Button onClick={handleExport} variant="outline" className="rounded-xl border-gray-200 text-gray-600 hover:border-primary hover:text-primary">
             <Download className="w-4 h-4 mr-2" /> Export
@@ -219,7 +244,7 @@ export const HotelsList = () => {
           <p className="mt-4 text-gray-500 text-sm">Loading hotels…</p>
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState searchTerm={searchTerm} onAdd={handleAdd} onImport={() => setImportOpen(true)} />
+        <EmptyState searchTerm={searchTerm} onAdd={handleAdd} onImport={() => fileRef.current?.click()} />
       ) : view === 'compact' ? (
         /* ── COMPACT · CITY-WISE ────────────────────────── */
         <>
@@ -275,19 +300,34 @@ export const HotelsList = () => {
 
       <HotelDialog open={dialogOpen} onClose={() => setDialogOpen(false)} hotel={selectedHotel} onSuccess={fetchHotels} />
 
-      {/* Import confirm */}
-      <AlertDialog open={importOpen} onOpenChange={setImportOpen}>
+      {/* Import confirm — shows what was parsed from the uploaded file */}
+      <AlertDialog open={importOpen} onOpenChange={(o) => { setImportOpen(o); if (!o) setParsed(null); }}>
         <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif text-xl flex items-center gap-2"><Upload className="w-5 h-5 text-secondary" /> Import hotel portfolio</AlertDialogTitle>
-            <AlertDialogDescription>
-              This adds the <strong className="text-primary">Louvre Hotels Group</strong> portfolio (~823 hotels across 13 countries) to your network, grouped city-wise. Hotels already in your list are skipped, so it's safe to run again.
+            <AlertDialogTitle className="font-serif text-xl flex items-center gap-2"><Upload className="w-5 h-5 text-secondary" /> Import {parsed?.length || 0} hotels</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-sm text-gray-500 space-y-3">
+                <p>
+                  From <strong className="text-primary">{importName}</strong> — detected{' '}
+                  <strong className="text-primary">{parsed?.length || 0}</strong> hotels across{' '}
+                  <strong className="text-primary">{new Set((parsed || []).map((h) => `${h.city}|${h.country}`)).size}</strong> cities and{' '}
+                  <strong className="text-primary">{new Set((parsed || []).map((h) => h.country).filter(Boolean)).size}</strong> countries. They'll be grouped city-wise; any already in your list are skipped.
+                </p>
+                {parsed?.length > 0 && (
+                  <div className="rounded-xl bg-gray-50 border border-gray-100 p-3 text-xs text-gray-600 space-y-1 max-h-28 overflow-y-auto">
+                    {parsed.slice(0, 4).map((h, i) => (
+                      <div key={i} className="truncate"><span className="font-semibold text-primary">{h.name}</span> · {h.city}{h.country ? `, ${h.country}` : ''}</div>
+                    ))}
+                    {parsed.length > 4 && <div className="text-gray-400">…and {parsed.length - 4} more</div>}
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-xl" disabled={importing}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); runImport(); }} disabled={importing} className="rounded-xl btn-gold text-white border-0">
-              {importing ? 'Importing…' : 'Import hotels'}
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmImport(); }} disabled={importing || !parsed?.length} className="rounded-xl btn-gold text-white border-0">
+              {importing ? 'Importing…' : `Add ${parsed?.length || 0} hotels`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
