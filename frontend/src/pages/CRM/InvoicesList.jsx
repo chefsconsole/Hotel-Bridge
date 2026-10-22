@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus, Download, Send, Trash2, X, Eye, CheckCircle2,
-  Building2, Sparkles, Receipt, Landmark, Wallet,
+  Building2, Sparkles, Receipt, Landmark, Wallet, Upload, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -56,6 +56,8 @@ export const InvoicesList = () => {
   const [bank, setBank] = useState(getBank());
   const [bankOpen, setBankOpen] = useState(false);
   const [pendingBooking, setPendingBooking] = useState(null);
+  const [aiReading, setAiReading] = useState(false);
+  const aiFileRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -99,11 +101,15 @@ export const InvoicesList = () => {
   const openNew = () => { setForm(emptyForm()); setCreateOpen(true); };
 
   const eur2 = (n) => (Number(n) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const buildItem = (b, base, pct, showOp) => ({
-    description: `Commission on "${b.groupName}" — ${b.rooms} rooms × ${b.nights} night${Number(b.nights) > 1 ? 's' : ''}${showOp && b.operatorName ? ` via ${b.operatorName}` : ''} · commissionable €${eur2(base)} @ ${pct}%`,
-    qty: 1,
-    rate: Math.round((Number(base) || 0) * ((Number(pct) || 0) / 100) * 100) / 100,
-  });
+  const buildItemGeneric = (groupName, rooms, nights, base, pct, opName) => {
+    const stay = rooms && nights ? ` — ${rooms} rooms × ${nights} night${Number(nights) > 1 ? 's' : ''}` : '';
+    return {
+      description: `Commission on "${groupName || 'Group booking'}"${stay}${opName ? ` via ${opName}` : ''} · commissionable €${eur2(base)} @ ${pct}%`,
+      qty: 1,
+      rate: Math.round((Number(base) || 0) * ((Number(pct) || 0) / 100) * 100) / 100,
+    };
+  };
+  const buildItem = (b, base, pct, showOp) => buildItemGeneric(b.groupName, b.rooms, b.nights, base, pct, showOp ? b.operatorName : '');
 
   const prefillFromBooking = (id) => {
     const b = bookings.find((x) => String(x.id) === String(id));
@@ -144,19 +150,90 @@ export const InvoicesList = () => {
     }));
   };
 
-  // Recompute the commission line when the base (excl. taxes) or % changes
+  // Recompute the commission line when the base (excl. taxes) or % changes.
+  // Works for booking-prefilled invoices and AI-extracted ones (no booking).
   const updateCalc = (patch) => {
     setCalc((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
-      const b = bookings.find((x) => String(x.id) === String(next.bookingId));
-      if (b) setForm((f) => ({
+      const b = next.bookingId ? bookings.find((x) => String(x.id) === String(next.bookingId)) : null;
+      setForm((f) => ({
         ...f,
-        items: [buildItem(b, next.base, next.pct, f.showOperator)],
+        items: [
+          b
+            ? buildItem(b, next.base, next.pct, f.showOperator)
+            : buildItemGeneric(f.meta?.groupName, f.meta?.rooms, f.meta?.nights, next.base, next.pct, f.showOperator ? f.meta?.operatorName : ''),
+        ],
         meta: f.meta ? { ...f.meta, commissionable: next.base, commissionPct: next.pct, grossValue: next.gross, bookingValue: next.gross } : f.meta,
       }));
       return next;
     });
+  };
+
+  // ── AI: read an uploaded hotel invoice → prefill the commission invoice ──
+  const prefillFromExtract = (d) => {
+    const base = Number(d.netCommissionable) || 0;
+    const gross = Number(d.grossTotal) || base;
+    const pct = 8;
+    const rooms = Number(d.rooms) || null;
+    const nights = Number(d.nights) || null;
+    const groupName = d.bookingRef
+      ? `${d.operatorName ? d.operatorName + ' — ' : ''}${d.bookingRef}`
+      : (d.operatorName || d.destination || 'Group booking');
+    setCalc({ bookingId: null, gross, base, pct });
+    setForm((f) => ({
+      ...f,
+      terms: 'receipt',
+      dueDate: f.issueDate,
+      notes: 'Payment due on receipt. Thank you for your partnership.',
+      showOperator: false,
+      billTo: {
+        name: d.hotelName || '', company: d.hotelName || '',
+        email: d.hotelEmail || '', address: d.hotelAddress || '',
+        vat: d.hotelVat || '', attn: '',
+      },
+      refs: { bookingFile: d.bookingRef || '', voucher: '', hotelInvoiceRef: '', hotelInvoiceDate: '' },
+      items: [buildItemGeneric(groupName, rooms, nights, base, pct, '')],
+      meta: {
+        groupName, operatorName: d.operatorName || '', hotelName: d.hotelName || '',
+        destination: d.destination || '', checkIn: d.checkIn || '', checkOut: d.checkOut || '',
+        nights, rooms, grossValue: gross, bookingValue: gross, commissionable: base, commissionPct: pct,
+      },
+    }));
+    setCreateOpen(true);
+  };
+
+  const readInvoiceFile = async (file) => {
+    if (!file) return;
+    setAiReading(true);
+    try {
+      const dataBase64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(',')[1] || '');
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const res = await fetch('/api/read-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataBase64, mediaType: file.type, filename: file.name }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        const msg = json?.message || 'Could not read that invoice.';
+        if (json?.error === 'not_configured') toast.error('AI reader not set up yet', { description: msg });
+        else toast.error('Invoice read failed', { description: msg });
+        return;
+      }
+      prefillFromExtract(json.data);
+      toast.success('Invoice read — review & send', {
+        description: `${json.data.hotelName || 'Hotel'} · net €${eur2(json.data.netCommissionable)} → 8% = €${eur2(json.suggestedCommission)}`,
+      });
+    } catch (e) {
+      toast.error('Invoice read failed', { description: 'Please try again, or enter it manually.' });
+    } finally {
+      setAiReading(false);
+    }
   };
 
   const setItem = (idx, key, val) =>
@@ -257,7 +334,14 @@ export const InvoicesList = () => {
           <h1 className="font-serif text-3xl lg:text-4xl font-bold text-primary leading-tight">Invoices</h1>
           <p className="text-sm text-gray-500 mt-2">Generate branded commission invoices billed to your hotel partners.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={aiFileRef}
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; readInvoiceFile(f); }}
+            className="hidden"
+          />
           {invoices.length > 0 && (
             <button onClick={exportForCA} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2" title="CSV ledger of all invoices">
               <Download className="w-4 h-4" /> For Accountant
@@ -265,6 +349,15 @@ export const InvoicesList = () => {
           )}
           <button onClick={() => setBankOpen(true)} className="rounded-xl border border-gray-200 text-gray-600 hover:border-primary hover:text-primary px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
             <Landmark className="w-4 h-4" /> Bank details
+          </button>
+          <button
+            onClick={() => aiFileRef.current?.click()}
+            disabled={aiReading}
+            title="Upload a hotel invoice/confirmation — AI reads it and builds your commission invoice"
+            className="rounded-xl border border-secondary/40 bg-secondary/5 text-secondary hover:bg-secondary/15 px-4 py-2.5 text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-70"
+          >
+            {aiReading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {aiReading ? 'Reading…' : 'Read invoice (AI)'}
           </button>
           <button onClick={openNew} className="rounded-xl btn-gold text-white border-0 px-5 py-2.5 text-sm font-semibold inline-flex items-center gap-2">
             <Plus className="w-4 h-4" /> New Invoice
@@ -404,8 +497,11 @@ export const InvoicesList = () => {
                     <input type="checkbox" checked={!!form.showOperator}
                       onChange={(e) => setForm((f) => {
                         const show = e.target.checked;
-                        const b = bookings.find((x) => String(x.id) === String(calc.bookingId));
-                        return { ...f, showOperator: show, items: b ? [buildItem(b, calc.base, calc.pct, show)] : f.items };
+                        const b = calc?.bookingId ? bookings.find((x) => String(x.id) === String(calc.bookingId)) : null;
+                        const item = b
+                          ? buildItem(b, calc.base, calc.pct, show)
+                          : buildItemGeneric(f.meta?.groupName, f.meta?.rooms, f.meta?.nights, calc.base, calc.pct, show ? f.meta?.operatorName : '');
+                        return { ...f, showOperator: show, items: [item] };
                       })}
                       className="w-4 h-4 rounded border-gray-300 text-secondary focus:ring-secondary" />
                     Show operator / DMC name on the invoice
