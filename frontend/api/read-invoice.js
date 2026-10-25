@@ -25,18 +25,20 @@ Return ONLY a JSON object — no prose, no markdown fences. Use null for anythin
   "rooms": number|null,             // rooms per night at peak (e.g. 28), not room-nights
   "currency": string|null,          // ISO code or symbol, e.g. "EUR" or "€"
   "grossTotal": number|null,        // total payable INCLUDING all taxes (TTC / grand total)
-  "netCommissionable": number|null, // NET room revenue EXCLUDING VAT and EXCLUDING city/tourist tax — the base commission is charged on
+  "cityTax": number|null,           // tourist / city tax total ("taxe de séjour") — a pass-through, NOT commissionable
+  "commissionable": number|null,    // room charges INCLUDING VAT, EXCLUDING only the city/tourist tax = grossTotal − cityTax
   "taxPercent": number|null,        // VAT % applied to rooms (e.g. 10)
-  "cityTax": number|null,           // tourist / city tax total ("taxe de séjour") — NOT commissionable
   "bookingRef": string|null,        // quote / booking file / voucher reference
   "notes": string|null              // anything important you are unsure about
 }
 
-How to find netCommissionable (critical):
-- If there is a VAT/tax breakdown table, netCommissionable = the HT (excl-VAT) amount of the ROOM lines (the taxable base at the room VAT rate), NOT including city/tourist tax (which is usually "Non Taxable").
-- City/tourist tax ("taxe de séjour") is a pass-through and is NEVER part of netCommissionable.
+How to find "commissionable" (critical — this is the commission base):
+- commissionable = the room charges INCLUDING VAT, with ONLY the city/tourist tax removed. In practice: grossTotal (grand total / TOTAL NET A PAYER) MINUS the city/tourist tax ("taxe de séjour", usually shown as "Non Taxable").
+- Equivalently, if a VAT table shows a room line "incl. VAT" (TTC) total, commissionable = that TTC room total (do NOT drop the VAT).
+- City/tourist tax is NEVER part of commissionable. VAT on the rooms IS part of it.
 - "Free of charge" / complimentary lines are already netted into the totals — do not add them back.
-- All amounts are plain numbers: no currency symbols, no thousands separators (e.g. 3742.36).`;
+- Example: grand total 4633.88, city tax 517.28 → commissionable = 4116.60.
+- All amounts are plain numbers: no currency symbols, no thousands separators (e.g. 4116.60).`;
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
@@ -87,9 +89,13 @@ module.exports = async (req, res) => {
       return res.status(502).json({ error: 'parse_failed', message: 'Could not read structured data from that document.', raw: raw.slice(0, 500) });
     }
 
-    // Convenience: commission at the standard 8% on the net (frontend can override).
-    const net = Number(data.netCommissionable) || 0;
-    const suggested = Math.round(net * 0.08 * 100) / 100;
+    // Fallback: derive commissionable from grossTotal − cityTax if the model left it null.
+    if ((data.commissionable == null || data.commissionable === 0) && data.grossTotal != null) {
+      data.commissionable = Math.round(((Number(data.grossTotal) || 0) - (Number(data.cityTax) || 0)) * 100) / 100;
+    }
+    // Convenience: commission at the standard 8% on the commissionable base.
+    const base = Number(data.commissionable) || 0;
+    const suggested = Math.round(base * 0.08 * 100) / 100;
 
     return res.status(200).json({ ok: true, data, suggestedCommission: suggested, model: msg.model });
   } catch (e) {

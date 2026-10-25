@@ -172,7 +172,7 @@ export const InvoicesList = () => {
 
   // ── AI: read an uploaded hotel invoice → prefill the commission invoice ──
   const prefillFromExtract = (d) => {
-    const base = Number(d.netCommissionable) || 0;
+    const base = Number(d.commissionable) || 0;
     const gross = Number(d.grossTotal) || base;
     const pct = 8;
     const rooms = Number(d.rooms) || null;
@@ -227,7 +227,7 @@ export const InvoicesList = () => {
       }
       prefillFromExtract(json.data);
       toast.success('Invoice read — review & send', {
-        description: `${json.data.hotelName || 'Hotel'} · net €${eur2(json.data.netCommissionable)} → 8% = €${eur2(json.suggestedCommission)}`,
+        description: `${json.data.hotelName || 'Hotel'} · commissionable €${eur2(json.data.commissionable)} → 8% = €${eur2(json.suggestedCommission)}`,
       });
     } catch (e) {
       toast.error('Invoice read failed', { description: 'Please try again, or enter it manually.' });

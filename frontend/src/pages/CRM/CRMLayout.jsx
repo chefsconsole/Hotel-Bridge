@@ -2,12 +2,13 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Building2, Users, Calendar, DollarSign, Bot,
-  LogOut, Menu, X, Search, Bell, ChevronLeft, ChevronRight, Sparkles,
+  LogOut, Menu, X, Search, ChevronLeft, ChevronRight, Sparkles,
   Inbox, ListTodo, Receipt, ClipboardList
 } from 'lucide-react';
 import { getLeads } from '../../lib/leadsStore';
 import { getTasks, isOverdue, isDueToday } from '../../lib/tasksStore';
 import { CommandPalette, useCommandPalette } from '../../components/CommandPalette';
+import { NotificationsBell } from '../../components/NotificationsBell';
 
 const baseMenuItems = [
   { name: 'Dashboard', path: '/crm', icon: LayoutDashboard, exact: true },
@@ -235,10 +236,7 @@ export const CRMLayout = () => {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
-            <button className="relative p-2 text-gray-500 hover:text-primary hover:bg-gray-100 rounded-xl transition-colors" aria-label="Notifications">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-            </button>
+            <NotificationsBell />
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-secondary to-yellow-400 flex items-center justify-center font-bold text-white text-xs ring-2 ring-secondary/20">
               {userInitials}
             </div>
