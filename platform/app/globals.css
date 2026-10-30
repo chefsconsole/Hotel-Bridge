@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * HotelBridge design tokens.
+ * Midnight ink for authority, warm paper for calm, champagne used
+ * sparingly — a rule, an underline, a single accent — never everywhere.
+ * ------------------------------------------------------------------ */
+@theme {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b1220;
+  --color-ink-2: #141c2e;
+  --color-ink-3: #1f2a40;
+  --color-paper: #f8f6f2;
+  --color-surface: #ffffff;
+  --color-mist: #f1eee8;
+  --color-line: #e5e0d6;
+  --color-line-strong: #cfc8ba;
+  --color-text: #0b1220;
+  --color-muted: #586174;
+  --color-faint: #8b93a2;
+  --color-champagne: #a8844c;
+  --color-champagne-soft: #f3ebdd;
+
+  --color-positive: #1d6b45;
+  --color-positive-bg: #e7f2eb;
+  --color-pending: #7a5b14;
+  --color-pending-bg: #faf1dc;
+  --color-attention: #9a4a14;
+  --color-attention-bg: #fcebdf;
+  --color-negative: #9b2c2c;
+  --color-negative-bg: #fbe8e8;
+  --color-neutral: #586174;
+  --color-neutral-bg: #edeff3;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-soft: 0 1px 2px rgb(11 18 32 / 0.04), 0 4px 16px -8px rgb(11 18 32 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(11 18 32 / 0.04), 0 16px 40px -16px rgb(11 18 32 / 0.18);
+
+  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade: fade 0.3s ease-out both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--color-paper);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 { font-family: var(--font-display); letter-spacing: -0.02em; }
+  ::selection { background: var(--color-champagne-soft); }
+  :focus-visible { outline: 2px solid var(--color-champagne); outline-offset: 2px; border-radius: 4px; }
+  input, select, textarea, button { font: inherit; }
+}
+
+@layer components {
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 600; color: var(--color-champagne); }
+  .field {
+    width: 100%; background: var(--color-surface); border: 1px solid var(--color-line-strong); border-radius: var(--radius-sm);
+    padding: 0.62rem 0.8rem; font-size: 0.95rem; color: var(--color-text); transition: border-color .15s, box-shadow .15s;
+  }
+  .field:hover { border-color: var(--color-faint); }
+  .field:focus { outline: none; border-color: var(--color-ink); box-shadow: 0 0 0 3px rgb(11 18 32 / 0.08); }
+  .field[aria-invalid="true"] { border-color: var(--color-negative); }
+  .field:disabled { background: var(--color-mist); color: var(--color-faint); }
+  select.field { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23586174' stroke-width='1.5'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.8rem center; padding-right: 2.2rem; }
+  .table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .table th { text-align: left; font-weight: 500; color: var(--color-muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--color-line); white-space: nowrap; }
+  .table td { padding: 0.85rem 0.9rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+  .table tbody tr { transition: background .12s; }
+  .table tbody tr:hover { background: rgb(241 238 232 / 0.55); }
+  .table tbody tr:last-child td { border-bottom: none; }
+  .prose-hb p { margin: 0 0 0.9em; line-height: 1.65; color: var(--color-muted); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@media print {
+  body { background: white; }
+  .no-print { display: none !important; }
+}

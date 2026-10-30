@@ -4,8 +4,23 @@
     {
       "name": "hotel-bridge",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start", "--prefix", "frontend"],
+      "runtimeArgs": [
+        "start",
+        "--prefix",
+        "frontend"
+      ],
       "port": 3000
+    },
+    {
+      "name": "hotelbridge-platform",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "platform"
+      ],
+      "port": 3050
     }
   ]
 }
