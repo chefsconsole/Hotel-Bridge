@@ -3,6 +3,7 @@ import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import { StatusPill } from '@/components/booking-bits';
 import { Empty, LinkButton, Money, Notice, Panel } from '@/components/ui';
 import { SmartSearch } from '@/components/smart-search';
+import { SearchForm } from '@/components/search-form';
 import { aiConfigured } from '@/lib/ai/client';
 import { getDb, schema } from '@/lib/db';
 import { formatDate, todayIso } from '@/lib/domain/dates';
@@ -36,18 +37,25 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
 
   return (
     <>
-      <section className="relative isolate mb-10 overflow-hidden rounded-[var(--radius-lg)] bg-ink px-6 py-10 text-paper shadow-[var(--shadow-lift)] md:px-12 md:py-14">
-        <svg viewBox="0 0 400 160" className="absolute -right-10 -bottom-6 -z-10 w-[520px] max-w-[70%] opacity-40" aria-hidden>
+      <section className="relative isolate mb-10 rounded-[var(--radius-lg)] bg-ink px-6 py-10 text-paper shadow-[var(--shadow-lift)] md:px-12 md:py-14">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[var(--radius-lg)]" aria-hidden>
+        <svg viewBox="0 0 400 160" className="absolute -right-10 -bottom-6 w-[520px] max-w-[70%] opacity-40">
           <path d="M0 150C80 60 150 20 200 20s120 40 200 130" fill="none" stroke="var(--color-champagne)" strokeWidth="0.8" />
           <path d="M40 150C110 80 160 50 200 50s90 30 160 100" fill="none" stroke="var(--color-champagne)" strokeWidth="0.5" opacity="0.6" />
         </svg>
+        </div>
         <p className="eyebrow">{agency.name}</p>
         <h1 className="mt-4 text-[2.2rem] leading-[1.05] font-light tracking-[-0.04em] md:text-[3.2rem]">Good {greeting()}, {user.name.split(' ')[0]}.</h1>
         <p className="mt-3 max-w-lg text-[1rem] text-paper/60">Where are your clients going?</p>
-        <div className="mt-8 max-w-3xl">{aiOn ? <SmartSearch enabled /> : <LinkButton href="/agent/search" variant="inverse" size="lg">Search hotels</LinkButton>}</div>
+        <div className="mt-8 max-w-5xl text-ink"><SearchForm destinations={dests} initial={{ rooms: [{ adults: 2, childAges: [] }] }} /></div>
+        {aiOn && (
+          <div className="mt-6 max-w-3xl">
+            <p className="mb-2 text-[0.8rem] text-paper/50">Or describe the stay in your own words</p>
+            <SmartSearch enabled />
+          </div>
+        )}
         <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-[0.88rem] text-paper/60">
-          {aiOn && <Link href="/agent/search" className="underline decoration-paper/25 underline-offset-4 hover:text-paper">Search by dates and rooms</Link>}
-          <Link href="/agent/groups/new" className="underline decoration-paper/25 underline-offset-4 hover:text-paper">Request a group quote</Link>
+          <Link href="/agent/groups/new" className="underline decoration-paper/25 underline-offset-4 hover:text-paper">More than 9 rooms? Request a group quote</Link>
         </div>
       </section>
 
