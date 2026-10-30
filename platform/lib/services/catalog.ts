@@ -122,7 +122,7 @@ export const contractSchema = z.object({
   inventoryModel: z.enum(['direct_net', 'direct_commissionable', 'request_only']),
   rateBasis: z.enum(['net', 'commissionable']),
   collectionModel: z.enum(['prepaid_to_hb', 'pay_direct_to_hotel']),
-  currency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB']),
+  currency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD']),
   validFrom: z.string().refine(isIsoDate, 'Start date required'),
   validTo: z.string().refine(isIsoDate, 'End date required'),
   commissionBps: z.number().int().min(0).max(5000),

@@ -135,9 +135,15 @@ export async function searchHotels(db: DB, actor: Actor, input: SearchInput, opt
     for (const o of offers.filter((x) => x.hotelId === h.id)) {
       priced.push(withPolicy(await priceSupplierOffer(db, agencyId, o), o, req.checkIn));
     }
-    // Instant before on-request, then cheapest.
-    priced.sort((a, b) => (a.availability === b.availability ? a.price.sellMinor - b.price.sellMinor : a.availability === 'instant' ? -1 : 1));
-    const cheapest = [...priced].sort((a, b) => a.price.sellMinor - b.price.sellMinor)[0];
+    // Real inventory before simulated, instant before on-request, then cheapest within a currency.
+    priced.sort((a, b) =>
+      Number(a.simulated) - Number(b.simulated)
+      || (a.availability === b.availability ? 0 : a.availability === 'instant' ? -1 : 1)
+      || a.price.currency.localeCompare(b.price.currency)
+      || a.price.sellMinor - b.price.sellMinor);
+    // "From" is only meaningful within one currency: use the leading offer's.
+    const lead = priced[0].price.currency;
+    const cheapest = priced.filter((o) => o.price.currency === lead).sort((a, b) => a.price.sellMinor - b.price.sellMinor)[0];
     results.push({ hotel: h, offers: priced, fromMinor: cheapest.price.sellMinor, currency: cheapest.price.currency });
   }
   results.sort((a, b) => a.hotel.name.localeCompare(b.hotel.name));

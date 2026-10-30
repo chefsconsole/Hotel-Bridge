@@ -53,7 +53,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <tbody>{inv.lines.map((l, i) => <tr key={i}><td>{l.label}</td><td className="text-right"><Money minor={l.amountMinor} currency={inv.currency} /></td></tr>)}</tbody>
         </table>
         <div className="mt-4 ml-auto max-w-xs space-y-1 text-[0.9rem]">
-          {inv.taxMinor > 0 && <div className="flex justify-between text-muted"><span>Included VAT (hotel)</span><Money minor={inv.taxMinor} currency={inv.currency} /></div>}
+          {inv.taxMinor > 0 && <div className="flex justify-between text-muted"><span>Included taxes (hotel)</span><Money minor={inv.taxMinor} currency={inv.currency} /></div>}
           <div className="flex justify-between text-[1.1rem] font-semibold"><span>Total</span><Money minor={inv.totalMinor} currency={inv.currency} /></div>
         </div>
         {inv.kind === 'invoice' && <p className="mt-8 text-[0.82rem] whitespace-pre-line text-muted">{instructions || 'Payment instructions: to be provided by HotelBridge finance.'}</p>}

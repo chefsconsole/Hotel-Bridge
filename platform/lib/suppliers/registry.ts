@@ -11,10 +11,11 @@ import { SupplierTimeoutError, SupplierUnavailableError, classify, type Supplier
 
 /** Candidate third-party sources. Listed so the gap is visible, not to pretend they work. */
 export const SUPPLIER_CANDIDATES = [
-  { id: 'hotelbeds', label: 'Hotelbeds (APItude)', needs: 'Commercial agreement, API key + secret, certification of booking flow' },
-  { id: 'tbo', label: 'TBO Holidays', needs: 'B2B agreement, API credentials, IP allow-listing' },
-  { id: 'ratehawk', label: 'RateHawk / Emerging Travel Group', needs: 'API partnership approval, key id + key' },
-  { id: 'channel_manager', label: 'Hotel channel manager (per hotel)', needs: 'Hotel consent, channel manager connectivity agreement and credentials' },
+  { id: 'tbo', label: 'TBO Holidays', strength: 'India-based; strong in Thailand, UAE, South-East Asia', needs: 'B2B agreement, API credentials, IP allow-listing, certification' },
+  { id: 'webbeds', label: 'WebBeds (incl. DOTW)', strength: 'Middle East / Dubai; broad Asia coverage', needs: 'Trade agreement, API credentials, certification' },
+  { id: 'hotelbeds', label: 'Hotelbeds (APItude)', strength: 'Largest global bedbank; Europe and resort destinations', needs: 'Commercial agreement, API key + secret, booking-flow certification' },
+  { id: 'ratehawk', label: 'RateHawk / Emerging Travel Group', strength: 'Aggregates many suppliers; wide global reach', needs: 'API partnership approval, key id + key' },
+  { id: 'channel_manager', label: 'Direct hotel connectivity (e.g. STAAH, SiteMinder)', strength: 'Live rates and availability from contracted hotels themselves', needs: 'Each hotel’s consent, channel-manager partnership and certification' },
 ] as const;
 
 export function adapters(): SupplierAdapter[] {

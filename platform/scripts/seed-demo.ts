@@ -26,27 +26,52 @@ const HOTELS: H[] = [
   { name: 'Résidence Groupe Exemple', city: 'Paris', country: 'France', stars: 3, collections: ['group_friendly', 'value'], summary: 'Fictional sample: coach-friendly hotel with a large breakfast room.', facilities: ['Coach drop-off', 'Breakfast for 200', 'Wi-Fi', 'Lift'], transport: 'Sample data — coach parking on site.', base: 10_500, model: 'net_instant' },
   { name: 'Seeblick Muster Hotel', city: 'Zürich', country: 'Switzerland', stars: 4, collections: ['city_centre', 'business'], summary: 'Fictional sample: four-star by the lake, walkable to the old town.', facilities: ['Wi-Fi', 'Fitness room', 'Restaurant', 'Bar'], transport: 'Sample data — tram stop outside.', base: 24_000, model: 'net_instant' },
   { name: 'Bahnhof Beispiel', city: 'Zürich', country: 'Switzerland', stars: 3, collections: ['station', 'value'], summary: 'Fictional sample: simple, reliable rooms beside the main station.', facilities: ['Wi-Fi', 'Breakfast', '24-hour reception'], transport: 'Sample data — 2 minutes from the main station.', base: 15_500, model: 'net_request' },
+  // Thailand — fictional samples, priced in THB (satang). Thai hotels usually quote "++": 10% service + 7% VAT on top.
+  { name: 'Sukhumvit Sample Residence', city: 'Bangkok', country: 'Thailand', stars: 4, collections: ['city_centre', 'business'], summary: 'Fictional sample: a calm four-star near the BTS, popular with Indian families.', facilities: ['Wi-Fi', 'Rooftop pool', 'Indian breakfast options', 'Fitness room'], transport: 'Sample data — 4 minutes to the skytrain.', base: 320_000, model: 'net_instant' },
+  { name: 'Riverside Example Bangkok', city: 'Bangkok', country: 'Thailand', stars: 5, collections: ['premium'], summary: 'Fictional sample: five-star on the river for premium clients and honeymooners.', facilities: ['Spa', 'River shuttle', 'Pool', 'Fine dining'], transport: 'Sample data — hotel boat to the nearest pier.', base: 780_000, model: 'net_request' },
+  { name: 'Airport Link Demo Hotel', city: 'Bangkok', country: 'Thailand', stars: 3, collections: ['airport', 'value'], summary: 'Fictional sample: simple rooms for late arrivals near the airport.', facilities: ['Wi-Fi', 'Airport shuttle', '24-hour reception'], transport: 'Sample data — free airport shuttle.', base: 160_000, model: 'net_instant' },
+  { name: 'Beachfront Sample Pattaya', city: 'Pattaya', country: 'Thailand', stars: 4, collections: ['group_friendly', 'city_centre'], summary: 'Fictional sample: coach-friendly four-star on the beach road.', facilities: ['Coach drop-off', 'Pool', 'Banquet hall', 'Indian kitchen on request'], transport: 'Sample data — 2 hours by road from Bangkok.', base: 280_000, model: 'net_instant' },
+  { name: 'Pattaya Value Example', city: 'Pattaya', country: 'Thailand', stars: 3, collections: ['value'], summary: 'Fictional sample: practical rooms a short walk from the beach.', facilities: ['Wi-Fi', 'Pool', 'Breakfast'], transport: 'Sample data — 5 minutes to the beach.', base: 150_000, model: 'net_instant' },
+  { name: 'Patong Sample Resort', city: 'Phuket', country: 'Thailand', stars: 4, collections: ['group_friendly', 'premium'], summary: 'Fictional sample: resort-style four-star close to Patong beach.', facilities: ['Pools', 'Spa', 'Kids club', 'Restaurant'], transport: 'Sample data — 45 minutes from Phuket airport.', base: 420_000, model: 'net_instant' },
+  { name: 'Kata Bay Example Villas', city: 'Phuket', country: 'Thailand', stars: 5, collections: ['premium'], summary: 'Fictional sample: pool villas above a quiet bay, for honeymoons.', facilities: ['Private pools', 'Spa', 'Butler service'], transport: 'Sample data — 60 minutes from Phuket airport.', base: 1_250_000, model: 'net_request' },
 ];
 
 (async () => {
   if (isProduction) throw new Error('Refusing to seed demo data in production.');
   const db = await getDb();
-  const [existing] = await db.select().from(schema.hotels).where(eq(schema.hotels.isSample, true)).limit(1);
-  if (existing) { console.log('Demo data already present — nothing to do.'); await closeDb(); return; }
   const today = todayIso();
   const end = addDays(today, 365);
+  const [existingAdmin] = await db.select().from(schema.users).where(eq(schema.users.email, 'admin@demo.hotelbridge.test'));
+  if (!existingAdmin) await seedAccounts(db);
+  let added = 0;
+  for (const h of HOTELS) {
+    const slug = h.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-sample';
+    const [exists] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
+    if (exists) continue;
+    await seedHotel(db, h, slug, today, end);
+    added++;
+  }
+  console.log(added ? `Demo data: added ${added} sample hotel(s). Logins are listed at the top of scripts/seed-demo.ts.` : 'Demo data already present — nothing to do.');
+  await closeDb();
+})().catch(async (e) => { console.error(e); await closeDb(); process.exit(1); });
 
+type DBT = Awaited<ReturnType<typeof getDb>>;
+
+async function seedAccounts(db: DBT) {
   await db.insert(schema.users).values({ email: 'admin@demo.hotelbridge.test', name: 'Demo Admin', platformRole: 'admin', passwordHash: await hashPassword('demo-admin-2026') });
   const [agency] = await db.insert(schema.agencies).values({ name: 'Demo Travels (sample)', legalName: 'Demo Travels Pvt Ltd (fictional)', country: 'India', city: 'Mumbai', status: 'verified', billingCurrency: 'EUR', verifiedAt: new Date(), isSample: true }).returning();
   await db.insert(schema.users).values({ email: 'agent@demo-travels.test', name: 'Asha Demo', agencyId: agency.id, agencyRole: 'owner', passwordHash: await hashPassword('demo-agent-2026') });
   const [pending] = await db.insert(schema.agencies).values({ name: 'NewCo Holidays (sample)', country: 'United Arab Emirates', city: 'Dubai', status: 'pending', billingCurrency: 'EUR', isSample: true }).returning();
   await db.insert(schema.users).values({ email: 'pending@demo-newco.test', name: 'Omar Demo', agencyId: pending.id, agencyRole: 'owner', passwordHash: await hashPassword('demo-agent-2026') });
   await db.insert(schema.pricingRules).values({ kind: 'percent', valueBps: 1000, rounding: 'whole_unit', agentCommissionShareBps: 3000, note: 'Demo default: 10% markup on net; 30% of commission shared' });
+}
 
-  for (const h of HOTELS) {
-    const currency = h.country === 'Switzerland' ? 'CHF' : 'EUR';
+async function seedHotel(db: DBT, h: H, slug: string, today: string, end: string) {
+  {
+    const thai = h.country === 'Thailand';
+    const currency = h.country === 'Switzerland' ? 'CHF' : thai ? 'THB' : 'EUR';
     const [hotel] = await db.insert(schema.hotels).values({
-      name: h.name, slug: h.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-sample', city: h.city, country: h.country,
+      name: h.name, slug, city: h.city, country: h.country,
       address: `Sample address, ${h.city}`, starRating: h.stars, starRatingVerified: false, collections: h.collections, summary: h.summary,
       description: `${h.summary}\nThis property is fictional and exists only to demonstrate the HotelBridge platform. Its name, rates and facilities are invented.`,
       facilities: h.facilities, transport: h.transport, checkInTime: '15:00', checkOutTime: '11:00',
@@ -60,8 +85,9 @@ const HOTELS: H[] = [
       hotelId: hotel.id, reference: `SAMPLE-${hotel.slug.slice(0, 10).toUpperCase()}`,
       inventoryModel: commission ? 'direct_commissionable' : h.model === 'net_request' ? 'request_only' : 'direct_net',
       rateBasis: commission ? 'commissionable' : 'net', collectionModel: commission ? 'pay_direct_to_hotel' : 'prepaid_to_hb',
-      currency, validFrom: today, validTo: end, commissionBps: commission ? 1500 : 0, taxMode: 'included', taxBps: currency === 'CHF' ? 380 : 1000,
-      localTaxMinor: currency === 'CHF' ? 250 : 288, confirmationMode: h.model === 'net_instant' ? 'instant_allocation' : 'on_request',
+      currency, validFrom: today, validTo: end, commissionBps: commission ? 1500 : 0,
+      taxMode: thai ? 'excluded' : 'included', taxBps: thai ? 1770 : currency === 'CHF' ? 380 : 1000,
+      localTaxMinor: thai ? 0 : currency === 'CHF' ? 250 : 288, confirmationMode: h.model === 'net_instant' ? 'instant_allocation' : 'on_request',
       freeCancelDays: h.stars === 5 ? 7 : 3, latePenaltyType: 'first_night', nonRefundable: false, distributionPermitted: true, status: 'active',
       paymentTerms: 'Sample: hotel invoices HotelBridge monthly, 30 days.', approvedAt: new Date(), internalNotes: 'Fictional demo contract.',
     }).returning();
@@ -86,6 +112,4 @@ const HOTELS: H[] = [
       await db.insert(schema.users).values({ email: 'frontdesk@demo-hotel.test', name: 'Front Office (sample)', partnerHotelId: hotel.id, passwordHash: await hashPassword('demo-hotel-2026') });
     }
   }
-  console.log('Demo data loaded. Logins are listed at the top of scripts/seed-demo.ts.');
-  await closeDb();
-})().catch(async (e) => { console.error(e); await closeDb(); process.exit(1); });
+}

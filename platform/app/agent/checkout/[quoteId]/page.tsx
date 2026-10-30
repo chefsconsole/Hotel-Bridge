@@ -85,7 +85,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ quote
                 <span className="font-semibold">Total for the stay</span>
                 <Money minor={p.sellMinor} currency={p.currency} className="text-[1.35rem] font-semibold" />
               </div>
-              {p.taxMinor > 0 && <div className="flex justify-between text-muted"><span>of which VAT</span><Money minor={p.taxMinor} currency={p.currency} /></div>}
+              {p.taxMinor > 0 && <div className="flex justify-between text-muted"><span>of which taxes</span><Money minor={p.taxMinor} currency={p.currency} /></div>}
               {p.localTaxMinor > 0 && <div className="flex justify-between text-muted"><span>City tax, paid at the hotel</span><Money minor={p.localTaxMinor} currency={p.currency} /></div>}
               <p className="pt-2 text-[0.75rem] text-faint">Per-room amounts are the total split in proportion to each room&apos;s rate, for your records. The total is what you are charged.</p>
             </div>

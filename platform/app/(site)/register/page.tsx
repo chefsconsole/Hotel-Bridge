@@ -28,7 +28,7 @@ export default function RegisterPage() {
           <Field label="Phone"><input name="phone" className="field" autoComplete="tel" /></Field>
           <Field label="Billing currency">
             <select name="billingCurrency" className="field" defaultValue="EUR">
-              {['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED'].map((c) => <option key={c}>{c}</option>)}
+              {['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((c) => <option key={c}>{c}</option>)}
             </select>
           </Field>
         </div>

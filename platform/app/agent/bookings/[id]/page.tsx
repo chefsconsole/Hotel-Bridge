@@ -119,7 +119,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
         <aside className="space-y-6">
           <Panel title="Price">
             <div className="flex items-baseline justify-between"><span className="text-muted">Total for the stay</span><Money minor={b.sellMinor} currency={b.currency} className="text-[1.3rem] font-semibold" /></div>
-            {b.taxMinor > 0 && <div className="mt-1 flex justify-between text-[0.85rem] text-muted"><span>of which VAT</span><Money minor={b.taxMinor} currency={b.currency} /></div>}
+            {b.taxMinor > 0 && <div className="mt-1 flex justify-between text-[0.85rem] text-muted"><span>of which taxes</span><Money minor={b.taxMinor} currency={b.currency} /></div>}
             {b.localTaxMinor > 0 && <div className="mt-1 flex justify-between text-[0.85rem] text-muted"><span>City tax, paid at hotel</span><Money minor={b.localTaxMinor} currency={b.currency} /></div>}
           </Panel>
           <Panel title="Payment">

@@ -7,7 +7,7 @@ npm install
 cp .env.example .env.local   # HB_ENV=development, HB_DEMO=1
 npm run seed:demo            # fictional sample hotels/agencies — logins are listed at the top of scripts/seed-demo.ts
 npm run dev                  # http://localhost:3050
-npm run check                # types + lint + 45 tests
+npm run check                # types + lint + 46 tests
 ```
 
 ## Architecture
@@ -40,10 +40,28 @@ A modular monolith: Next.js 16 (App Router, server actions) + PostgreSQL via Dri
 3. **Hotel partner** — confirms or declines requests with its own confirmation number; sees its reservations.
 4. **Founder** — `/admin`: registered/verified/active agencies, searches, conversion, created vs confirmed bookings, GBV / supplier cost / net revenue per currency, repeat and cancellation rates, supplier failure rate, group conversion and time-to-proposal, open obligations from the ledger, hotel concentration, and a prioritised list of operational issues. `/admin/scenarios` models 100 / 1,000 / 10,000 agencies (scenarios, not forecasts).
 
+## Insights and AI
+
+- **Insights** (`/agent/insights`, `/admin/insights`) are counted from real searches and bookings: demand per destination, empty searches, search→booking conversion, lead times, hotel production and hotel response times, agency leaderboard, agencies gone quiet, and destinations agents asked for that we don't sell.
+- **AI toolbox** (Claude, model `claude-opus-5-5`, via `lib/ai/`). Agents: describe-the-stay search, client WhatsApp/email drafts (never mention HotelBridge or net rates), client brief → pre-filled group request, help answers. Staff: founder weekly brief, hotel rate-offer reader on each contract page (output goes into the import box for validation — never imported automatically). Every call is grounded in our records, rate-limited per user (`HB_AI_HOURLY_LIMIT`, default 40/hour), logged in `ai_usage`, and uses the API's server-side refusal fallback. Without `ANTHROPIC_API_KEY` the tools show "not connected" and everything else works.
+
+## Rate sources for Thailand and India-outbound destinations
+
+Recommendation, in order — each needs a commercial agreement that permits onward B2B distribution before any code is written:
+
+1. **Direct contracts** with the hotels you already know (this platform's contract engine) — best margin, and the core of the model.
+2. **TBO Holidays** — India-based B2B bedbank, widely used by Indian agents, strong in Thailand, UAE and South-East Asia.
+3. **WebBeds (incl. DOTW)** — strongest for Dubai / the Gulf, with Asia coverage.
+4. **Hotelbeds** or **RateHawk** — broad global reach for Europe and long-tail destinations.
+5. **Direct hotel connectivity** through the hotels' channel manager (STAAH is widely used in Thailand; also SiteMinder) — live rates for your contracted partners, with each hotel's consent.
+
+Priority destinations from 2025 Indian outbound data: Thailand (Bangkok, Pattaya, Phuket, Krabi), Dubai/UAE, Singapore, Vietnam, Bali, Malaysia. Demo data now includes fictional sample hotels in Bangkok, Pattaya and Phuket priced in THB (Thai "++" pricing modelled as 17.7% taxes on top).
+
 ## Not connected yet — needs you
 
 | Area | Status | What is needed |
 |---|---|---|
+| AI tools | Built; off until a key is set. | `ANTHROPIC_API_KEY` on the server (usage is billed by Anthropic). |
 | Real hotels & rates | None loaded. Demo data is fictional and tagged "Sample". | Enter contracted partners through `/admin/hotels` (partner data stays out of the repo). |
 | Production database | Embedded locally only. | A Postgres `DATABASE_URL` (e.g. Supabase/Neon) and a host. |
 | Third-party suppliers (Hotelbeds, TBO, RateHawk, channel managers) | Interface ready; no adapters. | Commercial agreements confirming onward distribution, API credentials, then one adapter each in `lib/suppliers/`. |

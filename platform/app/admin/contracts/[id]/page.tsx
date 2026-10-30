@@ -11,10 +11,14 @@ import { DEFAULT_RULE, priceOffer } from '@/lib/domain/pricing';
 import { requireStaff } from '@/lib/session';
 import { contractDetail, MEAL_PLANS } from '@/lib/services/catalog';
 import { termsOf } from '@/lib/suppliers/contracted';
+import { AiForm, AiOffNotice } from '@/components/ai-bits';
+import { rateSheetAction } from '@/app/actions/ai';
+import { aiConfigured } from '@/lib/ai/client';
 
-export default async function ContractPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ContractPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ csv?: string }> }) {
   await requireStaff();
   const { id } = await params;
+  const { csv: draftCsv } = await searchParams;
   if (!z.string().uuid().safeParse(id).success) notFound();
   const d = await contractDetail(await getDb(), id).catch(() => notFound());
   const { contract: c, hotel, roomTypes, rates, restrictions, allocations } = d;
@@ -80,9 +84,21 @@ export default async function ContractPage({ params }: { params: Promise<{ id: s
               <p className="mb-1 text-[0.9rem] font-semibold">Import a rate sheet</p>
               <p className="mb-3 text-[0.8rem] text-muted">One period per line: <code className="text-[0.75rem]">room_type,meal_plan,from,to,single,double,triple,child,min_stay,release</code>. Room types must match by name. Nothing imports unless every line is valid.</p>
               <input type="hidden" name="contractId" value={c.id} />
-              <textarea name="csv" rows={7} className="field font-mono text-[0.8rem]" placeholder={`Double,BB,${c.validFrom},${c.validTo},110,130,,25,1,7`} />
+              <textarea name="csv" rows={7} defaultValue={draftCsv ?? ''} className="field font-mono text-[0.8rem]" placeholder={`Double,BB,${c.validFrom},${c.validTo},110,130,,25,1,7`} />
+              {draftCsv && <p className="mt-2 text-[0.8rem] text-attention">Drafted by AI — validate, and check every line against the hotel&apos;s offer before importing.</p>}
               <div className="mt-3 flex gap-2"><SubmitButton size="sm" variant="secondary" name="mode" value="preview">Validate</SubmitButton><SubmitButton size="sm" name="mode" value="import">Import</SubmitButton></div>
             </ActionForm>
+          </div>
+        </Panel>
+
+        <Panel title="Read the hotel's rate offer with AI" description="Paste the hotel's email or sheet. The result opens in the import box above for you to validate — nothing is imported automatically.">
+          <div id="ai-rates" className="scroll-mt-24">
+            {!aiConfigured() ? <AiOffNotice /> : roomTypes.length === 0 ? <p className="text-[0.9rem] text-muted">Add room types first.</p> : (
+              <AiForm action={rateSheetAction} submit="Extract rate lines" outputLabel="Rate lines (CSV)" useLabel="Put into import" useHrefBase={`/admin/contracts/${c.id}?csv=`}>
+                <input type="hidden" name="contractId" value={c.id} />
+                <Field label={`Hotel's rate offer (${c.currency})`}><textarea name="text" rows={7} className="field" placeholder="Deluxe Double, breakfast, 1 Nov – 20 Dec: 3,200 single / 3,600 double, extra child 600…" /></Field>
+              </AiForm>
+            )}
           </div>
         </Panel>
 

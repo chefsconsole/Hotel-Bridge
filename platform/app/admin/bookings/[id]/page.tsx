@@ -98,7 +98,7 @@ export default async function AdminBooking({ params }: { params: Promise<{ id: s
           <Panel title="Economics" description="Frozen at booking time">
             <dl className="space-y-2 text-[0.88rem]">
               {[
-                ['Contract amount', p.contractAmountMinor], ['VAT inside price', b.taxMinor], ['Supplier cost', b.supplierCostMinor], ['Markup', p.markupMinor],
+                ['Contract amount', p.contractAmountMinor], ['Taxes inside price', b.taxMinor], ['Supplier cost', b.supplierCostMinor], ['Markup', p.markupMinor],
                 ['Hotel commission', p.hotelCommissionMinor], ['Agent commission share', p.agentCommissionMinor], ['Agent pays (sell)', b.sellMinor],
                 ['Net revenue', b.netRevenueMinor], ['Commission receivable', b.commissionReceivableMinor], ['City tax at hotel', b.localTaxMinor],
               ].map(([k, v]) => <div key={String(k)} className="flex justify-between"><dt className="text-muted">{k}</dt><dd><Money minor={Number(v ?? 0)} currency={b.currency} /></dd></div>)}

@@ -565,6 +565,17 @@ export const auditLog = pgTable('audit_log', {
   createdAt: createdAt(),
 }, (t) => [index('audit_entity_idx').on(t.entity, t.entityId), index('audit_created_idx').on(t.createdAt)]);
 
+/** One row per AI request — for per-user limits and cost visibility. */
+export const aiUsage = pgTable('ai_usage', {
+  id: id(),
+  userId: uuid('user_id').notNull(),
+  tool: text('tool').notNull(),
+  inputTokens: integer('input_tokens').notNull().default(0),
+  outputTokens: integer('output_tokens').notNull().default(0),
+  ok: boolean('ok').notNull(),
+  createdAt: createdAt(),
+}, (t) => [index('ai_usage_user_idx').on(t.userId, t.createdAt)]);
+
 export const settings = pgTable('settings', {
   key: text('key').primaryKey(),
   value: jsonb('value').notNull(),

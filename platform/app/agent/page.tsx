@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { and, desc, eq, gte, inArray } from 'drizzle-orm';
 import { StatusPill } from '@/components/booking-bits';
-import { Empty, LinkButton, Money, Notice, PageHeader, Panel } from '@/components/ui';
+import { Empty, LinkButton, Money, Notice, Panel } from '@/components/ui';
+import { SmartSearch } from '@/components/smart-search';
+import { aiConfigured } from '@/lib/ai/client';
 import { getDb, schema } from '@/lib/db';
 import { formatDate, todayIso } from '@/lib/domain/dates';
 import { decodeRooms, describeRooms, encodeRooms } from '@/lib/domain/occupancy';
 import { requireAgent } from '@/lib/session';
-import { recentSearches } from '@/lib/services/search';
+import { destinations, recentSearches } from '@/lib/services/search';
 import { proposalsAwaitingAgent } from '@/lib/services/metrics';
 import { STAGE_LABEL } from '@/lib/services/groups';
 
@@ -19,7 +21,8 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
   const b = schema.bookings;
   const h = schema.hotels;
   const today = todayIso();
-  const [upcoming, attention, recent, searches, proposals, groups] = await Promise.all([
+  const aiOn = aiConfigured();
+  const [upcoming, attention, recent, searches, proposals, groups, dests] = await Promise.all([
     db.select({ b, hotel: h.name }).from(b).innerJoin(h, eq(h.id, b.hotelId))
       .where(and(eq(b.agencyId, agency.id), inArray(b.status, ['confirmed', 'amendment_requested', 'cancellation_requested']), gte(b.checkIn, today))).orderBy(b.checkIn).limit(5),
     db.select({ b, hotel: h.name }).from(b).innerJoin(h, eq(h.id, b.hotelId))
@@ -28,12 +31,40 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
     recentSearches(db, actor, 4),
     proposalsAwaitingAgent(db, agency.id),
     db.select().from(schema.groupEnquiries).where(eq(schema.groupEnquiries.agencyId, agency.id)).orderBy(desc(schema.groupEnquiries.updatedAt)).limit(4),
+    destinations(db),
   ]);
 
   return (
     <>
-      <PageHeader eyebrow={agency.name} title={`Good to see you, ${user.name.split(' ')[0]}.`}
-        actions={<><LinkButton href="/agent/search">Search hotels</LinkButton><LinkButton href="/agent/groups/new" variant="secondary">Group request</LinkButton></>} />
+      <section className="relative isolate mb-10 overflow-hidden rounded-[var(--radius-lg)] bg-ink px-6 py-10 text-paper shadow-[var(--shadow-lift)] md:px-12 md:py-14">
+        <svg viewBox="0 0 400 160" className="absolute -right-10 -bottom-6 -z-10 w-[520px] max-w-[70%] opacity-40" aria-hidden>
+          <path d="M0 150C80 60 150 20 200 20s120 40 200 130" fill="none" stroke="var(--color-champagne)" strokeWidth="0.8" />
+          <path d="M40 150C110 80 160 50 200 50s90 30 160 100" fill="none" stroke="var(--color-champagne)" strokeWidth="0.5" opacity="0.6" />
+        </svg>
+        <p className="eyebrow">{agency.name}</p>
+        <h1 className="mt-4 text-[2.2rem] leading-[1.05] font-light tracking-[-0.04em] md:text-[3.2rem]">Good {greeting()}, {user.name.split(' ')[0]}.</h1>
+        <p className="mt-3 max-w-lg text-[1rem] text-paper/60">Where are your clients going?</p>
+        <div className="mt-8 max-w-3xl">{aiOn ? <SmartSearch enabled /> : <LinkButton href="/agent/search" variant="inverse" size="lg">Search hotels</LinkButton>}</div>
+        <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-[0.88rem] text-paper/60">
+          {aiOn && <Link href="/agent/search" className="underline decoration-paper/25 underline-offset-4 hover:text-paper">Search by dates and rooms</Link>}
+          <Link href="/agent/groups/new" className="underline decoration-paper/25 underline-offset-4 hover:text-paper">Request a group quote</Link>
+        </div>
+      </section>
+
+      {dests.length > 0 && (
+        <section className="mb-10">
+          <div className="mb-4 flex items-end justify-between"><p className="eyebrow">Destinations</p><p className="text-[0.8rem] text-faint">{dests.reduce((n, d) => n + d.n, 0)} curated hotels</p></div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {dests.map((d) => (
+              <Link key={d.city} href={`/agent/search?city=${encodeURIComponent(d.city)}`} className="group rounded-[var(--radius-md)] border border-line bg-surface px-4 py-5 shadow-[var(--shadow-soft)] transition-all duration-300 hover:-translate-y-0.5 hover:border-champagne/50">
+                <p className="font-[family-name:var(--font-display)] text-[1.1rem] tracking-[-0.02em]">{d.city}</p>
+                <p className="mt-1 text-[0.75rem] text-faint">{d.country} · {d.n} hotel{d.n === 1 ? '' : 's'}</p>
+                <div className="mt-4 h-px w-6 bg-champagne transition-all duration-300 group-hover:w-12" />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {agency.status === 'pending' && (
         <div className="mb-6"><Notice tone="warning" title={welcome ? 'Your account is ready — verification is next' : 'Verification pending'}>
@@ -73,7 +104,7 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
               {upcoming.map(({ b, hotel }) => (
                 <li key={b.id}><Link href={`/agent/bookings/${b.id}`} className="flex items-center justify-between gap-4 px-5 py-3.5 hover:bg-mist/50">
                   <div><p className="font-medium">{hotel}</p><p className="text-[0.8rem] text-muted">{b.leadGuest} · {formatDate(b.checkIn)} – {formatDate(b.checkOut)}</p></div>
-                  <span className="num text-[0.82rem] text-muted">{b.reference}</span>
+                  <span className="num shrink-0 text-[0.82rem] whitespace-nowrap text-muted">{b.reference}</span>
                 </Link></li>
               ))}
             </ul>
@@ -127,4 +158,10 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
       </div>
     </>
   );
+}
+
+function greeting() {
+  // Server time; good enough for a greeting.
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
 }

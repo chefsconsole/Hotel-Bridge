@@ -11,14 +11,16 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const [{ n: pending }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.bookings)
     .where(and(eq(schema.bookings.agencyId, agency.id), inArray(schema.bookings.status, ['awaiting_payment', 'pending_confirmation', 'outcome_unknown'])));
   const nav: NavItem[] = [
-    { href: '/agent', label: 'Overview', icon: 'overview' },
-    { href: '/agent/search', label: 'Search hotels', icon: 'search' },
-    { href: '/agent/bookings', label: 'My bookings', icon: 'bookings', badge: pending },
-    { href: '/agent/groups', label: 'Group Desk', icon: 'groups' },
-    { href: '/agent/saved', label: 'Saved hotels', icon: 'saved' },
-    { href: '/agent/finance', label: 'Invoices & payments', icon: 'finance' },
-    { href: '/agent/profile', label: 'Agency profile', icon: 'profile' },
-    { href: '/agent/support', label: 'Support', icon: 'support' },
+    { href: '/agent', label: 'Overview', icon: 'overview', section: 'Book' },
+    { href: '/agent/search', label: 'Search hotels', icon: 'search', section: 'Book' },
+    { href: '/agent/groups', label: 'Group Desk', icon: 'groups', section: 'Book' },
+    { href: '/agent/saved', label: 'Saved hotels', icon: 'saved', section: 'Book' },
+    { href: '/agent/bookings', label: 'My bookings', icon: 'bookings', badge: pending, section: 'Manage' },
+    { href: '/agent/finance', label: 'Invoices & payments', icon: 'finance', section: 'Manage' },
+    { href: '/agent/insights', label: 'Insights', icon: 'insights', section: 'Manage' },
+    { href: '/agent/ai', label: 'AI assistant', icon: 'spark', section: 'Tools' },
+    { href: '/agent/profile', label: 'Agency profile', icon: 'profile', section: 'Account' },
+    { href: '/agent/support', label: 'Support', icon: 'support', section: 'Account' },
   ];
   return (
     <AppShell

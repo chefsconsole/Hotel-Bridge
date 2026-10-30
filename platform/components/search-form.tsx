@@ -58,7 +58,7 @@ export function SearchForm({ destinations, initial, compact = false }: {
             {rooms.length} room{rooms.length === 1 ? '' : 's'} · {guests} guest{guests === 1 ? '' : 's'}
           </button>
         </div>
-        <button className={buttonClass('primary', 'md', 'h-[42px] md:px-6')} disabled={pending}>
+        <button className={buttonClass('primary', 'md', 'h-[46px] md:px-7')} disabled={pending}>
           {pending ? 'Searching…' : 'Search'}
         </button>
       </div>

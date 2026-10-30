@@ -81,7 +81,7 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
                     <Field label="From enquiry"><select name="requestId" className="field"><option value="">— none —</option>{d.requests.map((r) => <option key={r.id} value={r.id}>{r.hotelName}</option>)}</select></Field>
                     <Field label="Hotel name"><input name="hotelName" className="field" /></Field>
                     <Field label="City"><input name="city" defaultValue={e.legs[0].city} className="field" /></Field>
-                    <Field label="Currency"><select name="currency" defaultValue={e.currency} className="field">{['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED'].map((c) => <option key={c}>{c}</option>)}</select></Field>
+                    <Field label="Currency"><select name="currency" defaultValue={e.currency} className="field">{['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((c) => <option key={c}>{c}</option>)}</select></Field>
                     <Field label="Board"><input name="mealPlan" defaultValue={e.mealPlan ?? ''} className="field" /></Field>
                     <Field label="Offer valid until"><input type="date" name="validUntil" className="field num" /></Field>
                   </div>

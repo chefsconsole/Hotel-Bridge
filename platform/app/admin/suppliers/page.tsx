@@ -24,8 +24,8 @@ export default async function Suppliers() {
         ))}
       </div>
       <Panel title="Third-party suppliers — not connected" className="mt-6" padded={false}>
-        <table className="table"><thead><tr><th>Candidate</th><th>Needed before integration</th></tr></thead>
-          <tbody>{SUPPLIER_CANDIDATES.map((c) => <tr key={c.id}><td className="font-medium">{c.label}</td><td className="text-muted">{c.needs}</td></tr>)}</tbody></table>
+        <table className="table"><thead><tr><th>Candidate</th><th>Where it is strong (to verify commercially)</th><th>Needed before integration</th></tr></thead>
+          <tbody>{SUPPLIER_CANDIDATES.map((c) => <tr key={c.id}><td className="font-medium">{c.label}</td><td className="text-muted">{c.strength}</td><td className="text-muted">{c.needs}</td></tr>)}</tbody></table>
         <div className="p-5"><Notice>Each needs a commercial agreement and confirmation that onward B2B distribution is permitted. Adding one means writing an adapter in <code>lib/suppliers/</code> that implements the same interface.</Notice></div>
       </Panel>
       <Panel title="Calls in the last 7 days" className="mt-6" padded={false}>

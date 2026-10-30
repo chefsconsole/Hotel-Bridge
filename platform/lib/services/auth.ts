@@ -103,7 +103,7 @@ export const registrationSchema = z.object({
   website: z.string().trim().max(200).optional(),
   taxId: z.string().trim().max(60).optional(),
   phone: z.string().trim().max(40).optional(),
-  billingCurrency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED']),
+  billingCurrency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD']),
   name: z.string().trim().min(2, 'Your name is required').max(120),
   email: emailSchema,
   password: passwordSchema,

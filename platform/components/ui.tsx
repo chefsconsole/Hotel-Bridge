@@ -31,7 +31,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'inverse' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-ink text-paper hover:bg-ink-3 shadow-[0_1px_0_rgb(255_255_255/0.08)_inset]',
+  primary: 'bg-ink text-paper hover:bg-ink-3 shadow-[0_1px_0_rgb(255_255_255/0.08)_inset,0_8px_20px_-12px_rgb(10_15_26/0.6)]',
   secondary: 'bg-surface text-ink border border-line-strong hover:border-ink',
   ghost: 'text-ink hover:bg-mist',
   inverse: 'bg-paper text-ink hover:bg-white',
@@ -39,13 +39,13 @@ const variants: Record<Variant, string> = {
 };
 const sizes: Record<Size, string> = {
   sm: 'h-8 px-3 text-[0.82rem]',
-  md: 'h-10 px-4 text-[0.9rem]',
-  lg: 'h-12 px-6 text-[0.98rem]',
+  md: 'h-11 px-5 text-[0.9rem]',
+  lg: 'h-13 px-7 text-[0.98rem]',
 };
 
 export function buttonClass(variant: Variant = 'primary', size: Size = 'md', extra = '') {
   return cx(
-    'inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium whitespace-nowrap transition-colors duration-150 disabled:opacity-50 disabled:pointer-events-none',
+    'inline-flex items-center justify-center gap-2 rounded-[var(--radius-sm)] font-medium tracking-[0.005em] whitespace-nowrap transition-all duration-200 disabled:opacity-50 disabled:pointer-events-none',
     variants[variant], sizes[size], extra,
   );
 }
@@ -62,11 +62,11 @@ export function LinkButton({ variant = 'primary', size = 'md', className = '', .
 
 export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <header className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div className="max-w-3xl">
-        {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
-        <h1 className="text-[1.75rem] leading-tight font-semibold md:text-[2.1rem]">{title}</h1>
-        {description && <p className="mt-2 text-[0.98rem] leading-relaxed text-muted">{description}</p>}
+        {eyebrow && <p className="eyebrow mb-3">{eyebrow}</p>}
+        <h1 className="text-[2rem] leading-[1.1] font-medium tracking-[-0.035em] md:text-[2.6rem]">{title}</h1>
+        {description && <p className="mt-3 max-w-2xl text-[1rem] leading-relaxed text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </header>
@@ -75,17 +75,17 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
 
 export function Panel({ title, description, actions, children, className = '', padded = true }: { title?: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }) {
   return (
-    <section className={cx('min-w-0 rounded-[var(--radius-lg)] border border-line bg-surface', className)}>
+    <section className={cx('min-w-0 rounded-[var(--radius-lg)] border border-line bg-surface shadow-[var(--shadow-soft)]', className)}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
           <div>
-            {title && <h2 className="text-[1rem] font-semibold">{title}</h2>}
-            {description && <p className="mt-0.5 text-[0.85rem] text-muted">{description}</p>}
+            {title && <h2 className="text-[1.02rem] font-medium tracking-[-0.01em]">{title}</h2>}
+            {description && <p className="mt-1 text-[0.85rem] leading-relaxed text-muted">{description}</p>}
           </div>
           {actions}
         </div>
       )}
-      <div className={padded ? 'p-5' : 'overflow-x-auto'}>{children}</div>
+      <div className={padded ? 'p-6' : 'overflow-x-auto'}>{children}</div>
     </section>
   );
 }
@@ -93,9 +93,9 @@ export function Panel({ title, description, actions, children, className = '', p
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="min-w-0">
-      <p className="text-[0.78rem] font-medium text-muted">{label}</p>
-      <p className="num mt-1 text-[1.6rem] leading-none font-semibold tracking-tight">{value}</p>
-      {hint && <p className="mt-1.5 text-[0.78rem] text-faint">{hint}</p>}
+      <p className="text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">{label}</p>
+      <p className="num mt-3 font-[family-name:var(--font-display)] text-[1.9rem] leading-none font-light tracking-[-0.03em]">{value}</p>
+      {hint && <p className="mt-2 text-[0.78rem] leading-snug text-muted">{hint}</p>}
     </div>
   );
 }

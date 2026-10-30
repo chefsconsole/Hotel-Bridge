@@ -21,7 +21,7 @@ export function OfferList({ offers, hotelId, stay, limit }: {
   return (
     <ul className="divide-y divide-line">
       {shown.map((o) => (
-        <li key={o.offerKey} className="grid gap-4 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
+        <li key={o.offerKey} className="grid gap-4 py-5 xl:grid-cols-[1fr_auto] xl:items-center xl:gap-8">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-medium">{o.roomName}</p>
@@ -36,12 +36,12 @@ export function OfferList({ offers, hotelId, stay, limit }: {
             </div>
             {o.notes.length > 0 && <p className="mt-1.5 text-[0.78rem] text-faint">{o.notes.join(' ')}</p>}
           </div>
-          <div className="flex items-center justify-between gap-5 sm:justify-end">
+          <div className="flex items-center justify-between gap-5 xl:justify-end">
             <div className="text-right">
               <Money minor={o.price.sellMinor} currency={o.price.currency} className="text-[1.15rem] font-semibold" />
               <p className="text-[0.75rem] text-muted">
                 {stay.rooms.length} room{stay.rooms.length === 1 ? '' : 's'} · {nights} night{nights === 1 ? '' : 's'}
-                {o.price.taxMinor > 0 ? ' · VAT incl.' : ''}
+                {o.price.taxMinor > 0 ? ' · taxes incl.' : ''}
               </p>
               {o.price.localTaxMinor > 0 && <p className="text-[0.72rem] text-faint">+ <Money minor={o.price.localTaxMinor} currency={o.price.currency} /> city tax at hotel</p>}
             </div>
