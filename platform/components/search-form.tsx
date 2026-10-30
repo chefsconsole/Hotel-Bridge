@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { buttonClass, cx } from './ui';
+import { DateRangePicker } from './date-range-picker';
 import { encodeRooms, MAX_ROOMS } from '@/lib/domain/occupancy';
 import type { RoomRequest } from '@/lib/db/schema';
 
@@ -19,7 +20,6 @@ export function SearchForm({ destinations, initial, compact = false }: {
   const [error, setError] = useState('');
   const [roomsOpen, setRoomsOpen] = useState(!compact);
 
-  const today = new Date().toISOString().slice(0, 10);
   const guests = rooms.reduce((s, r) => s + r.adults + r.childAges.length, 0);
 
   const update = (i: number, patch: Partial<RoomRequest>) => setRooms((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -36,29 +36,23 @@ export function SearchForm({ destinations, initial, compact = false }: {
 
   return (
     <form onSubmit={submit} className="rounded-[var(--radius-lg)] border border-line bg-surface p-4 shadow-[var(--shadow-soft)] md:p-5">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr_auto] lg:items-end">
-        <label className="block">
-          <span className="mb-1.5 block text-[0.78rem] font-medium text-muted">Destination</span>
-          <select className="field" value={city} onChange={(e) => setCity(e.target.value)}>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.1fr_1.9fr_1fr_auto] xl:items-stretch">
+        <label className="flex flex-col justify-center rounded-[var(--radius-sm)] border border-line-strong bg-surface px-4 py-2.5 transition-colors focus-within:border-champagne hover:border-faint">
+          <span className="text-[0.68rem] font-medium tracking-[0.12em] text-faint uppercase">Destination</span>
+          <select className="-ml-0.5 w-full cursor-pointer appearance-none bg-transparent text-[0.95rem] outline-none" value={city} onChange={(e) => setCity(e.target.value)}>
             {destinations.length === 0 && <option value="">No destinations live yet</option>}
-            {destinations.map((d) => <option key={d.city} value={d.city}>{d.city}, {d.country} · {d.n} hotel{d.n === 1 ? '' : 's'}</option>)}
+            {destinations.map((d) => <option key={d.city} value={d.city}>{d.city}, {d.country}</option>)}
           </select>
         </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[0.78rem] font-medium text-muted">Check-in</span>
-          <input type="date" className="field num" min={today} value={checkIn} onChange={(e) => { setIn(e.target.value); if (checkOut && e.target.value >= checkOut) setOut(''); }} />
-        </label>
-        <label className="block">
-          <span className="mb-1.5 block text-[0.78rem] font-medium text-muted">Check-out</span>
-          <input type="date" className="field num" min={checkIn || today} value={checkOut} onChange={(e) => setOut(e.target.value)} />
-        </label>
-        <div>
-          <span className="mb-1.5 block text-[0.78rem] font-medium text-muted">Rooms &amp; guests</span>
-          <button type="button" onClick={() => setRoomsOpen((v) => !v)} className="field text-left" aria-expanded={roomsOpen}>
-            {rooms.length} room{rooms.length === 1 ? '' : 's'} · {guests} guest{guests === 1 ? '' : 's'}
-          </button>
+        <div className="sm:col-span-2 sm:row-start-2 xl:col-span-1 xl:row-start-auto">
+          <DateRangePicker checkIn={checkIn} checkOut={checkOut} onChange={(a, b) => { setIn(a); setOut(b); setError(''); }} />
         </div>
-        <button className={buttonClass('primary', 'md', 'h-[46px] md:px-7')} disabled={pending}>
+        <button type="button" onClick={() => setRoomsOpen((v) => !v)} aria-expanded={roomsOpen}
+          className="flex flex-col justify-center rounded-[var(--radius-sm)] border border-line-strong bg-surface px-4 py-2.5 text-left transition-colors hover:border-faint">
+          <span className="text-[0.68rem] font-medium tracking-[0.12em] text-faint uppercase">Rooms &amp; guests</span>
+          <span className="text-[0.95rem]">{rooms.length} room{rooms.length === 1 ? '' : 's'} · {guests} guest{guests === 1 ? '' : 's'}</span>
+        </button>
+        <button className={buttonClass('primary', 'lg', 'h-auto min-h-[58px] sm:col-span-2 xl:col-span-1 xl:px-8')} disabled={pending}>
           {pending ? 'Searching…' : 'Search'}
         </button>
       </div>
