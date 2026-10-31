@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
-import { PaymentPill, StatusPill, Timeline } from '@/components/booking-bits';
+import { HotelDeadline, PaymentPill, StatusPill, Timeline } from '@/components/booking-bits';
 import { DL, Money, Notice, Panel, SampleTag } from '@/components/ui';
 import { bookingOpsAction } from '@/app/actions/admin';
 import { getDb, schema } from '@/lib/db';
@@ -49,6 +49,7 @@ export default async function AdminBooking({ params }: { params: Promise<{ id: s
         <h1 className="num mt-1 text-[2rem] font-semibold">{b.reference}</h1>
         <div className="mt-2 flex flex-wrap gap-2"><StatusPill status={b.status} /><PaymentPill status={b.paymentStatus} />{b.isSample && <SampleTag />}</div>
         <p className="mt-3 max-w-3xl text-[0.9rem] text-muted">{STATUS_EXPLAINER[b.status]}</p>
+        <div className="mt-3"><HotelDeadline status={b.status} respondBy={b.hotelRespondBy} /></div>
       </header>
       {b.status === 'outcome_unknown' && <div className="mb-6"><Notice tone="error" title="Do not rebook">The supplier may hold this reservation. Reconcile — we look it up by our reference and never create a second booking.</Notice></div>}
 

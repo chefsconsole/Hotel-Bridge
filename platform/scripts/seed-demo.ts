@@ -14,7 +14,9 @@ import { eq } from 'drizzle-orm';
 import { closeDb, getDb, schema } from '@/lib/db';
 import { isProduction } from '@/lib/config';
 import { addDays, todayIso } from '@/lib/domain/dates';
-import { hashPassword } from '@/lib/services/auth';
+import { actorFor, hashPassword } from '@/lib/services/auth';
+import { searchHotels } from '@/lib/services/search';
+import { addExtra, addHotelToTrip, createTrip, priceItem, recordClientPayment, updateBranding } from '@/lib/services/trips';
 
 type H = { name: string; city: string; country: string; stars: number; collections: string[]; summary: string; facilities: string[]; transport: string; base: number; model: 'net_instant' | 'net_request' | 'commission_direct' };
 
@@ -51,7 +53,9 @@ const HOTELS: H[] = [
     await seedHotel(db, h, slug, today, end);
     added++;
   }
-  console.log(added ? `Demo data: added ${added} sample hotel(s). Logins are listed at the top of scripts/seed-demo.ts.` : 'Demo data already present — nothing to do.');
+  const trip = await seedTrip(db, today);
+  console.log(added ? `Demo data: added ${added} sample hotel(s). Logins are listed at the top of scripts/seed-demo.ts.` : 'Demo hotels already present.');
+  if (trip) console.log('Demo data: added a sample client trip for the demo agency.');
   await closeDb();
 })().catch(async (e) => { console.error(e); await closeDb(); process.exit(1); });
 
@@ -112,4 +116,39 @@ async function seedHotel(db: DBT, h: H, slug: string, today: string, end: string
       await db.insert(schema.users).values({ email: 'frontdesk@demo-hotel.test', name: 'Front Office (sample)', partnerHotelId: hotel.id, passwordHash: await hashPassword('demo-hotel-2026') });
     }
   }
+}
+
+/** One fictional client trip for the demo agency: two sample hotels, flights,
+ *  transfers and an advance — enough to show the package and reminders. */
+async function seedTrip(db: DBT, today: string) {
+  const [user] = await db.select().from(schema.users).where(eq(schema.users.email, 'agent@demo-travels.test'));
+  if (!user?.agencyId) return false;
+  const [existing] = await db.select({ id: schema.clients.id }).from(schema.clients).where(eq(schema.clients.agencyId, user.agencyId));
+  if (existing) return false;
+  const actor = actorFor(user);
+  await updateBranding(db, actor, { brandName: 'Demo Travels', brandPhone: '+91 90000 00000', brandEmail: 'hello@demo-travels.test', brandFooter: 'Demo Travels (fictional sample agency) · Mumbai' });
+  const start = addDays(today, 30);
+  const mid = addDays(start, 4);
+  const end = addDays(mid, 3);
+  const trip = await createTrip(db, actor, {
+    title: 'Mehta family · Phuket & Bangkok (sample)', currency: 'INR', startDate: start, endDate: end, adults: 2, children: 0,
+    source: 'instagram', followUpOn: today, followUpNote: 'Confirm flights and collect the balance', balanceDueOn: addDays(today, 10),
+    clientNote: 'Fictional sample trip. Prices include breakfast and private transfers. 50% advance to confirm, balance 20 days before travel.',
+    newClient: { name: 'Ravi Mehta (sample)', phone: '+91 90000 00001', city: 'Mumbai' },
+  });
+  await db.update(schema.clients).set({ isSample: true }).where(eq(schema.clients.agencyId, user.agencyId));
+  await db.update(schema.trips).set({ isSample: true }).where(eq(schema.trips.id, trip.id));
+  const rooms = [{ adults: 2, childAges: [] as number[] }];
+  for (const [city, name, from, to, inr] of [['Phuket', 'Patong Sample Resort', start, mid, '64000'], ['Bangkok', 'Sukhumvit Sample Residence', mid, end, '38000']] as const) {
+    const { results } = await searchHotels(db, actor, { city, checkIn: from, checkOut: to, rooms }, { log: false });
+    const r = results.find((x) => x.hotel.name === name);
+    const offer = r?.offers.find((o) => o.mealPlan === 'BB');
+    if (!r || !offer) continue;
+    const item = await addHotelToTrip(db, actor, trip.id, { offerKey: offer.offerKey, hotelId: r.hotel.id, checkIn: from, checkOut: to, rooms });
+    await priceItem(db, actor, item.id, { clientPrice: inr }); // fictional client price in INR
+  }
+  await addExtra(db, actor, trip.id, { kind: 'flight', title: 'Mumbai–Phuket, Bangkok–Mumbai (sample)', details: '2 adults, economy, 20 kg baggage', startDate: start, clientPrice: '68000', cost: '61500' });
+  await addExtra(db, actor, trip.id, { kind: 'transfer', title: 'Private transfers (sample)', details: 'Airport–hotel–airport and Phuket–Bangkok flight connection', startDate: start, clientPrice: '9000', cost: '6200' });
+  await recordClientPayment(db, actor, trip.id, { amount: '90000', method: 'upi', receivedOn: today, reference: 'SAMPLE-UTR' });
+  return true;
 }

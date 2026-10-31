@@ -11,13 +11,14 @@
  * ------------------------------------------------------------------ */
 import {
   pgTable, text, integer, bigint, boolean, timestamp, date, jsonb, uuid,
-  uniqueIndex, index, primaryKey,
+  uniqueIndex, index, primaryKey, customType,
 } from 'drizzle-orm/pg-core';
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
 const money = (name: string) => bigint(name, { mode: 'number' });
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => 'bytea' });
 
 /* ============================== Accounts ============================== */
 
@@ -29,6 +30,9 @@ export const agencies = pgTable('agencies', {
   city: text('city'),
   address: text('address'),
   taxId: text('tax_id'),
+  // India KYC: PAN is required to approve an Indian agency; GSTIN when registered for GST.
+  pan: text('pan'),
+  gstin: text('gstin'),
   website: text('website'),
   phone: text('phone'),
   // pending -> verified | rejected; verified -> suspended
@@ -41,10 +45,31 @@ export const agencies = pgTable('agencies', {
   verifiedBy: uuid('verified_by'),
   verifiedAt: timestamp('verified_at', { withTimezone: true }),
   internalNotes: text('internal_notes'),
+  // What the agency's own clients see on proposals and reminders (white-label).
+  brandName: text('brand_name'),
+  brandEmail: text('brand_email'),
+  brandPhone: text('brand_phone'),
+  logoUrl: text('logo_url'),
+  brandFooter: text('brand_footer'),
   isSample: boolean('is_sample').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+/** KYC documents an agency uploads (PAN card, GST certificate…). Stored in the
+ *  database for now; move to object storage when files grow. Only staff and the
+ *  agency itself can read them. */
+export const agencyDocuments = pgTable('agency_documents', {
+  id: id(),
+  agencyId: uuid('agency_id').notNull().references(() => agencies.id),
+  kind: text('kind').notNull(), // pan_card | gst_certificate | registration | other
+  fileName: text('file_name').notNull(),
+  mimeType: text('mime_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  data: bytea('data').notNull(),
+  uploadedBy: uuid('uploaded_by').notNull(),
+  createdAt: createdAt(),
+}, (t) => [index('agency_documents_agency_idx').on(t.agencyId, t.createdAt)]);
 
 export const users = pgTable('users', {
   id: id(),
@@ -152,6 +177,8 @@ export const contracts = pgTable('contracts', {
   // instant_allocation: confirm from allotment, fall back to on_request.
   // on_request: hotel must confirm every booking.
   confirmationMode: text('confirmation_mode').notNull().default('on_request'),
+  // On-request bookings: hours the hotel has to accept or decline before the request lapses.
+  responseHours: integer('response_hours').notNull().default(48),
   // Cancellation: free until N days before arrival, then penalty.
   freeCancelDays: integer('free_cancel_days'),
   // first_night | percent | full
@@ -315,6 +342,8 @@ export const bookings = pgTable('bookings', {
   cancelPolicy: jsonb('cancel_policy').notNull(),
   freeCancelUntil: date('free_cancel_until'),
   paymentDueAt: timestamp('payment_due_at', { withTimezone: true }),
+  // On-request: the hotel must answer by this time, or the request lapses (no charge).
+  hotelRespondBy: timestamp('hotel_respond_by', { withTimezone: true }),
   isSample: boolean('is_sample').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -372,6 +401,8 @@ export const ledgerEntries = pgTable('ledger_entries', {
   id: id(),
   bookingId: uuid('booking_id').references(() => bookings.id),
   agencyId: uuid('agency_id').references(() => agencies.id),
+  // Settlements with a hotel that aren't tied to one booking (paying the hotel, receiving its commission).
+  hotelId: uuid('hotel_id'),
   // agent_charge      +  agent owes us
   // agent_payment     -  agent paid us
   // agent_refund      +  we paid money back (reduces what they've paid)
@@ -514,6 +545,110 @@ export const groupMessages = pgTable('group_messages', {
   body: text('body').notNull(),
   createdAt: createdAt(),
 });
+
+/* ============================== Agents' own clients ============================== *
+ * The agency's CRM: its travellers, their trips (packages) and what each
+ * client has paid the agency. A trip mixes hotels booked through HotelBridge
+ * with things the agency sells itself (flights, visas, transfers...). These
+ * are the agency's own records, kept apart from the HotelBridge ledger. */
+
+export const clients = pgTable('clients', {
+  id: id(),
+  agencyId: uuid('agency_id').notNull().references(() => agencies.id),
+  name: text('name').notNull(),
+  phone: text('phone'),
+  email: text('email'),
+  city: text('city'),
+  notes: text('notes'),
+  createdBy: uuid('created_by').notNull(),
+  isSample: boolean('is_sample').notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index('clients_agency_idx').on(t.agencyId, t.name)]);
+
+export const trips = pgTable('trips', {
+  id: id(),
+  reference: text('reference').notNull(), // TR-XXXXX, the agency's own reference for the client
+  agencyId: uuid('agency_id').notNull().references(() => agencies.id),
+  clientId: uuid('client_id').notNull().references(() => clients.id),
+  title: text('title').notNull(),
+  // enquiry -> quoted -> confirmed -> completed; or cancelled
+  status: text('status').notNull().default('enquiry'),
+  currency: text('currency').notNull(), // what the client is quoted and pays in
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  adults: integer('adults').notNull().default(2),
+  children: integer('children').notNull().default(0),
+  balanceDueOn: date('balance_due_on'),
+  source: text('source'), // where the lead came from: whatsapp | instagram | referral | walk_in | website | repeat | other
+  followUpOn: date('follow_up_on'), // the agent's next action date
+  followUpNote: text('follow_up_note'),
+  clientApprovedAt: timestamp('client_approved_at', { withTimezone: true }), // client pressed "Approve" on the shared plan
+  notes: text('notes'), // internal
+  clientNote: text('client_note'), // printed on the proposal
+  shareToken: text('share_token').notNull(),
+  shareEnabled: boolean('share_enabled').notNull().default(true),
+  showItemPrices: boolean('show_item_prices').notNull().default(true),
+  createdBy: uuid('created_by').notNull(),
+  isSample: boolean('is_sample').notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  uniqueIndex('trips_share_uq').on(t.shareToken),
+  uniqueIndex('trips_ref_uq').on(t.agencyId, t.reference),
+  index('trips_agency_idx').on(t.agencyId, t.createdAt),
+  index('trips_client_idx').on(t.clientId),
+  index('trips_follow_up_idx').on(t.agencyId, t.followUpOn),
+]);
+
+export const TRIP_ITEM_KINDS = ['hotel', 'flight', 'visa', 'transfer', 'activity', 'insurance', 'other'] as const;
+
+export const tripItems = pgTable('trip_items', {
+  id: id(),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  agencyId: uuid('agency_id').notNull(),
+  kind: text('kind').notNull(),
+  title: text('title').notNull(),
+  details: text('details'),
+  startDate: date('start_date'),
+  endDate: date('end_date'),
+  // What the client pays the agency for this line, in the trip currency. Null = not priced yet.
+  clientPriceMinor: money('client_price_minor'),
+  // The agency's own cost for extras (optional), in costCurrency.
+  costMinor: money('cost_minor'),
+  costCurrency: text('cost_currency'),
+  supplierName: text('supplier_name'), // e.g. the airline or visa service — extras only
+  // Hotels booked through HotelBridge:
+  hotelId: uuid('hotel_id'),
+  offerKey: text('offer_key'),
+  rooms: jsonb('rooms').$type<RoomRequest[]>(),
+  roomName: text('room_name'),
+  mealPlan: text('meal_plan'),
+  cancellation: text('cancellation'),
+  // The HotelBridge price the agent accepted (what the agency will pay us).
+  netMinor: money('net_minor'),
+  netCurrency: text('net_currency'),
+  bookingId: uuid('booking_id').references(() => bookings.id),
+  lastIssue: text('last_issue'), // e.g. "price changed" from the last Book all
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index('trip_items_trip_idx').on(t.tripId, t.sortOrder)]);
+
+/** Money the CLIENT paid the agency. Not HotelBridge money — the agency's own record. */
+export const tripPayments = pgTable('trip_payments', {
+  id: id(),
+  tripId: uuid('trip_id').notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  agencyId: uuid('agency_id').notNull(),
+  amountMinor: money('amount_minor').notNull(),
+  currency: text('currency').notNull(),
+  method: text('method').notNull(), // upi | bank | card | cash | other
+  reference: text('reference'),
+  receivedOn: date('received_on').notNull(),
+  note: text('note'),
+  createdBy: uuid('created_by').notNull(),
+  createdAt: createdAt(),
+}, (t) => [index('trip_payments_trip_idx').on(t.tripId)]);
 
 /* ============================== Everything else ============================== */
 

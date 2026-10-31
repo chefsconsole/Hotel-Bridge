@@ -15,7 +15,7 @@ import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB, type Executor } from '@/lib/db';
 import type { BookedRoom } from '@/lib/db/schema';
-import { PAYMENT_HOLD_HOURS } from '@/lib/config';
+import { HOTEL_RESPONSE_HOURS, PAYMENT_HOLD_HOURS } from '@/lib/config';
 import { assertTransition, type BookingStatus } from '@/lib/domain/booking-state';
 import { cancellationPenalty, type CancelPolicy } from '@/lib/domain/cancellation';
 import { todayIso } from '@/lib/domain/dates';
@@ -27,10 +27,10 @@ import { SYSTEM, agencyOf, isStaff, requireStaff, type Actor } from './actor';
 import { audit } from './audit';
 import { randomCode } from './counters';
 import { AppError, ForbiddenError, NotFoundError, isUniqueViolation } from './errors';
-import { agencyOutstanding, balances, issueInvoice, post } from './ledger';
+import { agencyOutstanding, balances, creditBookingToWallet, issueInvoice, lockWallet, post, walletBalance } from './ledger';
 import { getQuote, priceSupplierOffer, createQuote, type QuoteSnapshot } from './search';
 
-const { bookings, bookingEvents, agencies, hotels } = schema;
+const { bookings, bookingEvents, agencies, hotels, contracts } = schema;
 type Booking = typeof bookings.$inferSelect;
 
 /* ------------------------------ helpers ------------------------------ */
@@ -56,7 +56,7 @@ async function setPayment(db: Executor, b: Booking): Promise<Booking> {
   else if (!bal.hasCharge) paymentStatus = 'not_due';
   else if (bal.agentBalance > 0) paymentStatus = 'due';
   else if (bal.agentBalance < 0) paymentStatus = 'refund_due';
-  else paymentStatus = bal.agentRefunded > 0 ? 'refunded' : bal.agentPaid > 0 ? 'paid' : 'not_due';
+  else paymentStatus = bal.agentRefunded > 0 ? 'refunded' : bal.walletCredited > 0 ? 'credited' : bal.agentPaid > 0 ? 'paid' : 'not_due';
   if (paymentStatus === b.paymentStatus) return b;
   const [u] = await db.update(bookings).set({ paymentStatus, updatedAt: new Date() }).where(eq(bookings.id, b.id)).returning();
   return u;
@@ -92,7 +92,13 @@ async function postConfirmedEconomics(db: Executor, actor: Actor, b: Booking) {
 async function applySupplierResult(db: DB, actor: Actor, b: Booking, r: BookResult | { state: 'confirmed' | 'held' | 'pending'; supplierRef?: string | null; hotelConfirmation?: string | null }, note?: string): Promise<Booking> {
   return db.transaction(async (tx) => {
     const patch = { supplierRef: r.supplierRef ?? b.supplierRef, hotelConfirmation: r.hotelConfirmation ?? b.hotelConfirmation };
-    if (r.state === 'pending') return transition(tx, actor, b, 'pending_confirmation', note ?? 'Sent to the hotel for confirmation', patch);
+    if (r.state === 'pending') {
+      // The hotel gets a fixed window (per contract) to accept or decline; then the request lapses.
+      const [c] = b.contractId ? await tx.select({ hours: contracts.responseHours }).from(contracts).where(eq(contracts.id, b.contractId)) : [];
+      const hours = c?.hours ?? HOTEL_RESPONSE_HOURS;
+      const respondBy = new Date(Date.now() + hours * 3_600_000);
+      return transition(tx, actor, b, 'pending_confirmation', note ?? `Sent to the hotel — it has ${hours} hours to confirm`, { ...patch, hotelRespondBy: respondBy });
+    }
 
     if (b.paymentArrangement === 'direct') {
       const c = await transition(tx, actor, b, 'confirmed', note ?? 'Confirmed by supplier', { ...patch, paymentStatus: 'direct' });
@@ -283,6 +289,32 @@ export async function recordPayment(db: DB, actor: Actor, bookingId: string, inp
   if (b.paymentArrangement === 'direct') throw new AppError('This booking is paid at the hotel');
   await post(db, actor, [{ bookingId: b.id, agencyId: b.agencyId, kind: 'agent_payment', account: 'agent', amountMinor: -amount, currency: b.currency, reference, memo: 'Payment received' }]);
   await audit(db, actor, 'booking.payment_recorded', 'booking', b.id, { amount, currency: b.currency, reference }, b.agencyId);
+  return afterPayment(db, actor, b);
+}
+
+/** The agent pays a held booking from its wallet (all of it, or as much as the wallet has). */
+export async function payFromWallet(db: DB, actor: Actor, bookingId: string) {
+  const b = await getBookingForActor(db, actor, bookingId);
+  if (b.status !== 'awaiting_payment') throw new AppError('This booking has nothing to pay right now');
+  const paid = await db.transaction(async (tx) => {
+    await lockWallet(tx, b.agencyId);
+    const due = (await balances(tx, b.id)).agentBalance;
+    const available = await walletBalance(tx, b.agencyId, b.currency);
+    if (due <= 0) throw new AppError('This booking is already paid');
+    if (available <= 0) throw new AppError(`Your wallet has no ${b.currency} credit`);
+    const amount = Math.min(due, available);
+    await post(tx, actor, [
+      { bookingId: null, agencyId: b.agencyId, kind: 'wallet_debit', account: 'agent', amountMinor: amount, currency: b.currency, reference: b.reference, memo: `Paid ${b.reference}` },
+      { bookingId: b.id, agencyId: b.agencyId, kind: 'agent_payment', account: 'agent', amountMinor: -amount, currency: b.currency, reference: 'WALLET', memo: 'Paid from wallet' },
+    ]);
+    await audit(tx, actor, 'booking.paid_from_wallet', 'booking', b.id, { amount, currency: b.currency }, b.agencyId);
+    return amount;
+  });
+  return { booking: await afterPayment(db, actor, b), paid: paid };
+}
+
+/** After money arrives: confirm a held booking, or place one the supplier couldn't hold. */
+async function afterPayment(db: DB, actor: Actor, b: Booking) {
   let cur = await setPayment(db, b);
   if (cur.status === 'awaiting_payment' && cur.paymentStatus === 'paid') {
     if (cur.supplierRef) {
@@ -299,7 +331,11 @@ export async function recordPayment(db: DB, actor: Actor, bookingId: string, inp
         city: '', checkIn: cur.checkIn, checkOut: cur.checkOut, rooms: cur.rooms.map((r) => ({ adults: r.adults, childAges: r.childAges })), today: todayIso(), hotelId: cur.hotelId,
       }));
       cur = await transition(db, actor, cur, 'submitting', 'Payment received — placing reservation');
-      if ('unavailable' in fresh) return transition(db, actor, cur, 'failed', `Supplier no longer has the room: ${fresh.unavailable}. Refund due.`);
+      if ('unavailable' in fresh) {
+        const failed = await transition(db, actor, cur, 'failed', `Supplier no longer has the room: ${fresh.unavailable}. Payment returned to the wallet.`);
+        await creditBookingToWallet(db, actor, failed, `Full refund for ${failed.reference} (room no longer available)`);
+        return setPayment(db, failed);
+      }
       cur = await submitToSupplier(db, actor, cur, fresh, false);
     }
   }
@@ -392,8 +428,10 @@ async function finaliseCancellation(db: DB, actor: Actor, b: Booking, note: stri
         await issueInvoice(tx, { agencyId: b.agencyId, bookingId: b.id, kind: 'credit_note', currency: b.currency, totalMinor: -credit, taxMinor: 0, lines: [{ label: `Cancellation of ${b.reference}`, amountMinor: -credit }] });
       }
     }
+    // Whatever the hotel's terms don't keep goes straight back to the agency's wallet.
+    const credited = await creditBookingToWallet(tx, actor, b, pen.sellPenaltyMinor > 0 ? `Refund for ${b.reference} (after ${pen.reason.toLowerCase()})` : `Full refund for ${b.reference}`);
     c = await setPayment(tx, c);
-    await audit(tx, actor, 'booking.cancelled', 'booking', b.id, { penalty: pen }, b.agencyId);
+    await audit(tx, actor, 'booking.cancelled', 'booking', b.id, { penalty: pen, creditedToWallet: credited }, b.agencyId);
     return c;
   });
 }
@@ -422,6 +460,12 @@ export async function hotelRespond(db: DB, actor: Actor, bookingId: string, inpu
   const isPartner = actor.partnerHotelId != null && actor.partnerHotelId === b.hotelId;
   if (!isPartner && !(actor.platformRole === 'admin' || actor.platformRole === 'ops')) throw new NotFoundError('Booking');
   if (b.status !== 'pending_confirmation') throw new AppError('This request has already been answered');
+  // After the window the agent may have booked elsewhere: the hotel can't confirm late.
+  // HotelBridge staff can still record a late confirmation once the agent has agreed.
+  if (isPartner && b.hotelRespondBy && b.hotelRespondBy < new Date()) {
+    await lapse(db, b);
+    throw new AppError('The time to answer this request has passed, so it has lapsed. Contact HotelBridge if the guest still wants the room.');
+  }
   if (!input.accept) return transition(db, actor, b, 'declined', input.note?.trim() || 'Declined by hotel');
   const confirmation = z.string().trim().min(2, 'Enter the hotel confirmation number').max(60).parse(input.confirmation ?? '');
   return applySupplierResult(db, actor, b, { state: 'confirmed', hotelConfirmation: confirmation },
@@ -442,6 +486,21 @@ export async function expireUnpaidHolds(db: DB, now = new Date()) {
       done.push(b.reference);
     } catch { /* stays for operations */ }
   }
+  return done;
+}
+
+const LAPSE_NOTE = 'The hotel did not answer in time — request lapsed. Nothing was charged.';
+
+async function lapse(db: DB, b: Booking) {
+  try { return await transition(db, SYSTEM, b, 'declined', LAPSE_NOTE); } catch { return null; /* answered meanwhile */ }
+}
+
+/** On-request bookings the hotel did not answer within its window become
+ *  "declined" (no charge was ever posted for them). Safe to run repeatedly. */
+export async function lapseUnansweredRequests(db: DB, now = new Date()) {
+  const due = await db.select().from(bookings).where(and(eq(bookings.status, 'pending_confirmation'), lt(bookings.hotelRespondBy, now)));
+  const done: string[] = [];
+  for (const b of due) if (await lapse(db, b)) done.push(b.reference);
   return done;
 }
 
@@ -483,7 +542,7 @@ export async function listForPartner(db: Executor, actor: Actor) {
     id: bookings.id, reference: bookings.reference, status: bookings.status, checkIn: bookings.checkIn, checkOut: bookings.checkOut,
     rooms: bookings.rooms, leadGuest: bookings.leadGuest, specialRequests: bookings.specialRequests,
     supplierCostMinor: bookings.supplierCostMinor, currency: bookings.currency, collectionModel: bookings.collectionModel,
-    hotelConfirmation: bookings.hotelConfirmation, createdAt: bookings.createdAt,
+    hotelConfirmation: bookings.hotelConfirmation, hotelRespondBy: bookings.hotelRespondBy, createdAt: bookings.createdAt,
   }).from(bookings).where(and(eq(bookings.hotelId, actor.partnerHotelId), eq(bookings.supplier, 'contracted')))
     .orderBy(desc(bookings.createdAt)).limit(200);
 }
@@ -492,3 +551,19 @@ export function roomsSummary(b: Pick<Booking, 'rooms'>) {
   return b.rooms.map((r, i) => `Room ${i + 1}: ${r.roomName}, ${describeRoom(r)}`).join(' · ');
 }
 
+
+/* ------------------------------ wallet payouts ------------------------------ */
+
+/** Finance pays wallet credit out to the agency's bank. */
+export async function recordWalletPayout(db: DB, actor: Actor, agencyId: string, input: { amountMinor: number; currency: string; reference: string }) {
+  requireStaff(actor, ['admin', 'finance']);
+  const amount = z.number().int().positive().parse(input.amountMinor);
+  const reference = z.string().trim().min(2, 'Bank reference is required').max(120).parse(input.reference);
+  return db.transaction(async (tx) => {
+    await lockWallet(tx, agencyId);
+    const available = await walletBalance(tx, agencyId, input.currency);
+    if (amount > available) throw new AppError('Payout is more than the wallet holds');
+    await post(tx, actor, [{ bookingId: null, agencyId, kind: 'wallet_payout', account: 'agent', amountMinor: amount, currency: input.currency, reference, memo: 'Paid out to bank' }]);
+    await audit(tx, actor, 'agency.wallet_payout', 'agency', agencyId, { amount, currency: input.currency, reference }, agencyId);
+  });
+}

@@ -1,0 +1,1 @@
+ALTER TABLE "ledger_entries" ADD COLUMN "hotel_id" uuid;

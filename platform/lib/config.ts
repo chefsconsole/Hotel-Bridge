@@ -15,5 +15,7 @@ export const QUOTE_TTL_MINUTES = 20;
 export const PAYMENT_HOLD_HOURS = 48;
 /** How long we give ourselves to acknowledge a group enquiry. */
 export const GROUP_FIRST_RESPONSE_HOURS = 24;
+/** Default time a hotel has to accept or decline an on-request booking (per-contract override). */
+export const HOTEL_RESPONSE_HOURS = 48;
 
 export const SUPPORT_EMAIL = 'info@hotelbridge.co';

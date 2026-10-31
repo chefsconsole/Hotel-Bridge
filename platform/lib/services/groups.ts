@@ -131,7 +131,7 @@ export async function listEnquiries(db: DB, actor: Actor) {
 }
 
 export async function setStage(db: DB, actor: Actor, id: string, status: GroupStage, note?: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const e = await load(db, actor, id);
   if (['won', 'lost', 'cancelled'].includes(e.status) && status !== e.status) throw new AppError('This enquiry is closed');
   await db.update(groupEnquiries).set({ status, outcomeNote: note ?? e.outcomeNote, updatedAt: new Date(), assignedTo: e.assignedTo ?? actor.userId }).where(eq(groupEnquiries.id, id));
@@ -185,7 +185,7 @@ export function enquiryEmail(e: typeof groupEnquiries.$inferSelect, leg: { city:
 }
 
 export async function generateHotelRequests(db: DB, actor: Actor, id: string, input: { hotelIds: string[]; manual?: { name: string; email?: string; city: string }[]; respondBy: string }) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const e = await load(db, actor, id);
   if (!isIsoDate(input.respondBy)) throw new AppError('Set a reply-by date for the hotels');
   if (input.respondBy > e.quoteNeededBy) throw new AppError('Hotels must reply before the agent\'s quotation deadline');
@@ -208,7 +208,7 @@ export async function generateHotelRequests(db: DB, actor: Actor, id: string, in
 
 /** A human confirms the email actually went out. We never claim "sent" for "generated". */
 export async function markRequestSent(db: DB, actor: Actor, requestId: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const [r] = await db.select().from(groupHotelRequests).where(eq(groupHotelRequests.id, requestId));
   if (!r) throw new NotFoundError('Hotel request');
   await db.update(groupHotelRequests).set({ status: 'sent', sentAt: new Date(), sentBy: actor.userId }).where(eq(groupHotelRequests.id, requestId));
@@ -217,7 +217,7 @@ export async function markRequestSent(db: DB, actor: Actor, requestId: string) {
 }
 
 export async function setRequestStatus(db: DB, actor: Actor, requestId: string, status: 'declined' | 'no_response') {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   await db.update(groupHotelRequests).set({ status }).where(eq(groupHotelRequests.id, requestId));
 }
 
@@ -238,7 +238,7 @@ export const offerSchema = z.object({
 });
 
 export async function recordOffer(db: DB, actor: Actor, enquiryId: string, input: z.infer<typeof offerSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const e = await load(db, actor, enquiryId);
   const data = offerSchema.parse(input);
   const cost = data.lines.reduce((s, l) => s + l.rooms * l.nights * l.rateMinor, 0);
@@ -252,7 +252,7 @@ export async function recordOffer(db: DB, actor: Actor, enquiryId: string, input
 /* ----------------------------- proposals ----------------------------- */
 
 export async function buildProposal(db: DB, actor: Actor, enquiryId: string, input: { offerIds: string[]; markupBps: number; validUntil: string; inclusions?: string; exclusions?: string }) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const e = await load(db, actor, enquiryId);
   const markupBps = z.number().int().min(0).max(5000).parse(input.markupBps);
   if (!isIsoDate(input.validUntil) || input.validUntil < todayIso()) throw new AppError('Proposal validity must be a future date');
@@ -277,7 +277,7 @@ export async function buildProposal(db: DB, actor: Actor, enquiryId: string, inp
 }
 
 export async function sendProposal(db: DB, actor: Actor, proposalId: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const [p] = await db.select().from(groupProposals).where(eq(groupProposals.id, proposalId));
   if (!p || p.status !== 'draft') throw new AppError('Only draft proposals can be sent');
   await db.update(groupProposals).set({ status: 'superseded' }).where(and(eq(groupProposals.enquiryId, p.enquiryId), eq(groupProposals.status, 'sent')));

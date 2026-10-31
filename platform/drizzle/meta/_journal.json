@@ -22,6 +22,34 @@
       "when": 1793376778240,
       "tag": "0002_ai_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793442965975,
+      "tag": "0003_agency_clients_trips",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793445747559,
+      "tag": "0004_hotel_response_window",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793445943995,
+      "tag": "0005_agency_kyc",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793446480656,
+      "tag": "0006_ledger_hotel_settlements",
+      "breakpoints": true
     }
   ]
 }

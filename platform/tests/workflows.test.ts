@@ -6,9 +6,9 @@ import { login, registerAgency } from '@/lib/services/auth';
 import { createQuote, searchHotels, getQuote, type QuoteSnapshot } from '@/lib/services/search';
 import {
   createBooking, getBookingForActor, hotelRespond, listBookingsForActor, listForPartner, processCancellation,
-  reconcileBooking, recordPayment, recordRefund, requestCancellation, expireUnpaidHolds,
+  reconcileBooking, recordPayment, requestCancellation, expireUnpaidHolds, lapseUnansweredRequests, payFromWallet, recordWalletPayout, penaltyFor,
 } from '@/lib/services/bookings';
-import { balances } from '@/lib/services/ledger';
+import { balances, walletBalance } from '@/lib/services/ledger';
 import { addRatePeriod, createContract, setAgencyCredit, setContractStatus, importRateSheet, parseRateSheet } from '@/lib/services/catalog';
 import { buildProposal, createEnquiry, decideProposal, generateHotelRequests, getEnquiry, markRequestSent, recordOffer, sendProposal } from '@/lib/services/groups';
 import { founderMetrics, operationalIssues } from '@/lib/services/metrics';
@@ -42,10 +42,12 @@ describe('authentication', () => {
   });
   it('registers agencies as pending; pending agencies cannot book', async () => {
     f = await setup();
-    const { agency } = await registerAgency(f.db, { agencyName: 'New Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw' });
+    const pdf = { name: 'pan.pdf', type: 'application/pdf', bytes: new TextEncoder().encode('%PDF-1.4 test') };
+    const { agency } = await registerAgency(f.db, { agencyName: 'New Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'aaapz1234c' }, { panCard: pdf });
+    expect(agency.pan).toBe('AAAPZ1234C');
     expect(agency.status).toBe('pending');
     expect(agency.creditEnabled).toBe(false);
-    await expect(registerAgency(f.db, { agencyName: 'Other Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw' })).rejects.toThrow(/already exists/);
+    await expect(registerAgency(f.db, { agencyName: 'Other Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'AAAPZ1234C' }, { panCard: pdf })).rejects.toThrow(/already exists/);
     const s = stay(f.today);
     const { results } = await searchHotels(f.db, f.P, { city: 'Paris', ...s, rooms: [{ adults: 2, childAges: [] }] });
     const o = results[0].offers.find((x) => x.supplier === 'contracted')!;
@@ -174,6 +176,34 @@ describe('booking lifecycle', () => {
     expect(c.hotelConfirmation).toBe('HTL-778');
   });
 
+  it('on request: the hotel has 48 hours (per contract); unanswered requests lapse with no charge', async () => {
+    f = await setup({ confirmationMode: 'on_request' });
+    const { q, snap } = await quoteFor(f);
+    const r = await book(f, q, snap.priced.price.sellMinor);
+    if (r.kind !== 'created') throw new Error(r.kind);
+    const hours = (r.booking.hotelRespondBy!.getTime() - Date.now()) / 3_600_000;
+    expect(hours).toBeGreaterThan(47.9);
+    expect(hours).toBeLessThanOrEqual(48);
+    // Nothing lapses inside the window.
+    expect(await lapseUnansweredRequests(f.db)).toEqual([]);
+    // The hotel cannot confirm once its window has closed: the request lapses instead.
+    const late = new Date(Date.now() - 60_000);
+    await f.db.update(schema.bookings).set({ hotelRespondBy: late }).where(eq(schema.bookings.id, r.booking.id));
+    await expect(hotelRespond(f.db, f.PARTNER, r.booking.id, { accept: true, confirmation: 'LATE-1' })).rejects.toThrow(/lapsed/);
+    const [lapsed] = await f.db.select().from(schema.bookings).where(eq(schema.bookings.id, r.booking.id));
+    expect(lapsed.status).toBe('declined');
+    expect((await balances(f.db, r.booking.id)).hasCharge).toBe(false);
+    expect(await f.db.select().from(schema.ledgerEntries)).toEqual([]);
+
+    // A contract can set a shorter window; the housekeeping run lapses it.
+    await f.db.update(schema.contracts).set({ responseHours: 12 });
+    const { q: q2, snap: s2 } = await quoteFor(f, undefined, 20);
+    const r2 = await book(f, q2, s2.priced.price.sellMinor);
+    if (r2.kind !== 'created') throw new Error(r2.kind);
+    expect(Math.round((r2.booking.hotelRespondBy!.getTime() - Date.now()) / 3_600_000)).toBe(12);
+    expect(await lapseUnansweredRequests(f.db, new Date(Date.now() + 13 * 3_600_000))).toEqual([r2.booking.reference]);
+  });
+
   it('timeout -> outcome unknown -> reconciled, never rebooked', async () => {
     f = await setup();
     await f.db.update(schema.hotels).set({ isSample: true });
@@ -231,17 +261,51 @@ describe('booking lifecycle', () => {
     expect(bal.agentBalance).toBeLessThan(r2.booking.sellMinor);
   });
 
-  it('refunds after a paid cancellation', async () => {
+  it('free cancellation of a paid booking returns 100% to the agency wallet, which pays the next booking', async () => {
     f = await setup();
     const { q, snap } = await quoteFor(f, undefined, 20);
     const r = await book(f, q, snap.priced.price.sellMinor);
     if (r.kind !== 'created') throw new Error(r.kind);
     await recordPayment(f.db, f.ADMIN, r.booking.id, { amountMinor: r.booking.sellMinor, reference: 'BANK-3' });
     const c = await requestCancellation(f.db, f.A, r.booking.id, '');
-    expect(c.paymentStatus).toBe('refund_due');
-    await expect(recordRefund(f.db, f.ADMIN, c.id, { amountMinor: c.sellMinor + 1, reference: 'R' })).rejects.toThrow();
-    const done = await recordRefund(f.db, f.ADMIN, c.id, { amountMinor: c.sellMinor, reference: 'REF-1' });
-    expect(done.paymentStatus).toBe('refunded');
+    expect(c.status).toBe('cancelled');
+    expect(c.paymentStatus).toBe('credited');
+    expect((await balances(f.db, c.id)).agentBalance).toBe(0);
+    expect(await walletBalance(f.db, f.agencyA.id, 'EUR')).toBe(r.booking.sellMinor); // every cent back
+    expect(await walletBalance(f.db, f.agencyB.id, 'EUR')).toBe(0);
+
+    // The next booking is paid from the wallet and confirmed.
+    const { q: q2, snap: s2 } = await quoteFor(f, undefined, 30);
+    const r2 = await book(f, q2, s2.priced.price.sellMinor);
+    if (r2.kind !== 'created') throw new Error(r2.kind);
+    await expect(payFromWallet(f.db, f.B, r2.booking.id)).rejects.toThrow(/not found/);
+    const paid = await payFromWallet(f.db, f.A, r2.booking.id);
+    expect(paid.paid).toBe(Math.min(r.booking.sellMinor, r2.booking.sellMinor));
+    if (r2.booking.sellMinor <= r.booking.sellMinor) expect(paid.booking.status).toBe('confirmed');
+    const left = await walletBalance(f.db, f.agencyA.id, 'EUR');
+    expect(left).toBe(Math.max(0, r.booking.sellMinor - r2.booking.sellMinor));
+
+    // Finance can pay the rest out to the bank, never more than the wallet holds.
+    if (left > 0) {
+      await expect(recordWalletPayout(f.db, f.ADMIN, f.agencyA.id, { amountMinor: left + 1, currency: 'EUR', reference: 'NEFT-1' })).rejects.toThrow(/more than the wallet/);
+      await expect(recordWalletPayout(f.db, f.A, f.agencyA.id, { amountMinor: left, currency: 'EUR', reference: 'NEFT-1' })).rejects.toThrow();
+      await recordWalletPayout(f.db, f.ADMIN, f.agencyA.id, { amountMinor: left, currency: 'EUR', reference: 'NEFT-1' });
+      expect(await walletBalance(f.db, f.agencyA.id, 'EUR')).toBe(0);
+    }
+  });
+
+  it('a late cancellation credits the wallet with everything except the hotel penalty', async () => {
+    f = await setup();
+    const { q, snap } = await quoteFor(f, undefined, 2, 2); // inside the 3-day penalty window
+    const r = await book(f, q, snap.priced.price.sellMinor);
+    if (r.kind !== 'created') throw new Error(r.kind);
+    await recordPayment(f.db, f.ADMIN, r.booking.id, { amountMinor: r.booking.sellMinor, reference: 'BANK-4' });
+    const pen = penaltyFor(r.booking);
+    expect(pen.free).toBe(false);
+    await requestCancellation(f.db, f.A, r.booking.id, 'client ill');
+    const c = await processCancellation(f.db, f.ADMIN, r.booking.id);
+    expect(c.paymentStatus).toBe('credited');
+    expect(await walletBalance(f.db, f.agencyA.id, 'EUR')).toBe(r.booking.sellMinor - pen.sellPenaltyMinor);
   });
 
   it('expires unpaid holds and releases the rooms', async () => {

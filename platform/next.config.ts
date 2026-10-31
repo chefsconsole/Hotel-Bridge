@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   // PGlite ships a WASM binary + filesystem image; it must not be bundled.
   serverExternalPackages: ['@electric-sql/pglite', 'postgres'],
   poweredByHeader: false,
+  // KYC uploads (PAN card, GST certificate) are up to 4 MB.
+  experimental: { serverActions: { bodySizeLimit: '5mb' } },
   async headers() {
     return [{
       source: '/(.*)',

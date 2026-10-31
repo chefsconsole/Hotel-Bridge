@@ -48,3 +48,10 @@ export const bps = (fd: FormData, k: string) => {
   if (!Number.isFinite(n)) return NaN;
   return Math.round(n * 100);
 };
+
+/** An uploaded file from a form, or null when none was chosen. */
+export async function file(fd: FormData, k: string): Promise<{ name: string; type: string; bytes: Uint8Array } | null> {
+  const f = fd.get(k);
+  if (!f || typeof f === 'string' || f.size === 0) return null;
+  return { name: f.name, type: f.type, bytes: new Uint8Array(await f.arrayBuffer()) };
+}

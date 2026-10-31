@@ -49,3 +49,8 @@ export function formatDateTime(d: Date | string): string {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
   }).format(new Date(d)) + ' UTC';
 }
+
+/** Whole hours from now until `d` (negative once passed). */
+export function hoursUntil(d: Date | string, now = new Date()): number {
+  return Math.floor((new Date(d).getTime() - now.getTime()) / 3_600_000);
+}

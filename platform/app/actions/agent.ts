@@ -3,12 +3,14 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { and, eq } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db';
-import { attempt, bool, int, optStr, str, type ActionResult } from '@/lib/action';
+import { attempt, bool, file, int, optStr, str, type ActionResult } from '@/lib/action';
+import { updateTaxIds, uploadAgencyDocument, type DocumentKind } from '@/lib/services/kyc';
 import { decodeRooms } from '@/lib/domain/occupancy';
 import { formatMoney, parseMoney } from '@/lib/domain/money';
 import { requireAgent } from '@/lib/session';
 import { createQuote } from '@/lib/services/search';
-import { createBooking, requestAmendment, requestCancellation } from '@/lib/services/bookings';
+import { createBooking, payFromWallet, requestAmendment, requestCancellation } from '@/lib/services/bookings';
+import { walletBalance } from '@/lib/services/ledger';
 import { addMessage, createEnquiry, decideProposal } from '@/lib/services/groups';
 import { addAgencyUser, changePassword } from '@/lib/services/auth';
 import { AppError } from '@/lib/services/errors';
@@ -167,5 +169,52 @@ export async function supportAction(_: ActionResult | null, fd: FormData): Promi
     await db.insert(schema.supportTickets).values({ agencyId: actor.agencyId!, userId: actor.userId, bookingId, subject, body, urgency: bool(fd, 'urgent') ? 'urgent' : 'normal' });
     revalidatePath('/agent/support');
     return 'Received. Our team will reply here and by email.';
+  });
+}
+
+export async function uploadKycAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const { actor } = await requireAgent();
+    const f = await file(fd, 'document');
+    if (!f) throw new AppError('Choose a file to upload');
+    await uploadAgencyDocument(await getDb(), actor, actor.agencyId!, str(fd, 'kind') as DocumentKind, f);
+    revalidatePath('/agent/profile');
+    revalidatePath('/agent', 'layout');
+    return 'Uploaded. Our team will review it — usually within one working day.';
+  });
+}
+
+export async function taxIdsAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const { actor } = await requireAgent();
+    await updateTaxIds(await getDb(), actor, actor.agencyId!, { pan: optStr(fd, 'pan') ?? null, gstin: optStr(fd, 'gstin') ?? null });
+    revalidatePath('/agent/profile');
+    return 'Tax details saved.';
+  });
+}
+
+export async function payFromWalletAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const { actor } = await requireAgent();
+    const { booking, paid } = await payFromWallet(await getDb(), actor, str(fd, 'bookingId'));
+    revalidatePath(`/agent/bookings/${booking.id}`);
+    revalidatePath('/agent', 'layout');
+    return `${formatMoney(paid, booking.currency)} paid from your wallet.${booking.status === 'confirmed' ? ' The booking is confirmed.' : ''}`;
+  });
+}
+
+export async function walletPayoutRequestAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const { actor } = await requireAgent();
+    const currency = str(fd, 'currency');
+    const db = await getDb();
+    const available = await walletBalance(db, actor.agencyId!, currency);
+    if (available <= 0) throw new AppError('There is nothing in your wallet to withdraw');
+    await db.insert(schema.supportTickets).values({
+      agencyId: actor.agencyId!, userId: actor.userId, subject: `Wallet withdrawal: ${formatMoney(available, currency)}`,
+      body: `Please pay out our wallet balance of ${formatMoney(available, currency)} to our registered bank account.${optStr(fd, 'note') ? '\n\n' + optStr(fd, 'note') : ''}`,
+    });
+    revalidatePath('/agent/finance');
+    return 'Withdrawal requested. Finance pays to your registered bank account and records it here.';
   });
 }

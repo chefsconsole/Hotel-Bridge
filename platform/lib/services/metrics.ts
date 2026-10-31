@@ -117,8 +117,14 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
   const pending = await db.select().from(bookings).where(eq(bookings.status, 'pending_confirmation'));
   for (const b of pending) {
     const hours = (now.getTime() - b.createdAt.getTime()) / 3_600_000;
+    const left = b.hotelRespondBy ? (b.hotelRespondBy.getTime() - now.getTime()) / 3_600_000 : null;
     const soon = daysBetween(today, b.checkIn) <= 3;
-    if (hours > 24 || soon) issues.push({ severity: soon ? 'urgent' : 'attention', kind: 'booking', title: `${b.reference}: hotel has not confirmed`, detail: `Requested ${Math.round(hours)}h ago · arrival ${b.checkIn}`, href: `/admin/bookings/${b.id}` });
+    // Chase the hotel before its window closes, and always for near arrivals.
+    if (soon || (left != null ? left < 12 : hours > 24)) issues.push({
+      severity: soon || (left != null && left < 4) ? 'urgent' : 'attention', kind: 'booking', title: `${b.reference}: hotel has not confirmed`,
+      detail: `${left != null ? (left > 0 ? `Lapses in ${Math.floor(left)}h` : 'Window closed') : `Requested ${Math.round(hours)}h ago`} · arrival ${b.checkIn} — call the hotel`,
+      href: `/admin/bookings/${b.id}`,
+    });
   }
 
   const requested = await db.select().from(bookings).where(inArray(bookings.status, ['cancellation_requested', 'amendment_requested']));
@@ -129,6 +135,12 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
 
   const refunds = await db.select().from(bookings).where(eq(bookings.paymentStatus, 'refund_due'));
   for (const b of refunds) issues.push({ severity: 'attention', kind: 'payment', title: `${b.reference}: refund due to agent`, detail: 'Record the refund once paid.', href: `/admin/bookings/${b.id}` });
+
+  const waiting = await db.select({ id: agencies.id, name: agencies.name, createdAt: agencies.createdAt }).from(agencies).where(eq(agencies.status, 'pending'));
+  for (const a of waiting) {
+    const hours = (now.getTime() - a.createdAt.getTime()) / 3_600_000;
+    issues.push({ severity: hours > 24 ? 'urgent' : 'attention', kind: 'agency', title: `${a.name}: waiting for approval`, detail: `Registered ${Math.round(hours)}h ago — check KYC and approve or decline`, href: `/admin/agencies/${a.id}` });
+  }
 
   const lateGroups = await db.select().from(groupEnquiries).where(and(inArray(groupEnquiries.status, ['new', 'under_review']), lt(groupEnquiries.respondBy, now)));
   for (const g of lateGroups) issues.push({ severity: 'urgent', kind: 'group', title: `${g.reference}: first response overdue`, detail: `${g.groupName} · ${g.totalPax} pax`, href: `/admin/groups/${g.id}` });

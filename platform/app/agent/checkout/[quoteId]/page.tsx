@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { CheckoutForm } from '@/components/checkout-form';
 import { AvailabilityPill } from '@/components/offers';
 import { Money, Notice, PageHeader, Pill, SampleTag } from '@/components/ui';
+import { CancellationBox } from '@/components/cancellation';
 import { getDb, schema } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { PAYMENT_HOLD_HOURS } from '@/lib/config';
@@ -52,6 +53,7 @@ export default async function CheckoutPage({ params }: { params: Promise<{ quote
         <div className="mb-6"><Notice tone="warning" title="Booking opens after verification">Your agency is awaiting verification by HotelBridge. You can review this quote, but booking is enabled once we have verified your account.</Notice></div>
       )}
       {expired && <div className="mb-6"><Notice>This quote is more than 20 minutes old. That&apos;s fine — the price is always re-checked with the hotel when you book, and you&apos;ll be asked to approve any change.</Notice></div>}
+      <CancellationBox policy={offer.cancelPolicy} checkIn={q.checkIn} className="mb-6" />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <CheckoutForm quoteId={q.id} idempotencyKey={crypto.randomUUID()} sellMinor={p.sellMinor} rooms={q.rooms} roomName={offer.roomName} cta={cta} searchHref={searchHref}>
           <section className="rounded-[var(--radius-lg)] border border-line bg-surface p-5 text-[0.88rem]">

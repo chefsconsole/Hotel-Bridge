@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { OfferList } from '@/components/offers';
+import { getTrip } from '@/lib/services/trips';
 import { DL, Empty, HotelVisual, Notice, Panel, SampleTag } from '@/components/ui';
 import { toggleSavedAction } from '@/app/actions/agent';
 import { getDb, schema } from '@/lib/db';
@@ -12,7 +13,7 @@ import { requireAgent } from '@/lib/session';
 import { searchHotels, searchSchema } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
 
-export default async function HotelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ in?: string; out?: string; rooms?: string }> }) {
+export default async function HotelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ in?: string; out?: string; rooms?: string; trip?: string }> }) {
   const { actor } = await requireAgent();
   const { id } = await params;
   const sp = await searchParams;
@@ -23,6 +24,8 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
   const rooms = await db.select().from(schema.roomTypes).where(and(eq(schema.roomTypes.hotelId, id), eq(schema.roomTypes.active, true)));
   const [saved] = await db.select().from(schema.savedHotels).where(and(eq(schema.savedHotels.userId, actor.userId), eq(schema.savedHotels.hotelId, id)));
 
+  // Only a trip of this agency switches offers to "Add to trip".
+  const tripId = sp.trip ? await getTrip(db, actor, sp.trip).then((d) => d.trip.id, () => undefined) : undefined;
   let offersBlock: React.ReactNode = <Notice>Search with your dates and rooms to see prices for this hotel.</Notice>;
   const stay = { city: hotel.city, checkIn: sp.in ?? '', checkOut: sp.out ?? '', rooms: decodeRooms(sp.rooms) };
   const parsed = searchSchema.safeParse(stay);
@@ -30,7 +33,7 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
     const { results } = await searchHotels(db, actor, parsed.data, { log: false });
     const mine = results.find((r) => r.hotel.id === id);
     offersBlock = mine
-      ? <OfferList offers={mine.offers} hotelId={id} stay={parsed.data} />
+      ? <OfferList offers={mine.offers} hotelId={id} stay={parsed.data} tripId={tripId} />
       : <Empty title="Not available for this search">Try other dates, or ask the Group Desk.</Empty>;
   } else if (sp.in && !parsed.success) {
     offersBlock = <Notice tone="error">{parsed.error.issues[0]?.message}</Notice>;

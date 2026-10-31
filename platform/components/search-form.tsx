@@ -23,8 +23,10 @@ const Icon = ({ d, className = 'size-5' }: { d: string; className?: string }) =>
   <svg viewBox="0 0 24 24" className={cx('shrink-0', className)} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>
 );
 
-export function SearchForm({ destinations, initial }: {
+export function SearchForm({ destinations, initial, keep }: {
   destinations: Dest[]; initial: { city?: string; checkIn?: string; checkOut?: string; rooms: RoomRequest[] }; compact?: boolean;
+  /** Extra URL parameters carried into the results, e.g. the trip being built. */
+  keep?: Record<string, string>;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -79,7 +81,7 @@ export function SearchForm({ destinations, initial }: {
     if (!checkIn || !checkOut) { setError('Choose check-in and check-out dates'); setPanel(checkIn ? 'out' : 'in'); return; }
     setError('');
     setPanel(null);
-    start(() => router.push(`/agent/search?${new URLSearchParams({ city: chosen, in: checkIn, out: checkOut, rooms: encodeRooms(rooms) })}`));
+    start(() => router.push(`/agent/search?${new URLSearchParams({ ...keep, city: chosen, in: checkIn, out: checkOut, rooms: encodeRooms(rooms) })}`));
   }
 
   const update = (i: number, patch: Partial<RoomRequest>) => setRooms((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));

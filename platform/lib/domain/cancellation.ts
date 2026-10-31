@@ -55,3 +55,23 @@ export function cancellationPenalty(args: {
     reason: 'Late cancellation — first night',
   };
 }
+
+export type CancellationView =
+  | { state: 'non_refundable'; late: string }
+  | { state: 'free'; until: string; late: string }
+  | { state: 'free_ended'; until: string; late: string }
+  | { state: 'charged'; late: string }
+  | { state: 'arrived'; late: string };
+
+/** What cancelling means today, in words an agent can repeat to a client. */
+export function cancellationView(policy: CancelPolicy, checkIn: string, today = todayIsoUtc()): CancellationView {
+  const late = policy.latePenaltyType === 'first_night' ? 'the first night is charged'
+    : policy.latePenaltyType === 'full' ? 'the full stay is charged' : `${policy.latePenaltyBps / 100}% of the stay is charged`;
+  if (policy.nonRefundable) return { state: 'non_refundable', late: 'the full amount is charged' };
+  if (today >= checkIn) return { state: 'arrived', late: 'no-shows and cancellations on arrival are charged in full' };
+  const until = freeCancelUntil(policy, checkIn);
+  if (!until) return { state: 'charged', late };
+  return today <= until ? { state: 'free', until, late } : { state: 'free_ended', until, late };
+}
+
+const todayIsoUtc = () => new Date().toISOString().slice(0, 10);

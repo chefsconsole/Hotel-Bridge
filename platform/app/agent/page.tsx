@@ -4,6 +4,7 @@ import { StatusPill } from '@/components/booking-bits';
 import { Empty, LinkButton, Money, Notice, Panel } from '@/components/ui';
 import { SmartSearch } from '@/components/smart-search';
 import { SearchForm } from '@/components/search-form';
+import { dueFollowUps, listTrips, receivables } from '@/lib/services/trips';
 import { aiConfigured } from '@/lib/ai/client';
 import { getDb, schema } from '@/lib/db';
 import { formatDate, todayIso } from '@/lib/domain/dates';
@@ -23,6 +24,9 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
   const h = schema.hotels;
   const today = todayIso();
   const aiOn = aiConfigured();
+  const [followUps, tripRows] = await Promise.all([dueFollowUps(db, actor), listTrips(db, actor)]);
+  const owed = receivables(tripRows);
+  const overdueTrips = tripRows.filter((r) => r.overdue).slice(0, 4);
   const [upcoming, attention, recent, searches, proposals, groups, dests] = await Promise.all([
     db.select({ b, hotel: h.name }).from(b).innerJoin(h, eq(h.id, b.hotelId))
       .where(and(eq(b.agencyId, agency.id), inArray(b.status, ['confirmed', 'amendment_requested', 'cancellation_requested']), gte(b.checkIn, today))).orderBy(b.checkIn).limit(5),
@@ -81,6 +85,39 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
       )}
       {(agency.status === 'suspended' || agency.status === 'rejected') && (
         <div className="mb-6"><Notice tone="error" title="Booking is disabled for this account">Please contact HotelBridge.</Notice></div>
+      )}
+
+      {tripRows.length > 0 && (
+        <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <Panel title="Your clients today" padded={false} actions={<Link href="/agent/trips" className="text-[0.82rem] text-muted hover:text-ink">All trips</Link>}>
+            {followUps.length === 0 && overdueTrips.length === 0 ? <Empty title="No follow-ups due">Every lead has a next step in the future.</Empty> : (
+              <ul className="divide-y divide-line">
+                {followUps.slice(0, 5).map(({ trip: t, clientName }) => (
+                  <li key={t.id}><Link href={`/agent/trips/${t.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 hover:bg-mist/50">
+                    <span className="min-w-0"><span className="font-medium">{clientName}</span> <span className="text-muted">· {t.followUpNote ?? 'Follow up'}</span></span>
+                    <span className={`text-[0.8rem] font-medium ${t.followUpOn! < today ? 'text-negative' : 'text-attention'}`}>{t.followUpOn! < today ? `Overdue · ${formatDate(t.followUpOn!, { day: 'numeric', month: 'short' })}` : 'Today'}</span>
+                  </Link></li>
+                ))}
+                {overdueTrips.map(({ trip: t, client, totals }) => (
+                  <li key={`o-${t.id}`}><Link href={`/agent/trips/${t.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 hover:bg-mist/50">
+                    <span className="min-w-0"><span className="font-medium">{client.name}</span> <span className="text-muted">· payment overdue · {t.title}</span></span>
+                    <Money minor={totals.pendingMinor} currency={t.currency} compact className="font-medium text-negative" />
+                  </Link></li>
+                ))}
+              </ul>
+            )}
+          </Panel>
+          <Link href="/agent/trips?stage=all&owed=1" className="block rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-lift)]">
+            <p className="text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">Clients owe you</p>
+            {owed.length === 0 ? <p className="mt-3 font-[family-name:var(--font-display)] text-[1.8rem] font-light">—</p> : owed.map((o) => (
+              <div key={o.currency} className="mt-3">
+                <Money minor={o.pendingMinor} currency={o.currency} compact className="font-[family-name:var(--font-display)] text-[1.8rem] leading-none font-light tracking-[-0.03em]" />
+                <p className="mt-1 text-[0.78rem] text-muted">{o.trips} trip{o.trips === 1 ? '' : 's'}{o.overdueMinor > 0 && <span className="text-negative"> · <Money minor={o.overdueMinor} currency={o.currency} compact /> overdue</span>}</p>
+              </div>
+            ))}
+            <p className="mt-4 text-[0.82rem] font-medium">Send reminders →</p>
+          </Link>
+        </div>
       )}
 
       {(attention.length > 0 || proposals.length > 0) && (

@@ -1,6 +1,7 @@
 import { ActionForm, SubmitButton } from './forms';
 import { Money, Pill } from './ui';
 import { quoteAction } from '@/app/actions/agent';
+import { addHotelToTripAction } from '@/app/actions/trips';
 import { formatDate, daysBetween } from '@/lib/domain/dates';
 import { encodeRooms } from '@/lib/domain/occupancy';
 import { MEAL_PLANS } from '@/lib/services/catalog';
@@ -13,8 +14,10 @@ export function AvailabilityPill({ availability }: { availability: 'instant' | '
     : <Pill tone="pending">On request · hotel confirms</Pill>;
 }
 
-export function OfferList({ offers, hotelId, stay, limit }: {
+export function OfferList({ offers, hotelId, stay, limit, tripId }: {
   offers: PricedOffer[]; hotelId: string; stay: { checkIn: string; checkOut: string; rooms: RoomRequest[] }; limit?: number;
+  /** When set, offers are added to this client trip instead of booked now. */
+  tripId?: string;
 }) {
   const nights = daysBetween(stay.checkIn, stay.checkOut);
   const shown = limit ? offers.slice(0, limit) : offers;
@@ -45,13 +48,16 @@ export function OfferList({ offers, hotelId, stay, limit }: {
               </p>
               {o.price.localTaxMinor > 0 && <p className="text-[0.72rem] text-faint">+ <Money minor={o.price.localTaxMinor} currency={o.price.currency} /> city tax at hotel</p>}
             </div>
-            <ActionForm action={quoteAction}>
+            <ActionForm action={tripId ? addHotelToTripAction : quoteAction}>
+              {tripId && <input type="hidden" name="tripId" value={tripId} />}
               <input type="hidden" name="offerKey" value={o.offerKey} />
               <input type="hidden" name="hotelId" value={hotelId} />
               <input type="hidden" name="checkIn" value={stay.checkIn} />
               <input type="hidden" name="checkOut" value={stay.checkOut} />
               <input type="hidden" name="rooms" value={encodeRooms(stay.rooms)} />
-              <SubmitButton size="sm" pendingLabel="Checking…">{o.availability === 'instant' ? 'Select' : 'Request'}</SubmitButton>
+              {tripId
+                ? <SubmitButton size="sm" pendingLabel="Adding…">Add to trip</SubmitButton>
+                : <SubmitButton size="sm" pendingLabel="Checking…">{o.availability === 'instant' ? 'Select' : 'Request'}</SubmitButton>}
             </ActionForm>
           </div>
         </li>

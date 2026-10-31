@@ -2,9 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
-import { PaymentPill, StatusPill, Timeline } from '@/components/booking-bits';
+import { HotelDeadline, PaymentPill, StatusPill, Timeline } from '@/components/booking-bits';
 import { DL, LinkButton, Money, Notice, Panel, SampleTag } from '@/components/ui';
-import { amendBookingAction, cancelBookingAction } from '@/app/actions/agent';
+import { CancellationBox } from '@/components/cancellation';
+import { amendBookingAction, cancelBookingAction, payFromWalletAction } from '@/app/actions/agent';
 import { getDb, schema } from '@/lib/db';
 import { STATUS_EXPLAINER } from '@/lib/domain/booking-state';
 import { describePolicy, type CancelPolicy } from '@/lib/domain/cancellation';
@@ -12,7 +13,7 @@ import { daysBetween, formatDate, formatDateTime } from '@/lib/domain/dates';
 import { describeRoom } from '@/lib/domain/occupancy';
 import { requireAgent } from '@/lib/session';
 import { bookingTimeline, getBookingForActor, penaltyFor } from '@/lib/services/bookings';
-import { balances } from '@/lib/services/ledger';
+import { balances, walletBalance } from '@/lib/services/ledger';
 import { getSetting } from '@/lib/services/settings';
 import { MEAL_PLANS } from '@/lib/services/catalog';
 import { NotFoundError } from '@/lib/services/errors';
@@ -25,10 +26,11 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
   const db = await getDb();
   const b = await getBookingForActor(db, actor, id).catch((e) => { if (e instanceof NotFoundError) notFound(); throw e; });
   const [hotel] = await db.select().from(schema.hotels).where(eq(schema.hotels.id, b.hotelId));
-  const [events, bal, invoices, instructions] = await Promise.all([
+  const [events, bal, invoices, instructions, wallet] = await Promise.all([
     bookingTimeline(db, b.id), balances(db, b.id),
     db.select().from(schema.invoices).where(eq(schema.invoices.bookingId, b.id)).orderBy(desc(schema.invoices.issuedAt)),
     getSetting(db, 'payment.instructions'),
+    walletBalance(db, b.agencyId, b.currency),
   ]);
   const nights = daysBetween(b.checkIn, b.checkOut);
   const policy = b.cancelPolicy as CancelPolicy;
@@ -59,8 +61,10 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
           }>{STATUS_EXPLAINER[b.status]}</Notice>
         </div>
       )}
-      {!isNew && <p className="mb-6 max-w-3xl text-[0.92rem] text-muted">{STATUS_EXPLAINER[b.status]}</p>}
+      {!isNew && <p className="mb-3 max-w-3xl text-[0.92rem] text-muted">{STATUS_EXPLAINER[b.status]}</p>}
+      {b.status === 'pending_confirmation' && <div className="mb-6"><HotelDeadline status={b.status} respondBy={b.hotelRespondBy} /></div>}
 
+      {['confirmed', 'awaiting_payment', 'pending_confirmation', 'amendment_requested'].includes(b.status) && <CancellationBox policy={b.cancelPolicy as CancelPolicy} checkIn={b.checkIn} className="mb-6" />}
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <div className="space-y-6">
           <Panel title={hotel.name} description={`${hotel.address ?? ''}${hotel.address ? ' · ' : ''}${hotel.city}, ${hotel.country}`}>
@@ -91,7 +95,9 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                   <p className="text-[0.88rem]">
                     {b.status === 'pending_confirmation'
                       ? 'Withdraw this request. No charge applies.'
-                      : pen.free ? 'Cancelling now is free of charge.' : <>Cancelling now costs <Money minor={pen.sellPenaltyMinor} currency={b.currency} className="font-semibold" /> ({pen.reason.toLowerCase()}).</>}
+                      : pen.free
+                        ? <>Cancelling now is <span className="font-semibold text-positive">free</span>{bal.agentPaid > 0 && <> — <Money minor={bal.agentPaid} currency={b.currency} className="font-semibold" /> goes straight back to your wallet</>}.</>
+                        : <>Cancelling now costs <Money minor={pen.sellPenaltyMinor} currency={b.currency} className="font-semibold" /> ({pen.reason.toLowerCase()}){bal.agentPaid > pen.sellPenaltyMinor && <>; <Money minor={bal.agentPaid - pen.sellPenaltyMinor} currency={b.currency} className="font-semibold" /> goes back to your wallet</>}.</>}
                   </p>
                   <Field label="Reason (optional)" className="mt-3"><input name="reason" className="field" maxLength={200} /></Field>
                   <SubmitButton variant="danger" size="sm" className="mt-3" confirm={`Cancel ${b.reference}?`} pendingLabel="Cancelling…">
@@ -131,6 +137,15 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
                 <div className="flex justify-between"><span className="text-muted">Paid</span><Money minor={bal.agentPaid} currency={b.currency} /></div>
                 <div className="flex justify-between font-medium"><span>{bal.agentBalance < 0 ? 'We owe you' : 'Outstanding'}</span><Money minor={Math.abs(bal.agentBalance)} currency={b.currency} /></div>
                 {b.paymentDueAt && bal.agentBalance > 0 && <p className="text-attention">Due by {formatDateTime(b.paymentDueAt)}</p>}
+                {bal.agentBalance > 0 && b.status === 'awaiting_payment' && wallet > 0 && (
+                  <ActionForm action={payFromWalletAction} className="mt-3 rounded-[var(--radius-sm)] border border-champagne/40 bg-champagne-soft p-3">
+                    <input type="hidden" name="bookingId" value={b.id} />
+                    <p className="text-[0.84rem]">Wallet credit available: <Money minor={wallet} currency={b.currency} className="font-semibold" /></p>
+                    <SubmitButton size="sm" className="mt-2 w-full" pendingLabel="Paying…">
+                      Pay {wallet >= bal.agentBalance ? 'in full' : <>&nbsp;<Money minor={wallet} currency={b.currency} />&nbsp;</>} from wallet
+                    </SubmitButton>
+                  </ActionForm>
+                )}
                 {bal.agentBalance > 0 && (
                   <div className="mt-3 rounded-[var(--radius-sm)] bg-mist p-3 text-[0.82rem] text-muted whitespace-pre-line">
                     {instructions || `Payment instructions will be sent with your invoice. Questions: ${SUPPORT_EMAIL}`}

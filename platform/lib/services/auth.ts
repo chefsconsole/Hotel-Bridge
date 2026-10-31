@@ -15,6 +15,8 @@ import { SESSION_DAYS } from '@/lib/config';
 import { AppError, isUniqueViolation } from './errors';
 import type { Actor } from './actor';
 import { audit } from './audit';
+import { checkDocument, taxIdsSchema, type UploadFile } from './kyc';
+import { isIndia } from '@/lib/domain/india';
 
 const scrypt = promisify(scryptCb) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 const { users, sessions, loginAttempts, agencies } = schema;
@@ -102,6 +104,8 @@ export const registrationSchema = z.object({
   city: z.string().trim().max(80).optional(),
   website: z.string().trim().max(200).optional(),
   taxId: z.string().trim().max(60).optional(),
+  pan: z.string().optional(),
+  gstin: z.string().optional(),
   phone: z.string().trim().max(40).optional(),
   billingCurrency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD']),
   name: z.string().trim().min(2, 'Your name is required').max(120),
@@ -109,14 +113,21 @@ export const registrationSchema = z.object({
   password: passwordSchema,
 });
 
-export async function registerAgency(db: DB, input: z.infer<typeof registrationSchema>) {
+export async function registerAgency(db: DB, input: z.infer<typeof registrationSchema>, files: { panCard?: UploadFile | null; gstCertificate?: UploadFile | null } = {}) {
   const data = registrationSchema.parse(input);
+  const ids = taxIdsSchema.parse({ pan: data.pan, gstin: data.gstin });
+  const india = isIndia(data.country);
+  if (india && !ids.pan) throw new AppError('PAN is required for agencies in India');
+  // Check files before creating anything.
+  const panCard = checkDocument(files.panCard ?? null, india, 'PAN card');
+  const gstCertificate = checkDocument(files.gstCertificate ?? null, false, 'GST certificate');
   const passwordHash = await hashPassword(data.password);
   try {
     return await db.transaction(async (tx) => {
       const [agency] = await tx.insert(agencies).values({
         name: data.agencyName, legalName: data.legalName || null, country: data.country, city: data.city || null,
-        website: data.website || null, taxId: data.taxId || null, phone: data.phone || null,
+        website: data.website || null, taxId: data.taxId || ids.gstin || null, phone: data.phone || null,
+        pan: ids.pan, gstin: ids.gstin,
         billingCurrency: data.billingCurrency, status: 'pending',
       }).returning();
       const [user] = await tx.insert(users).values({
@@ -124,6 +135,9 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
       }).returning();
       await audit(tx as unknown as DB, { userId: user.id, label: `${user.name} (${user.email})`, platformRole: null, agencyId: agency.id, agencyRole: 'owner', partnerHotelId: null },
         'agency.registered', 'agency', agency.id, { name: agency.name, country: agency.country });
+      for (const [kind, f] of [['pan_card', panCard], ['gst_certificate', gstCertificate]] as const) {
+        if (f) await tx.insert(schema.agencyDocuments).values({ agencyId: agency.id, kind, fileName: f.name, mimeType: f.type, sizeBytes: f.bytes.length, data: f.bytes, uploadedBy: user.id });
+      }
       return { agency, user };
     });
   } catch (e) {

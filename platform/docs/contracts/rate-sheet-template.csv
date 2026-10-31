@@ -1,0 +1,4 @@
+room_type,meal,from,to,price_1_adult,price_2_adults,price_3_adults,child,min_stay,release_days
+Deluxe Double (example — replace),BB,2026-12-01,2027-03-31,7000,8000,,1500,1,2
+Deluxe Double (example — replace),BB,2027-04-01,2027-09-30,6000,6800,,1500,1,2
+Family Room (example — replace),BB,2026-12-01,2027-03-31,,9500,11500,1500,2,3

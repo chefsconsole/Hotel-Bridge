@@ -11,6 +11,7 @@ import { parseMoney } from '@/lib/domain/money';
 import { validateTerms, PricingError } from '@/lib/domain/pricing';
 import { requireStaff, type Actor } from './actor';
 import { audit } from './audit';
+import { assertReadyToVerify } from './kyc';
 import { emailSchema, hashPassword, passwordSchema } from './auth';
 import { AppError, NotFoundError, isUniqueViolation } from './errors';
 
@@ -49,7 +50,7 @@ function slugify(s: string) {
 }
 
 export async function createHotel(db: DB, actor: Actor, input: z.input<typeof hotelSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = hotelSchema.parse(input);
   const base = slugify(`${data.name}-${data.city}`);
   for (let i = 0; i < 20; i++) {
@@ -65,7 +66,7 @@ export async function createHotel(db: DB, actor: Actor, input: z.input<typeof ho
 }
 
 export async function updateHotel(db: DB, actor: Actor, id: string, input: z.input<typeof hotelSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = hotelSchema.parse(input);
   const [before] = await db.select().from(hotels).where(eq(hotels.id, id));
   if (!before) throw new NotFoundError('Hotel');
@@ -86,7 +87,7 @@ export async function setHotelStatus(db: DB, actor: Actor, id: string, status: '
 }
 
 export async function setHotelImages(db: DB, actor: Actor, id: string, images: { url: string; alt: string; credit?: string; license?: string }[]) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const parsed = z.array(z.object({
     url: z.string().url().refine((u) => u.startsWith('https://'), 'Images must be https'),
     alt: z.string().trim().min(3, 'Describe the image').max(160),
@@ -108,7 +109,7 @@ export const roomTypeSchema = z.object({
 }).refine((v) => v.maxOccupancy >= v.maxAdults, { message: 'Max occupancy must be at least max adults', path: ['maxOccupancy'] });
 
 export async function addRoomType(db: DB, actor: Actor, hotelId: string, input: z.input<typeof roomTypeSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = roomTypeSchema.parse(input);
   const [r] = await db.insert(roomTypes).values({ ...data, sizeSqm: data.sizeSqm ?? null, hotelId }).returning();
   await audit(db, actor, 'room_type.created', 'hotel', hotelId, { name: r.name });
@@ -130,6 +131,7 @@ export const contractSchema = z.object({
   taxBps: z.number().int().min(0).max(5000),
   localTaxMinor: z.number().int().min(0),
   confirmationMode: z.enum(['instant_allocation', 'on_request']),
+  responseHours: z.number().int().min(1, 'At least 1 hour').max(72, 'At most 72 hours').default(48),
   freeCancelDays: z.number().int().min(0).max(365).nullable(),
   latePenaltyType: z.enum(['first_night', 'percent', 'full']),
   latePenaltyBps: z.number().int().min(0).max(10_000),
@@ -152,7 +154,7 @@ export const contractSchema = z.object({
 });
 
 export async function createContract(db: DB, actor: Actor, hotelId: string, input: z.input<typeof contractSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = contractSchema.parse(input);
   const [c] = await db.insert(contracts).values({ ...data, hotelId, status: 'draft' }).returning();
   await audit(db, actor, 'contract.created', 'contract', c.id, { reference: c.reference, hotelId });
@@ -160,7 +162,7 @@ export async function createContract(db: DB, actor: Actor, hotelId: string, inpu
 }
 
 export async function updateContract(db: DB, actor: Actor, id: string, input: z.input<typeof contractSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = contractSchema.parse(input);
   const [before] = await db.select().from(contracts).where(eq(contracts.id, id));
   if (!before) throw new NotFoundError('Contract');
@@ -176,7 +178,7 @@ export async function updateContract(db: DB, actor: Actor, id: string, input: z.
 }
 
 export async function setContractStatus(db: DB, actor: Actor, id: string, status: 'active' | 'suspended' | 'draft') {
-  requireStaff(actor, status === 'active' ? ['admin'] : ['admin', 'ops']);
+  requireStaff(actor, status === 'active' ? ['admin'] : ['admin', 'ops', 'sales']);
   const [c] = await db.select().from(contracts).where(eq(contracts.id, id));
   if (!c) throw new NotFoundError('Contract');
   if (status === 'active') {
@@ -218,7 +220,7 @@ async function assertNoOverlap(db: DB, contractId: string, r: { roomTypeId: stri
 }
 
 export async function addRatePeriod(db: DB, actor: Actor, contractId: string, input: z.infer<typeof ratePeriodSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = ratePeriodSchema.parse(input);
   const [c] = await db.select().from(contracts).where(eq(contracts.id, contractId));
   if (!c) throw new NotFoundError('Contract');
@@ -233,7 +235,7 @@ export async function addRatePeriod(db: DB, actor: Actor, contractId: string, in
 }
 
 export async function deactivateRatePeriod(db: DB, actor: Actor, id: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const [r] = await db.update(ratePeriods).set({ active: false }).where(eq(ratePeriods.id, id)).returning();
   if (!r) throw new NotFoundError('Rate');
   await audit(db, actor, 'rate.deactivated', 'contract', r.contractId, { rate: r });
@@ -277,7 +279,7 @@ export async function parseRateSheet(db: DB, contractId: string, csv: string): P
 }
 
 export async function importRateSheet(db: DB, actor: Actor, contractId: string, csv: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const { rows, errors } = await parseRateSheet(db, contractId, csv);
   if (errors.length) throw new AppError(`Nothing imported. Fix these first:\n${errors.join('\n')}`);
   if (!rows.length) throw new AppError('The sheet has no rate lines');
@@ -305,7 +307,7 @@ export const restrictionSchema = z.object({
   .refine((v) => v.kind !== 'supplement' || v.amountMinor != null, { message: 'Supplements need an amount', path: ['amountMinor'] });
 
 export async function addRestriction(db: DB, actor: Actor, contractId: string, input: z.input<typeof restrictionSchema>) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = restrictionSchema.parse(input);
   const [r] = await db.insert(restrictions).values({ ...data, contractId }).returning();
   await audit(db, actor, `restriction.${data.kind}`, 'contract', contractId, data);
@@ -313,14 +315,14 @@ export async function addRestriction(db: DB, actor: Actor, contractId: string, i
 }
 
 export async function removeRestriction(db: DB, actor: Actor, id: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const [r] = await db.delete(restrictions).where(eq(restrictions.id, id)).returning();
   if (r) await audit(db, actor, 'restriction.removed', 'contract', r.contractId, r);
 }
 
 /** Set allotment for every night in a range. Never below what is already sold. */
 export async function setAllocation(db: DB, actor: Actor, contractId: string, input: { roomTypeId: string; dateFrom: string; dateTo: string; rooms: number }) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   if (!isIsoDate(input.dateFrom) || !isIsoDate(input.dateTo) || input.dateTo < input.dateFrom) throw new AppError('Choose a valid date range');
   if (daysBetween(input.dateFrom, input.dateTo) > 400) throw new AppError('Set allotment at most ~13 months at a time');
   const rooms = z.number().int().min(0).max(500).parse(input.rooms);
@@ -385,9 +387,11 @@ export async function addPricingRule(db: DB, actor: Actor, input: z.input<typeof
 /* ------------------------------ agencies ------------------------------ */
 
 export async function setAgencyStatus(db: DB, actor: Actor, agencyId: string, status: 'verified' | 'rejected' | 'suspended' | 'pending', note?: string) {
-  requireStaff(actor, ['admin', 'ops']);
+  requireStaff(actor, ['admin', 'ops', 'sales']);
   const [a] = await db.select().from(agencies).where(eq(agencies.id, agencyId));
   if (!a) throw new NotFoundError('Agency');
+  if (status === 'verified') await assertReadyToVerify(db, agencyId);
+  if (status === 'rejected' && !note?.trim()) throw new AppError('Add the reason for declining — it is kept on the record');
   await db.update(agencies).set({
     status, updatedAt: new Date(), internalNotes: note ? `${a.internalNotes ? a.internalNotes + '\n' : ''}${new Date().toISOString().slice(0, 10)}: ${note}` : a.internalNotes,
     ...(status === 'verified' ? { verifiedBy: actor.userId, verifiedAt: new Date() } : {}),
@@ -453,15 +457,19 @@ export async function createPartnerUser(db: DB, actor: Actor, input: { hotelId: 
 export async function listHotelsAdmin(db: DB) {
   return db.select({
     h: hotels,
-    contracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = ${hotels.id})`,
-    activeContracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = ${hotels.id} and c.status = 'active')`,
+    // Qualified explicitly: inside a subquery a bare "id" would bind to the inner table.
+    contracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = "hotels"."id")`,
+    activeContracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = "hotels"."id" and c.status = 'active')`,
   }).from(hotels).orderBy(asc(hotels.city), asc(hotels.name));
 }
 
 export async function listAgencies(db: DB) {
   return db.select({
     a: agencies,
-    users: sql<number>`(select count(*)::int from users u where u.agency_id = ${agencies.id})`,
-    bookings: sql<number>`(select count(*)::int from bookings b where b.agency_id = ${agencies.id})`,
+    // Qualified explicitly: inside a subquery a bare "id" would bind to the inner table.
+    users: sql<number>`(select count(*)::int from users u where u.agency_id = "agencies"."id")`,
+    bookings: sql<number>`(select count(*)::int from bookings b where b.agency_id = "agencies"."id")`,
+    documents: sql<number>`(select count(*)::int from agency_documents d where d.agency_id = "agencies"."id")`,
+    panCard: sql<boolean>`exists(select 1 from agency_documents d where d.agency_id = "agencies"."id" and d.kind = 'pan_card')`,
   }).from(agencies).orderBy(desc(agencies.createdAt));
 }

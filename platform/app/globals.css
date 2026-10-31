@@ -100,3 +100,9 @@
   body { background: white; }
   .no-print { display: none !important; }
 }
+
+@media print {
+  @page { margin: 14mm; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .break-inside-avoid { break-inside: avoid; }
+}

@@ -1,4 +1,5 @@
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
+import { DateField, StayDatesField } from '@/components/date-fields';
 import { Notice, PageHeader } from '@/components/ui';
 import type { GroupDraftT } from '@/lib/ai/tools';
 import { createGroupAction } from '@/app/actions/agent';
@@ -42,8 +43,7 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="grid gap-3 sm:grid-cols-3">
                 <Field label={`Stop ${i + 1} — city`}><input name={`leg_${i}_city`} defaultValue={leg(i)?.city ?? ''} className="field" /></Field>
-                <Field label="Arrival"><input type="date" name={`leg_${i}_in`} defaultValue={leg(i)?.checkIn ?? ''} className="field num" /></Field>
-                <Field label="Departure"><input type="date" name={`leg_${i}_out`} defaultValue={leg(i)?.checkOut ?? ''} className="field num" /></Field>
+                <StayDatesField label="Dates" nameIn={`leg_${i}_in`} nameOut={`leg_${i}_out`} defaultIn={leg(i)?.checkIn ?? ''} defaultOut={leg(i)?.checkOut ?? ''} className="sm:col-span-2" />
               </div>
             ))}
           </div>
@@ -65,7 +65,7 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
             <Field label="Currency"><select name="currency" defaultValue={d?.currency ?? agency.billingCurrency} className="field">{['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((c) => <option key={c}>{c}</option>)}</select></Field>
             <Field label="Target budget" hint="Optional"><input name="budget" defaultValue={d?.budget ?? ''} className="field num" inputMode="decimal" /></Field>
             <Field label="Budget covers"><select name="budgetBasis" defaultValue={d?.budgetBasis ?? ''} className="field"><option value="">—</option><option value="per_room_night">Per room per night</option><option value="per_person_total">Per person, whole trip</option><option value="total">Whole group</option></select></Field>
-            <Field label="Quotation needed by"><input type="date" name="quoteNeededBy" defaultValue={d?.quoteNeededBy ?? ''} className="field num" /></Field>
+            <DateField label="Quotation needed by" name="quoteNeededBy" defaultValue={d?.quoteNeededBy ?? ''} title="When do you need the quotation?" />
           </div>
         </section>
         <SubmitButton size="lg" pendingLabel="Submitting…">Submit group request</SubmitButton>

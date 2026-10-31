@@ -4,11 +4,15 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import type { z } from 'zod';
 import { getDb, schema } from '@/lib/db';
-import { attempt, bool, bps, int, optStr, str, type ActionResult } from '@/lib/action';
+import { attempt, bool, bps, file, int, optStr, str, type ActionResult } from '@/lib/action';
+import { updateTaxIds, uploadAgencyDocument, type DocumentKind } from '@/lib/services/kyc';
+import { recordHotelSettlement } from '@/lib/services/tracker';
+import { addStaff, updateStaff } from '@/lib/services/staff';
+import type { StaffRole } from '@/lib/services/actor';
 import { parseMoney } from '@/lib/domain/money';
 import { requireStaff } from '@/lib/session';
 import {
-  hotelRespond, processCancellation, reconcileBooking, recordPayment, recordRefund, resolveAmendment, expireUnpaidHolds,
+  hotelRespond, processCancellation, reconcileBooking, recordPayment, recordRefund, resolveAmendment, expireUnpaidHolds, lapseUnansweredRequests, recordWalletPayout,
 } from '@/lib/services/bookings';
 import {
   addPricingRule, addRatePeriod, addRestriction, addRoomType, contractSchema, createContract, createHotel, createPartnerUser,
@@ -55,7 +59,9 @@ export async function bookingOpsAction(_: ActionResult | null, fd: FormData): Pr
 
 export async function expireHoldsAction(): Promise<void> {
   await staff();
-  await expireUnpaidHolds(await getDb());
+  const db = await getDb();
+  await expireUnpaidHolds(db);
+  await lapseUnansweredRequests(db);
   revalidatePath('/admin');
 }
 
@@ -133,11 +139,13 @@ export async function partnerUserAction(_: ActionResult | null, fd: FormData): P
 function contractInput(fd: FormData) {
   const currency = str(fd, 'currency') || 'EUR';
   const free = str(fd, 'freeCancelDays');
+  const hours = str(fd, 'responseHours');
   return ({
     reference: str(fd, 'reference'), inventoryModel: str(fd, 'inventoryModel'), rateBasis: str(fd, 'rateBasis'),
     collectionModel: str(fd, 'collectionModel'), currency, validFrom: str(fd, 'validFrom'), validTo: str(fd, 'validTo'),
     commissionBps: bps(fd, 'commissionPct'), taxMode: str(fd, 'taxMode'), taxBps: bps(fd, 'taxPct'),
     localTaxMinor: money(fd, 'localTax', currency) ?? 0, confirmationMode: str(fd, 'confirmationMode'),
+    responseHours: hours === '' ? 48 : Number(hours),
     freeCancelDays: free === '' ? null : Number(free), latePenaltyType: str(fd, 'latePenaltyType'), latePenaltyBps: bps(fd, 'latePenaltyPct'),
     nonRefundable: bool(fd, 'nonRefundable'), paymentTerms: optStr(fd, 'paymentTerms'), distributionPermitted: bool(fd, 'distributionPermitted'),
     documentUrl: optStr(fd, 'documentUrl'), internalNotes: optStr(fd, 'internalNotes'),
@@ -329,5 +337,72 @@ export async function supportReplyAction(_: ActionResult | null, fd: FormData): 
     await audit(db, actor, 'support.replied', 'support_ticket', str(fd, 'id'));
     revalidatePath('/admin/support');
     return 'Reply saved. (Email delivery is not connected yet — the agent sees it in their Support page.)';
+  });
+}
+
+export async function adminUploadKycAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const f = await file(fd, 'document');
+    if (!f) throw new AppError('Choose a file to upload');
+    const agencyId = str(fd, 'agencyId');
+    await uploadAgencyDocument(await getDb(), actor, agencyId, str(fd, 'kind') as DocumentKind, f);
+    revalidatePath(`/admin/agencies/${agencyId}`);
+    return 'Document added.';
+  });
+}
+
+export async function adminTaxIdsAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const agencyId = str(fd, 'agencyId');
+    await updateTaxIds(await getDb(), actor, agencyId, { pan: optStr(fd, 'pan') ?? null, gstin: optStr(fd, 'gstin') ?? null });
+    revalidatePath(`/admin/agencies/${agencyId}`);
+    return 'Tax details saved.';
+  });
+}
+
+export async function walletPayoutAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const agencyId = str(fd, 'agencyId');
+    const currency = str(fd, 'currency');
+    let amountMinor: number;
+    try { amountMinor = parseMoney(str(fd, 'amount'), currency); } catch { throw new AppError('Enter the amount paid out'); }
+    await recordWalletPayout(await getDb(), actor, agencyId, { amountMinor, currency, reference: str(fd, 'reference') });
+    revalidatePath(`/admin/agencies/${agencyId}`);
+    return 'Payout recorded. The agency sees it in its wallet history.';
+  });
+}
+
+export async function hotelSettlementAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const currency = str(fd, 'currency');
+    let amountMinor: number;
+    try { amountMinor = parseMoney(str(fd, 'amount'), currency); } catch { throw new AppError('Enter the amount'); }
+    await recordHotelSettlement(await getDb(), actor, { hotelId: str(fd, 'hotelId'), direction: str(fd, 'direction') as 'paid_hotel', currency, amountMinor, reference: str(fd, 'reference') });
+    revalidatePath('/admin/tracker');
+    return 'Settlement recorded.';
+  });
+}
+
+export async function addStaffAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    await addStaff(await getDb(), actor, { name: str(fd, 'name'), email: str(fd, 'email'), role: str(fd, 'role'), password: str(fd, 'password') });
+    revalidatePath('/admin/team');
+    return 'Added. Share the first password privately.';
+  });
+}
+
+export async function updateStaffAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const intent = str(fd, 'intent');
+    await updateStaff(await getDb(), actor, str(fd, 'userId'),
+      intent === 'disable' ? { status: 'disabled' } : intent === 'enable' ? { status: 'active' } : { role: str(fd, 'role') as StaffRole });
+    revalidatePath('/admin/team');
+    return intent === 'role' ? 'Role updated — they have been signed out to pick it up.' : intent === 'disable' ? 'Disabled and signed out.' : 'Enabled.';
   });
 }

@@ -74,7 +74,8 @@ export function toDecimalString(minor: number, currency: string): string {
 
 export function formatMoney(minor: number, currency: string, opts: { compact?: boolean } = {}): string {
   const digits = minorDigits(currency);
-  return new Intl.NumberFormat('en-GB', {
+  // Rupees read best in Indian grouping (1,00,000); everything else en-GB.
+  return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-GB', {
     style: 'currency', currency,
     minimumFractionDigits: opts.compact ? 0 : digits,
     maximumFractionDigits: opts.compact ? 0 : digits,

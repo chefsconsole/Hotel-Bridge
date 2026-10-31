@@ -51,7 +51,7 @@ export const STATUS_LABEL: Record<string, string> = {
   amendment_requested: 'Amendment requested',
   cancellation_requested: 'Cancellation requested',
   cancelled: 'Cancelled',
-  declined: 'Declined by hotel',
+  declined: 'Not confirmed by hotel',
   failed: 'Not booked',
 };
 
@@ -64,7 +64,7 @@ export const STATUS_EXPLAINER: Record<string, string> = {
   amendment_requested: 'Your amendment is with our operations team. The original reservation stands until we confirm the change.',
   cancellation_requested: 'Your cancellation request is with our operations team. Penalties are calculated from the time of the request.',
   cancelled: 'This reservation has been cancelled.',
-  declined: 'The hotel could not accommodate this request. No charge applies.',
+  declined: 'The hotel declined, or did not answer within its time to respond. No charge applies.',
   failed: 'The reservation was not made. No charge applies.',
 };
 
@@ -89,6 +89,7 @@ export const PAYMENT_LABEL: Record<string, string> = {
   paid: 'Paid',
   refund_due: 'Refund due',
   refunded: 'Refunded',
+  credited: 'Refunded to wallet',
   direct: 'Pay at hotel',
 };
 

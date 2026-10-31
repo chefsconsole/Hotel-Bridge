@@ -39,17 +39,21 @@ function startView(anchor: string, today: string, single: boolean) {
 
 const isSmall = () => typeof window !== 'undefined' && window.innerWidth < 640;
 
-export function RangeCalendar({ checkIn, checkOut, phase, onPick, onClear, onDone, maxNights = 30 }: {
+export function RangeCalendar({ checkIn, checkOut, phase, onPick, onClear, onDone, maxNights = 30, single = false, title, labels = ['Check-in', 'Check-out'], months }: {
   checkIn: string; checkOut: string; phase: 'in' | 'out';
   onPick: (checkIn: string, checkOut: string) => void; onClear: () => void; onDone: () => void; maxNights?: number;
+  /** Pick one date (checkIn) instead of a range. */
+  single?: boolean; title?: string; labels?: [string, string];
+  /** Force one or two months; by default one on phones, two otherwise. */
+  months?: 1 | 2;
 }) {
   const [today] = useState(localToday);
-  const [single] = useState(isSmall);
-  const [view, setView] = useState(() => startView((phase === 'out' && checkOut) || checkIn || localToday(), localToday(), isSmall()));
+  const [oneMonth] = useState(() => (months ? months === 1 : isSmall()));
+  const [view, setView] = useState(() => startView((phase === 'out' && checkOut) || checkIn || localToday(), localToday(), months ? months === 1 : isSmall()));
   const [hover, setHover] = useState<string | null>(null);
 
   const lastOut = checkIn ? addDays(checkIn, maxNights) : null;
-  const choosingOut = phase === 'out' && !!checkIn;
+  const choosingOut = !single && phase === 'out' && !!checkIn;
   const rangeEnd = checkOut || (choosingOut && hover && hover > checkIn ? hover : '');
   const nights = checkIn && rangeEnd ? daysBetween(checkIn, rangeEnd) : 0;
   const canBack = `${view.y}-${pad(view.m + 1)}` > today.slice(0, 7);
@@ -99,24 +103,24 @@ export function RangeCalendar({ checkIn, checkOut, phase, onPick, onClear, onDon
   return (
     <div onMouseLeave={() => setHover(null)}>
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-[0.9rem] font-medium">{choosingOut ? 'When do they check out?' : 'When do they check in?'}</p>
+        <p className="text-[0.9rem] font-medium">{title ?? (choosingOut ? 'When do they check out?' : 'When do they check in?')}</p>
         <div className="flex gap-1.5">
           <button type="button" onClick={() => shift(-1)} disabled={!canBack} aria-label="Previous month" className="flex size-9 items-center justify-center rounded-full border border-line text-lg hover:border-ink disabled:opacity-30">‹</button>
           <button type="button" onClick={() => shift(1)} aria-label="Next month" className="flex size-9 items-center justify-center rounded-full border border-line text-lg hover:border-ink">›</button>
         </div>
       </div>
-      <div className={cx('grid gap-8', !single && 'grid-cols-2')}>
+      <div className={cx('grid gap-8', !oneMonth && 'grid-cols-2')}>
         {month(view.y, view.m)}
-        {!single && month(next.y, next.m)}
+        {!oneMonth && month(next.y, next.m)}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
         <p className="text-[0.88rem]">
-          {checkIn ? shortDate(checkIn) : 'Check-in'} <span className="text-faint">→</span> {rangeEnd ? shortDate(rangeEnd) : 'Check-out'}
+          {single ? (checkIn ? shortDate(checkIn) : labels[0]) : <>{checkIn ? shortDate(checkIn) : labels[0]} <span className="text-faint">→</span> {rangeEnd ? shortDate(rangeEnd) : labels[1]}</>}
           {nights > 0 && <span className="num ml-2 font-medium text-champagne">{nights} night{nights === 1 ? '' : 's'}</span>}
         </p>
         <div className="flex gap-2">
           <button type="button" onClick={onClear} className="px-3 py-1.5 text-[0.85rem] text-muted hover:text-ink">Clear</button>
-          <button type="button" onClick={onDone} disabled={!checkOut} className="rounded-full bg-ink px-5 py-1.5 text-[0.85rem] text-paper disabled:opacity-40">Done</button>
+          <button type="button" onClick={onDone} disabled={single ? !checkIn : !checkOut} className="rounded-full bg-ink px-5 py-1.5 text-[0.85rem] text-paper disabled:opacity-40">Done</button>
         </div>
       </div>
     </div>

@@ -25,6 +25,7 @@ const ICONS = {
   compare: 'M7 4v16M17 4v16M3 8h8M13 16h8',
   spark: 'M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18',
   insights: 'M3 3v18h18M7 15l4-4 3 3 5-6',
+  trips: 'M3 7h18v13H3zM8 7V4h8v3M3 12h18',
 };
 
 function Icon({ name }: { name: keyof typeof ICONS }) {

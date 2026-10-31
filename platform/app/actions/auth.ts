@@ -2,7 +2,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
-import { attempt, int, optStr, str, type ActionResult } from '@/lib/action';
+import { attempt, file, int, optStr, str, type ActionResult } from '@/lib/action';
 import { destroySession, login, registerAgency, createSession } from '@/lib/services/auth';
 import { submitPartnerApplication } from '@/lib/services/catalog';
 import { AppError } from '@/lib/services/errors';
@@ -38,9 +38,9 @@ export async function registerAction(_: ActionResult | null, fd: FormData): Prom
     const db = await getDb();
     const { user } = await registerAgency(db, {
       agencyName: str(fd, 'agencyName'), legalName: optStr(fd, 'legalName'), country: str(fd, 'country'), city: optStr(fd, 'city'),
-      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: optStr(fd, 'phone'),
+      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: optStr(fd, 'phone'), pan: optStr(fd, 'pan'), gstin: optStr(fd, 'gstin'),
       billingCurrency: str(fd, 'billingCurrency') as 'EUR', name: str(fd, 'name'), email: str(fd, 'email'), password: str(fd, 'password'),
-    });
+    }, { panCard: await file(fd, 'panCard'), gstCertificate: await file(fd, 'gstCertificate') });
     const s = await createSession(db, user.id);
     await setSessionCookie(s.token, s.expiresAt);
     return { ok: true };

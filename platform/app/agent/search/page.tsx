@@ -10,25 +10,33 @@ import { decodeRooms, describeRooms, encodeRooms } from '@/lib/domain/occupancy'
 import { requireAgent } from '@/lib/session';
 import { destinations, searchHotels, searchSchema } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
+import { getTrip } from '@/lib/services/trips';
 
 export const metadata = { title: 'Search hotels' };
 
-type SP = { city?: string; in?: string; out?: string; rooms?: string };
+type SP = { city?: string; in?: string; out?: string; rooms?: string; trip?: string };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SP> }) {
-  await requireAgent();
+  const { actor } = await requireAgent();
   const sp = await searchParams;
   const db = await getDb();
   const dests = await destinations(db);
   const rooms = decodeRooms(sp.rooms);
+  const trip = sp.trip ? await getTrip(db, actor, sp.trip).then((d) => d, () => null) : null;
   return (
     <>
-      <PageHeader eyebrow="Search" title="Find a hotel" description="Prices are for the whole stay, for every room, and are re-checked with the hotel before you book." />
-      <SearchForm destinations={dests} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city} />
+      <PageHeader eyebrow="Search" title={trip ? 'Add a hotel to the trip' : 'Find a hotel'} description="Prices are for the whole stay, for every room, and are re-checked with the hotel before you book." />
+      {trip && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-md)] border border-champagne/40 bg-champagne-soft px-4 py-3 text-[0.9rem]">
+          <p>Building <span className="font-medium">{trip.trip.title}</span> for {trip.client.name} · {trip.items.filter((i) => i.kind === 'hotel').length} hotel{trip.items.filter((i) => i.kind === 'hotel').length === 1 ? '' : 's'} so far. Press <span className="font-medium">Add to trip</span> on a room.</p>
+          <Link href={`/agent/trips/${trip.trip.id}`} className="font-medium underline underline-offset-4">Back to trip</Link>
+        </div>
+      )}
+      <SearchForm destinations={dests} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city} keep={trip ? { trip: trip.trip.id } : undefined} />
       <div className="mt-8">
         {sp.city && sp.in && sp.out ? (
           <Suspense key={JSON.stringify(sp)} fallback={<ResultsSkeleton />}>
-            <Results sp={sp} />
+            <Results sp={sp} tripId={trip?.trip.id} />
           </Suspense>
         ) : (
           <Notice title="How search works">
@@ -40,7 +48,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   );
 }
 
-async function Results({ sp }: { sp: SP }) {
+async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
   const { actor } = await requireAgent();
   const db = await getDb();
   const input = { city: sp.city!, checkIn: sp.in!, checkOut: sp.out!, rooms: decodeRooms(sp.rooms) };
@@ -50,7 +58,7 @@ async function Results({ sp }: { sp: SP }) {
   const prefetch = !!(await headers()).get('next-router-prefetch');
   const { results, warnings } = await searchHotels(db, actor, parsed.data, { log: !prefetch });
   const nights = daysBetween(input.checkIn, input.checkOut);
-  const q = new URLSearchParams({ in: input.checkIn, out: input.checkOut, rooms: encodeRooms(input.rooms) }).toString();
+  const q = new URLSearchParams({ in: input.checkIn, out: input.checkOut, rooms: encodeRooms(input.rooms), ...(tripId ? { trip: tripId } : {}) }).toString();
   return (
     <div className="animate-[var(--animate-rise)]">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -94,7 +102,7 @@ async function Results({ sp }: { sp: SP }) {
                   </div>
                   {hotel.summary && <p className="mt-3 text-[0.88rem] leading-relaxed text-muted">{hotel.summary}</p>}
                   <div className="mt-3 border-t border-line">
-                    <OfferList offers={offers} hotelId={hotel.id} stay={input} limit={3} />
+                    <OfferList offers={offers} hotelId={hotel.id} stay={input} limit={3} tripId={tripId} />
                   </div>
                 </div>
               </div>
