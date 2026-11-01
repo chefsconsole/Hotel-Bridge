@@ -12,6 +12,10 @@ import { createQuote } from '@/lib/services/search';
 import { createBooking, payFromWallet, requestAmendment, requestCancellation } from '@/lib/services/bookings';
 import { walletBalance } from '@/lib/services/ledger';
 import { addMessage, createEnquiry, decideProposal } from '@/lib/services/groups';
+import { dispatchToHotels } from '@/lib/services/group-desk';
+import { getSetting } from '@/lib/services/settings';
+import { SYSTEM } from '@/lib/services/actor';
+import { parseTiers } from '@/lib/domain/tiers';
 import { addAgencyUser, changePassword } from '@/lib/services/auth';
 import { AppError } from '@/lib/services/errors';
 
@@ -98,7 +102,8 @@ export async function createGroupAction(_: ActionResult | null, fd: FormData): P
     if (budget) {
       try { budgetMinor = parseMoney(budget, currency); } catch { throw new AppError('Budget must be an amount, e.g. 120 or 120.50'); }
     }
-    const e = await createEnquiry(await getDb(), actor, {
+    const db = await getDb();
+    const e = await createEnquiry(db, actor, {
       groupName: str(fd, 'groupName'), groupType: str(fd, 'groupType') as 'leisure', legs,
       totalPax: int(fd, 'totalPax') ?? 0,
       rooms: { single: int(fd, 'single') ?? 0, double: int(fd, 'double') ?? 0, twin: int(fd, 'twin') ?? 0, triple: int(fd, 'triple') ?? 0 },
@@ -106,8 +111,13 @@ export async function createGroupAction(_: ActionResult | null, fd: FormData): P
       budgetMinor, budgetBasis: (optStr(fd, 'budgetBasis') as 'total') ?? null, currency,
       coachParking: bool(fd, 'coachParking'), accessibility: optStr(fd, 'accessibility'), specialRequests: optStr(fd, 'specialRequests'),
       quoteNeededBy: str(fd, 'quoteNeededBy'),
+      tiers: parseTiers(fd.getAll('tiers').map(String)), clientBrief: optStr(fd, 'clientBrief'),
     });
     id = e.id;
+    // Ask our hotels straight away (contracted group hotels first). A failure here never loses the enquiry.
+    if ((await getSetting(db, 'groups.autoDispatch')) === '1') {
+      try { await dispatchToHotels(db, SYSTEM, e.id); } catch (err) { console.error('[groups] auto-dispatch failed', err); }
+    }
     return { ok: true };
   });
   if (id) redirect(`/agent/groups/${id}?new=1`);

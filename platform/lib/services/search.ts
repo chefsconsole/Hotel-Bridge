@@ -122,13 +122,15 @@ export async function collectOffers(db: DB, req: SearchInput & { hotelId?: strin
   return { offers: results.flat(), warnings };
 }
 
-export async function searchHotels(db: DB, actor: Actor, input: SearchInput, opts: { log?: boolean } = {}) {
+export async function searchHotels(db: DB, actor: Actor, input: SearchInput, opts: { log?: boolean; tiers?: string[] } = {}) {
   const agencyId = agencyOf(actor);
   const req = searchSchema.parse(input);
   const { offers, warnings } = await collectOffers(db, req);
 
   const hotelIds = [...new Set(offers.map((o) => o.hotelId))];
-  const hs = hotelIds.length ? await db.select().from(hotels).where(inArray(hotels.id, hotelIds)) : [];
+  const all = hotelIds.length ? await db.select().from(hotels).where(inArray(hotels.id, hotelIds)) : [];
+  // Client-type filter: only hotels curated into the chosen tiers.
+  const hs = opts.tiers?.length ? all.filter((h) => h.tier && opts.tiers!.includes(h.tier)) : all;
   const results: HotelResult[] = [];
   for (const h of hs) {
     const priced: PricedOffer[] = [];

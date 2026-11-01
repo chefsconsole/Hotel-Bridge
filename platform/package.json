@@ -13,7 +13,8 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "create-admin": "tsx scripts/create-admin.ts",
-    "check": "tsc --noEmit && eslint && vitest run"
+    "check": "tsc --noEmit && eslint && vitest run",
+    "import:prospects": "tsx scripts/import-prospects.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

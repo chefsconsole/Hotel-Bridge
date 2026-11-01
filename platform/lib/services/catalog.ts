@@ -11,6 +11,7 @@ import { parseMoney } from '@/lib/domain/money';
 import { validateTerms, PricingError } from '@/lib/domain/pricing';
 import { requireStaff, type Actor } from './actor';
 import { audit } from './audit';
+import { TIERS } from '@/lib/domain/tiers';
 import { assertReadyToVerify } from './kyc';
 import { emailSchema, hashPassword, passwordSchema } from './auth';
 import { AppError, NotFoundError, isUniqueViolation } from './errors';
@@ -40,9 +41,15 @@ export const hotelSchema = z.object({
   checkInTime: optText(10),
   checkOutTime: optText(10),
   groupNotes: optText(1000),
+  tier: z.enum(TIERS).nullable().optional().transform((v) => v ?? null),
+  totalRooms: z.number().int().min(1).max(10_000).nullable().optional().transform((v) => v ?? null),
+  acceptsGroups: z.boolean().default(false),
+  groupsEmail: z.string().trim().max(200).optional().transform((v) => v || null).refine((v) => v == null || /^\S+@\S+\.\S+$/.test(v), 'Enter a valid groups email'),
   contactName: optText(120),
   contactEmail: z.string().trim().max(200).optional().transform((v) => v || null),
   reservationsEmail: z.string().trim().max(200).optional().transform((v) => v || null),
+}).superRefine((v, ctx) => {
+  if (v.acceptsGroups && !v.groupsEmail && !v.reservationsEmail) ctx.addIssue({ code: 'custom', path: ['groupsEmail'], message: 'Add the email group requests go to' });
 });
 
 function slugify(s: string) {

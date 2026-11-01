@@ -1,4 +1,5 @@
 import { lapseUnansweredRequests } from '@/lib/services/bookings';
+import { lapseGroupRequests } from '@/lib/services/group-desk';
 import { AppShell, type NavItem } from '@/components/shell';
 import { EnvBanner } from '@/components/env-banner';
 import { SignOut } from '@/components/sign-out';
@@ -11,6 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { user } = await requireStaff();
   // No scheduler yet: lapse unanswered hotel requests whenever the console loads.
   await lapseUnansweredRequests(await getDb());
+  await lapseGroupRequests(await getDb());
   const issues = await operationalIssues(await getDb());
   const role = user.platformRole as StaffRole;
   // Each role sees its own work; admin sees everything.
@@ -23,11 +25,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     '/admin/support': ['admin', 'ops'],
     '/admin/hotels': ['admin', 'ops', 'sales'],
     '/admin/rate-check': ['admin', 'sales'],
+    '/admin/prospects': ['admin', 'sales', 'ops'],
     '/admin/suppliers': ['admin', 'ops'],
     '/admin/agencies': ['admin', 'ops', 'sales', 'finance'],
     '/admin/pricing': ['admin', 'finance'],
     '/admin/partners': ['admin', 'sales'],
     '/admin/audit': ['admin', 'finance'],
+    '/admin/emails': ['admin', 'ops', 'sales'],
   };
   const all: NavItem[] = [
     { href: '/admin', label: 'Overview', icon: 'chart', badge: issues.filter((i) => i.severity === 'urgent').length, section: 'Business' },
@@ -38,6 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/bookings', label: 'Bookings', icon: 'bookings', section: 'Operations' },
     { href: '/admin/groups', label: 'Group Desk', icon: 'groups', section: 'Operations' },
     { href: '/admin/support', label: 'Support', icon: 'support', section: 'Operations' },
+    { href: '/admin/prospects', label: 'Hotel outreach', icon: 'inbox', section: 'Portfolio' },
     { href: '/admin/hotels', label: 'Hotels & contracts', icon: 'hotels', section: 'Portfolio' },
     { href: '/admin/rate-check', label: 'Rate comparison', icon: 'compare', section: 'Portfolio' },
     { href: '/admin/suppliers', label: 'Suppliers', icon: 'plug', section: 'Portfolio' },
@@ -45,6 +50,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/pricing', label: 'Pricing & settings', icon: 'pricing', section: 'Commercial' },
     { href: '/admin/partners', label: 'Partner applications', icon: 'inbox', section: 'Commercial' },
     { href: '/admin/team', label: 'Team', icon: 'agencies', section: 'Governance' },
+    { href: '/admin/emails', label: 'Emails', icon: 'inbox', section: 'Governance' },
     { href: '/admin/audit', label: 'Audit log', icon: 'audit', section: 'Governance' },
   ];
   const nav = all.filter((n) => !ROLES[n.href] || ROLES[n.href].includes(role));

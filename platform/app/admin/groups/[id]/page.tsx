@@ -11,6 +11,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { requireStaff } from '@/lib/session';
 import { getEnquiry, GROUP_STAGES, STAGE_LABEL, suggestedRespondBy } from '@/lib/services/groups';
 import { NotFoundError } from '@/lib/services/errors';
+import { emailConfigured } from '@/lib/services/email';
 
 const Hidden = ({ id, op }: { id: string; op: string }) => <><input type="hidden" name="enquiryId" value={id} /><input type="hidden" name="op" value={op} /></>;
 
@@ -23,6 +24,7 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
   const cities = e.legs.map((l) => l.city.toLowerCase());
   const candidates = await db.select().from(schema.hotels).where(inArray(sql`lower(${schema.hotels.city})`, cities));
   const closed = ['won', 'lost', 'cancelled'].includes(e.status);
+  const mail = emailConfigured();
   return (
     <>
       <Link href="/admin/groups" className="text-[0.85rem] text-muted hover:text-ink">← Pipeline</Link>
@@ -32,15 +34,20 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
           <SubmitButton size="sm" variant="secondary">Set stage</SubmitButton></ActionForm>} />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <div className="space-y-6">
-          <Panel title="1 · Hotel enquiries" description="Generated emails are not sent automatically — email delivery is not connected. Copy, send, then mark as sent." padded={false}>
+          <Panel title="1 · Hotel enquiries" description={mail.ok ? 'Requests go out by email automatically with a private reply link; hotels answer within 48 hours.' : `Email is not connected (${mail.reason}). Requests are created with reply links — copy and send them, then mark as sent.`} padded={false}
+            actions={!closed ? <ActionForm action={groupOpsAction}><Hidden id={e.id} op="dispatch" /><SubmitButton size="sm" pendingLabel="Asking…">Ask hotels now</SubmitButton></ActionForm> : undefined}>
             {d.requests.length === 0 ? <Empty title="No hotels approached yet" /> : (
               <ul className="divide-y divide-line">{d.requests.map((r) => (
                 <li key={r.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-medium">{r.hotelName} <span className="text-[0.82rem] text-muted">· {r.city}{r.hotelEmail ? ` · ${r.hotelEmail}` : ' · no email on file'}</span></p>
-                    <Pill tone={r.status === 'responded' ? 'positive' : r.status === 'sent' ? 'pending' : r.status === 'generated' ? 'attention' : 'neutral'}>{r.status === 'generated' ? 'Generated — not sent' : r.status}</Pill>
+                    <span className="flex items-center gap-2">
+                      <Pill tone="neutral" dot={false}>{r.source === 'contracted' ? 'Contracted' : r.source === 'outreach' ? 'Outreach' : 'Manual'}</Pill>
+                      <Pill tone={r.status === 'responded' ? 'positive' : r.status === 'sent' ? 'pending' : r.status === 'generated' ? 'attention' : 'neutral'}>{r.status === 'generated' ? 'Not sent' : r.status === 'responded' ? 'Offer in' : r.status === 'no_response' ? 'No answer in time' : r.status}</Pill>
+                    </span>
                   </div>
-                  <p className="text-[0.78rem] text-faint">Reply due {r.respondBy ? formatDate(r.respondBy) : '—'}{r.sentAt ? ` · sent ${formatDateTime(r.sentAt)}` : ''}</p>
+                  <p className="text-[0.78rem] text-faint">Reply due {r.respondByAt ? formatDateTime(r.respondByAt) : r.respondBy ? formatDate(r.respondBy) : '—'}{r.sentAt ? ` · sent ${formatDateTime(r.sentAt)}` : ''}{r.answeredAt ? ` · answered ${formatDateTime(r.answeredAt)}` : ''}{r.declineReason ? ` · “${r.declineReason}”` : ''}</p>
+                  {r.token && <p className="mt-1 text-[0.78rem]"><span className="text-faint">Reply link:</span> <a href={`/g/${r.token}`} target="_blank" rel="noreferrer" className="num underline">{`/g/${r.token}`}</a></p>}
                   <details className="mt-2"><summary className="cursor-pointer text-[0.82rem] text-muted">Email text</summary>
                     <p className="mt-2 text-[0.82rem] font-medium">{r.subject}</p>
                     <textarea readOnly rows={12} defaultValue={r.body} className="field mt-1 font-mono text-[0.75rem]" />

@@ -7,7 +7,8 @@ npm install
 cp .env.example .env.local   # HB_ENV=development, HB_DEMO=1
 npm run seed:demo            # fictional sample hotels/agencies — logins are listed at the top of scripts/seed-demo.ts
 npm run dev                  # http://localhost:3050
-npm run check                # types + lint + 61 tests
+npm run check                # types + lint + 65 tests
+npm run import:prospects     # load docs/hotel-targets.csv into Hotel outreach (safe to re-run)
 ```
 
 ## Architecture
@@ -59,6 +60,12 @@ Logic: `lib/domain/trip.ts` (pure), `lib/services/trips.ts`, tests in `tests/tri
 - **Agency wallet:** a paid booking cancelled inside the free window credits 100% to the agency wallet instantly (after the window: everything except the hotel's penalty). Agents pay held bookings from the wallet or ask for a bank payout; finance records payouts. Built on the append-only ledger (agency rows with no booking), serialised per agency with an advisory lock.
 - **Agency KYC:** Indian agencies give PAN (format-checked) and upload a PAN card; GSTIN is validated (check digit, matches PAN, state). Files are type-checked by their bytes, max 4 MB, readable only by staff and the agency (`/documents/[id]`). Approval is blocked until KYC is complete; declining needs a reason.
 - **Arrivals & hotels** (`/admin/tracker`): today / tomorrow / 7 / 30 days, FIT vs Group Desk groups, and per hotel the volume, our revenue, what we owe it and the commission it owes us; finance records settlements. Hotels see their own arrivals and account in `/partner`.
+- **Curated tiers**: every hotel is Smart (3.5–4★), Premium (upper 4★), Luxury (4.5–5★) or Ultra-luxury; agents filter search by "Client is…" (one or more tiers, or any). Hotels carry room count and a group contact.
+- **Automated Group Desk**: on submit, the system asks up to 4 contracted group hotels in each city (in the requested tiers) — or up to 15 outreach hotels with an email — each with a private no-login reply link (`/g/<token>`) and 48 hours to answer; when every city has an offer it builds the agent's offer (best offer per city + group markup, default 8%) held 48 hours. Agents can paste the client's message for AI to fill the form. Switches and markup in Pricing & settings.
+- **Email** (`lib/services/email.ts`, Admin → Emails): Resend when `RESEND_API_KEY` + `EMAIL_FROM` are set; outside production also `EMAIL_ALLOW_NONPROD=1`. Otherwise every email is recorded as "Not sent" — never reported as sent. `APP_URL` makes reply links absolute.
+- **Payment window**: the agent pays within 24 hours of the hotel confirming (or of an instant hold).
+- **Hotel outreach** (`/admin/prospects`): the hotels we want to sign (249 researched, `docs/hotel-targets.csv`) worked as a pipeline — to contact → contacted → in talks → rates received → signed — with owner, contact, next step and date, a one-click "log a contact", follow-ups due on the overview, and "Signed? Create hotel" which pre-fills the hotel and links the record. Prospects are never shown to agents.
+- **Scheduled jobs** (`/api/cron`): releases unpaid holds and lapses unanswered hotel requests; needs `CRON_SECRET` (Bearer token) and refuses to run without it. `vercel.json` schedules it every 15 minutes.
 - **Team** (`/admin/team`): admin, operations, sales & contracting, finance — each sees its own menu and the services enforce the same rules; the last active admin can't be removed.
 - **Tax:** `docs/TAX_INDIA.md` — GST/TCS/TDS research and the decisions a CA must make before real invoicing.
 
@@ -88,11 +95,11 @@ Priority destinations from 2025 Indian outbound data: Thailand (Bangkok, Pattaya
 | Production database | Embedded locally only. | A Postgres `DATABASE_URL` (e.g. Supabase/Neon) and a host. |
 | Third-party suppliers (Hotelbeds, TBO, RateHawk, channel managers) | Interface ready; no adapters. | Commercial agreements confirming onward distribution, API credentials, then one adapter each in `lib/suppliers/`. |
 | Payments | Recorded manually by finance (bank transfer). No card processing. | Choose a provider (e.g. Stripe/Razorpay) and its hosted checkout; never store card data. |
-| Email | Hotel enquiries and support replies are generated, not sent; the UI says so. | An email provider (e.g. Resend/Postmark) and verified sending domain. |
+| Email | Built for Resend; without a key every email is recorded as "Not sent". | A Resend account, verified sending domain, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`. |
 | Invoices & tax | Commercial documents only, flagged "tax details pending". | Legal entity, tax registrations and accountant review of VAT/GST treatment. |
 | Legal pages | Plain-language drafts flagged "pending legal review". | Counsel review; contracting entity and governing law. |
 | Photography | Deliberate placeholder treatment; licensed image URLs can be added per hotel. | Images with written permission from each hotel. |
-| Scheduled jobs | Unpaid-hold expiry and reconciliation run on demand from `/admin`. | A cron calling them (e.g. Vercel Cron) once deployed. |
+| Scheduled jobs | `/api/cron` is built and scheduled in `vercel.json`; until deployed, jobs also run when the console loads. | Set `CRON_SECRET` on the host. |
 | Password reset, 2FA, rate limiting beyond login | Login throttling only. | Email provider first, then reset flow. |
 
 This is a working first release on demo data, not a production launch: it has not been load-tested, security-reviewed or run against a real supplier.

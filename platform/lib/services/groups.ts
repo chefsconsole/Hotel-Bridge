@@ -13,6 +13,7 @@ import { formatMoney } from '@/lib/domain/money';
 import { priceGroupProposal } from '@/lib/domain/pricing';
 import { agencyOf, isStaff, requireStaff, type Actor } from './actor';
 import { audit } from './audit';
+import { TIERS } from '@/lib/domain/tiers';
 import { nextNumber } from './counters';
 import { AppError, NotFoundError } from './errors';
 
@@ -47,6 +48,8 @@ export const enquirySchema = z.object({
   accessibility: z.string().trim().max(500).optional().nullable(),
   specialRequests: z.string().trim().max(2000).optional().nullable(),
   quoteNeededBy: z.string().refine(isIsoDate, 'When do you need the quotation?'),
+  tiers: z.array(z.enum(TIERS)).max(4).default([]),
+  clientBrief: z.string().trim().max(4000).optional().nullable(),
 }).superRefine((v, ctx) => {
   const today = todayIso();
   v.legs.forEach((l, i) => {
@@ -65,7 +68,7 @@ export const enquirySchema = z.object({
   if (v.budgetMinor && !v.budgetBasis) ctx.addIssue({ code: 'custom', path: ['budgetBasis'], message: 'Say what the budget covers' });
 });
 
-export type EnquiryInput = z.infer<typeof enquirySchema>;
+export type EnquiryInput = z.input<typeof enquirySchema>;
 
 export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
   const agencyId = agencyOf(actor);
@@ -79,7 +82,7 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
     groupName: data.groupName, groupType: data.groupType, legs: data.legs, totalPax: data.totalPax, rooms: data.rooms,
     category: data.category ?? null, mealPlan: data.mealPlan ?? null, budgetMinor: data.budgetMinor ?? null, budgetBasis: data.budgetBasis ?? null,
     currency: data.currency, coachParking: data.coachParking, accessibility: data.accessibility || null, specialRequests: data.specialRequests || null,
-    quoteNeededBy: data.quoteNeededBy, respondBy: new Date(Date.now() + GROUP_FIRST_RESPONSE_HOURS * 3_600_000),
+    quoteNeededBy: data.quoteNeededBy, tiers: data.tiers, clientBrief: data.clientBrief || null, respondBy: new Date(Date.now() + GROUP_FIRST_RESPONSE_HOURS * 3_600_000),
     isSample: agency?.isSample ?? false,
   }).returning();
   await db.insert(groupMessages).values({
@@ -104,7 +107,7 @@ export async function getEnquiry(db: DB, actor: Actor, id: string) {
   const [messages, proposals, requests, offers] = await Promise.all([
     db.select().from(groupMessages).where(and(eq(groupMessages.enquiryId, id), staff ? undefined : eq(groupMessages.visibility, 'shared'))).orderBy(asc(groupMessages.createdAt)),
     db.select().from(groupProposals).where(and(eq(groupProposals.enquiryId, id), staff ? undefined : inArray(groupProposals.status, ['sent', 'accepted', 'declined', 'superseded']))).orderBy(desc(groupProposals.version)),
-    staff ? db.select().from(groupHotelRequests).where(eq(groupHotelRequests.enquiryId, id)).orderBy(asc(groupHotelRequests.createdAt)) : Promise.resolve([]),
+    db.select().from(groupHotelRequests).where(eq(groupHotelRequests.enquiryId, id)).orderBy(asc(groupHotelRequests.createdAt)),
     db.select().from(groupOffers).where(eq(groupOffers.enquiryId, id)).orderBy(asc(groupOffers.createdAt)),
   ]);
   const visibleOffers = staff ? offers : offers.filter((o) => proposals.some((p) => p.offerIds.includes(o.id)));
@@ -114,9 +117,19 @@ export async function getEnquiry(db: DB, actor: Actor, id: string) {
     agency,
     messages,
     proposals: staff ? proposals : proposals.map((p) => ({ ...p, costTotalMinor: 0, markupBps: 0 })),
-    requests,
+    requests: staff ? requests : [],
+    progress: requestProgress(requests),
     offers: staff ? visibleOffers : visibleOffers.map((o) => ({ ...o, costTotalMinor: 0, lines: [] as GroupOfferLine[] })),
   };
+}
+
+/** For the agent: how many hotels were asked, how many answered, when replies are due — never which hotels. */
+export function requestProgress(requests: { status: string; respondByAt: Date | null }[]) {
+  const asked = requests.filter((r) => r.status !== 'generated').length;
+  const answered = requests.filter((r) => ['responded', 'declined'].includes(r.status)).length;
+  const offers = requests.filter((r) => r.status === 'responded').length;
+  const due = requests.map((r) => r.respondByAt).filter((d): d is Date => !!d).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  return { asked, answered, offers, due };
 }
 
 export async function listEnquiries(db: DB, actor: Actor) {
@@ -295,7 +308,7 @@ export async function decideProposal(db: DB, actor: Actor, proposalId: string, a
   const e = await load(db, actor, p.enquiryId);
   if (isStaff(actor)) throw new AppError('The agent accepts or declines a proposal');
   if (p.status !== 'sent') throw new AppError('This proposal is no longer open');
-  if (p.validUntil < todayIso()) throw new AppError('This proposal has expired — ask the Group Desk to revalidate it');
+  if (p.validUntil < todayIso() || (p.expiresAt && p.expiresAt < new Date())) throw new AppError('This offer has expired — ask the Group Desk to revalidate it with the hotels');
   await db.update(groupProposals).set({ status: accept ? 'accepted' : 'declined', decidedAt: new Date() }).where(eq(groupProposals.id, p.id));
   await db.update(groupEnquiries).set({ status: accept ? 'won' : 'negotiation', updatedAt: new Date() }).where(eq(groupEnquiries.id, e.id));
   await db.insert(groupMessages).values({

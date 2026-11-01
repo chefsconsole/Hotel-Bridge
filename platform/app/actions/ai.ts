@@ -53,8 +53,10 @@ export async function clientMessageAction(_: ActionResult | null, fd: FormData):
 export async function groupBriefAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   let dest = '';
   const r = await attempt(async () => {
-    const draft = await groupFromBrief(await getDb(), await actor(), str(fd, 'brief'));
-    dest = `/agent/groups/new?prefill=${Buffer.from(JSON.stringify(draft)).toString('base64url')}`;
+    const brief = str(fd, 'brief');
+    const draft = await groupFromBrief(await getDb(), await actor(), brief);
+    // The client's own words travel with the form (trimmed to keep the link short).
+    dest = `/agent/groups/new?prefill=${Buffer.from(JSON.stringify({ ...draft, brief: brief.slice(0, 1500) })).toString('base64url')}`;
     return { ok: true };
   });
   if (dest) redirect(dest);

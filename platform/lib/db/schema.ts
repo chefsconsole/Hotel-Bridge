@@ -125,6 +125,12 @@ export const hotels = pgTable('hotels', {
   checkOutTime: text('check_out_time'),
   // [{ url, alt, credit, license }] — only licensed / permitted imagery
   images: jsonb('images').$type<HotelImage[]>().notNull().default([]),
+  // HotelBridge's own curation tier: smart (3.5–4★) | premium (upper 4★) | luxury (4.5–5★) | ultra (the icons)
+  tier: text('tier'),
+  totalRooms: integer('total_rooms'),
+  // Group Desk: contracted for groups, and where group requests go.
+  acceptsGroups: boolean('accepts_groups').notNull().default(false),
+  groupsEmail: text('groups_email'),
   groupNotes: text('group_notes'),
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
@@ -465,6 +471,9 @@ export const groupEnquiries = pgTable('group_enquiries', {
   accessibility: text('accessibility'),
   specialRequests: text('special_requests'),
   quoteNeededBy: date('quote_needed_by').notNull(),
+  tiers: text('tiers').array().notNull().default([]), // client segment(s) the agent asked for
+  clientBrief: text('client_brief'), // the client's own words, if the agent pasted them
+  dispatchedAt: timestamp('dispatched_at', { withTimezone: true }), // when hotels were asked automatically
   // Our own commitment: when we owe the agent a first response.
   respondBy: timestamp('respond_by', { withTimezone: true }).notNull(),
   assignedTo: uuid('assigned_to'),
@@ -489,10 +498,16 @@ export const groupHotelRequests = pgTable('group_hotel_requests', {
   subject: text('subject').notNull(),
   body: text('body').notNull(),
   respondBy: date('respond_by'),
+  respondByAt: timestamp('respond_by_at', { withTimezone: true }), // exact deadline (48h) when sent automatically
+  token: text('token'), // secret link the hotel answers on — no login
+  source: text('source').notNull().default('manual'), // contracted | outreach | manual
+  prospectId: uuid('prospect_id'),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  declineReason: text('decline_reason'),
   sentAt: timestamp('sent_at', { withTimezone: true }),
   sentBy: uuid('sent_by'),
   createdAt: createdAt(),
-});
+}, (t) => [uniqueIndex('group_hotel_requests_token_uq').on(t.token)]);
 
 export const groupOffers = pgTable('group_offers', {
   id: id(),
@@ -526,6 +541,8 @@ export const groupProposals = pgTable('group_proposals', {
   costTotalMinor: money('cost_total_minor').notNull(),
   sellTotalMinor: money('sell_total_minor').notNull(),
   validUntil: date('valid_until').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }), // exact expiry for automatic 48h proposals
+  automatic: boolean('automatic').notNull().default(false),
   inclusions: text('inclusions'),
   exclusions: text('exclusions'),
   // draft | sent | accepted | declined | superseded
@@ -649,6 +666,63 @@ export const tripPayments = pgTable('trip_payments', {
   createdBy: uuid('created_by').notNull(),
   createdAt: createdAt(),
 }, (t) => [index('trip_payments_trip_idx').on(t.tripId)]);
+
+/* ============================== Hotel outreach ============================== *
+ * Hotels we want to sign, before they are partners. Public names from our
+ * research plus what sales learns talking to them. Never shown to agents. */
+
+export const PROSPECT_STAGES = ['to_contact', 'contacted', 'in_talks', 'rates_received', 'signed', 'declined', 'not_now'] as const;
+
+export const hotelProspects = pgTable('hotel_prospects', {
+  id: id(),
+  name: text('name').notNull(),
+  destination: text('destination').notNull(), // e.g. "Kashmir — Gulmarg, Srinagar, Pahalgam"
+  region: text('region'),
+  tier: text('tier'), // Ultra-premium | Luxury 5★ | Premium 4–5★
+  bestFor: text('best_for'),
+  totalRooms: integer('total_rooms'), // bigger hotels sign annual rate contracts more easily
+  priority: text('priority').notNull().default('P2'), // P1 | P2 | P3
+  nameChecked: boolean('name_checked').notNull().default(false),
+  stage: text('stage').notNull().default('to_contact'),
+  ownerId: uuid('owner_id'),
+  contactName: text('contact_name'),
+  contactRole: text('contact_role'),
+  contactEmail: text('contact_email'),
+  contactPhone: text('contact_phone'),
+  contactSource: text('contact_source'), // where the contact came from, e.g. "official website", "brand India sales office"
+  rateType: text('rate_type'), // net | commissionable | either
+  nextStep: text('next_step'),
+  nextStepOn: date('next_step_on'),
+  lastContactOn: date('last_contact_on'),
+  notes: text('notes'),
+  hotelId: uuid('hotel_id'), // set once signed and created in the catalogue
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  uniqueIndex('hotel_prospects_name_dest_uq').on(t.name, t.destination),
+  index('hotel_prospects_stage_idx').on(t.stage, t.priority),
+  index('hotel_prospects_next_idx').on(t.nextStepOn),
+]);
+
+/* ============================== Outbound email ============================== *
+ * Every email the system sends, and what actually happened to it. Without
+ * an email provider configured, emails are recorded as "not_configured" —
+ * never as sent. */
+export const outboundEmails = pgTable('outbound_emails', {
+  id: id(),
+  toEmail: text('to_email').notNull(),
+  toName: text('to_name'),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  kind: text('kind').notNull(), // group_request | ...
+  relatedId: uuid('related_id'),
+  status: text('status').notNull(), // sent | failed | not_configured
+  provider: text('provider'),
+  providerId: text('provider_id'),
+  error: text('error'),
+  sentAt: timestamp('sent_at', { withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('outbound_emails_created_idx').on(t.createdAt), index('outbound_emails_related_idx').on(t.relatedId)]);
 
 /* ============================== Everything else ============================== */
 

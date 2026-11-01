@@ -3,6 +3,9 @@ import { DateField, StayDatesField } from '@/components/date-fields';
 import { Notice, PageHeader } from '@/components/ui';
 import type { GroupDraftT } from '@/lib/ai/tools';
 import { createGroupAction } from '@/app/actions/agent';
+import { groupBriefAction } from '@/app/actions/ai';
+import { aiConfigured } from '@/lib/ai/client';
+import { TIERS, TIER_INFO } from '@/lib/domain/tiers';
 import { requireAgent } from '@/lib/session';
 
 export const metadata = { title: 'New group request' };
@@ -14,6 +17,7 @@ function readDraft(raw?: string): Partial<GroupDraftT> | null {
 
 export default async function NewGroupPage({ searchParams }: { searchParams: Promise<{ prefill?: string }> }) {
   const { agency } = await requireAgent();
+  const aiOn = aiConfigured();
   const d = readDraft((await searchParams).prefill);
   const leg = (i: number) => d?.legs?.[i];
   const section = 'rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)]';
@@ -24,6 +28,17 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
         <div className="mb-6 max-w-4xl"><Notice tone="warning" title="Prepared by AI from your client's brief — check every field before submitting">
           {d.missing?.length ? <>Still needed: {d.missing.join(', ')}.</> : 'Nothing obviously missing, but please verify dates and room split.'}
         </Notice></div>
+      )}
+      {!d && (
+        <details className="mb-6 max-w-4xl rounded-[var(--radius-lg)] border border-champagne/40 bg-champagne-soft p-5" open={aiOn}>
+          <summary className="cursor-pointer font-medium">Paste the client&apos;s message — AI fills the form</summary>
+          {aiOn ? (
+            <ActionForm action={groupBriefAction} className="mt-4 space-y-3">
+              <textarea name="brief" rows={5} className="field" placeholder="e.g. 40 pax wedding group, Phuket 12–15 Feb, 18 doubles 2 triples, breakfast, 5-star, need quote by Friday" />
+              <SubmitButton size="sm" pendingLabel="Reading…">Read it and fill the form</SubmitButton>
+            </ActionForm>
+          ) : <p className="mt-3 text-[0.85rem] text-muted">The AI reader isn&apos;t connected yet. Fill the form below — paste the client&apos;s words in “Client&apos;s message” so the Group Desk sees them.</p>}
+        </details>
       )}
       <ActionForm action={createGroupAction} className="max-w-4xl space-y-6">
         <section className={section}>
@@ -49,6 +64,18 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
           </div>
         </section>
         <section className={section}>
+          <h2 className="font-semibold">Hotel level</h2>
+          <p className="mt-1 text-[0.85rem] text-muted">Which of our hotels should we ask? Pick one or more — or none for the best fit at any level.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            {TIERS.map((t) => (
+              <label key={t} className="flex cursor-pointer gap-3 rounded-[var(--radius-md)] border border-line p-3 has-[:checked]:border-champagne has-[:checked]:bg-champagne-soft">
+                <input type="checkbox" name="tiers" value={t} defaultChecked={d?.tiers?.includes(t)} className="mt-1 size-4 accent-[var(--color-champagne)]" />
+                <span><span className="block font-medium">{TIER_INFO[t].label}</span><span className="block text-[0.75rem] text-muted">{TIER_INFO[t].stars}</span></span>
+              </label>
+            ))}
+          </div>
+        </section>
+        <section className={section}>
           <h2 className="font-semibold">Rooms and requirements</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-4">
             {['single', 'double', 'twin', 'triple'].map((r) => <Field key={r} label={`${r[0].toUpperCase()}${r.slice(1)} rooms`}><input name={r} type="number" min={0} defaultValue={d?.rooms?.[r as 'single'] ?? 0} className="field num" /></Field>)}
@@ -68,6 +95,10 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
             <DateField label="Quotation needed by" name="quoteNeededBy" defaultValue={d?.quoteNeededBy ?? ''} title="When do you need the quotation?" />
           </div>
         </section>
+        <section className={section}>
+          <Field label="Client's message" hint="Optional — the brief in the client's own words; the Group Desk sees it"><textarea name="clientBrief" rows={4} defaultValue={d?.brief ?? ''} className="field" /></Field>
+        </section>
+        <p className="max-w-4xl text-[0.85rem] text-muted">When you submit, we ask our contracted group hotels in each city straight away. Hotels reply within 48 hours; your offer then appears here, held for 48 hours.</p>
         <SubmitButton size="lg" pendingLabel="Submitting…">Submit group request</SubmitButton>
       </ActionForm>
     </>

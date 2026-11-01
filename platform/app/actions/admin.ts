@@ -7,7 +7,9 @@ import { getDb, schema } from '@/lib/db';
 import { attempt, bool, bps, file, int, optStr, str, type ActionResult } from '@/lib/action';
 import { updateTaxIds, uploadAgencyDocument, type DocumentKind } from '@/lib/services/kyc';
 import { recordHotelSettlement } from '@/lib/services/tracker';
+import { dispatchToHotels } from '@/lib/services/group-desk';
 import { addStaff, updateStaff } from '@/lib/services/staff';
+import { importProspects, linkProspectToHotel, logContact, updateProspect } from '@/lib/services/prospects';
 import type { StaffRole } from '@/lib/services/actor';
 import { parseMoney } from '@/lib/domain/money';
 import { requireStaff } from '@/lib/session';
@@ -76,12 +78,21 @@ function hotelInput(fd: FormData) {
     transport: optStr(fd, 'transport'), checkInTime: optStr(fd, 'checkInTime'), checkOutTime: optStr(fd, 'checkOutTime'),
     groupNotes: optStr(fd, 'groupNotes'), contactName: optStr(fd, 'contactName'), contactEmail: optStr(fd, 'contactEmail'),
     reservationsEmail: optStr(fd, 'reservationsEmail'),
+    tier: (optStr(fd, 'tier') as 'premium') ?? null, totalRooms: int(fd, 'totalRooms'),
+    acceptsGroups: bool(fd, 'acceptsGroups'), groupsEmail: optStr(fd, 'groupsEmail'),
   };
 }
 
 export async function createHotelAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   let id = '';
-  const r = await attempt(async () => { id = (await createHotel(await getDb(), await staff(), hotelInput(fd))).id; return { ok: true }; });
+  const r = await attempt(async () => {
+    const actor = await staff();
+    const db = await getDb();
+    id = (await createHotel(db, actor, hotelInput(fd))).id;
+    const prospectId = optStr(fd, 'prospectId');
+    if (prospectId) await linkProspectToHotel(db, actor, prospectId, id);
+    return { ok: true };
+  });
   if (id) redirect(`/admin/hotels/${id}`);
   return r;
 }
@@ -272,6 +283,7 @@ export async function pricingRuleAction(_: ActionResult | null, fd: FormData): P
 export async function settingAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   return attempt(async () => {
     await setSetting(await getDb(), await staff(), str(fd, 'key') as 'payment.instructions', str(fd, 'value'));
+    revalidatePath('/admin/pricing');
     return 'Saved.';
   });
 }
@@ -291,6 +303,12 @@ export async function groupOpsAction(_: ActionResult | null, fd: FormData): Prom
       const manual = str(fd, 'manual').split('\n').map((l) => l.split(',').map((x) => x.trim())).filter((p) => p[0]).map(([name, city, email]) => ({ name, city: city || '', email }));
       const n = await generateHotelRequests(db, actor, id, { hotelIds: fd.getAll('hotelIds').map(String), manual, respondBy: str(fd, 'respondBy') });
       msg = `${n} enquiry email(s) generated. Copy and send each one, then mark it as sent.`;
+    }
+    else if (op === 'dispatch') {
+      const r = await dispatchToHotels(db, actor, id);
+      msg = r.asked
+        ? `Asked ${r.asked} hotel(s): ${r.emailed} emailed${r.notEmailed ? `, ${r.notEmailed} not emailed (email not connected — copy the reply links)` : ''}.${r.noHotels.length ? ` No hotels with an email in ${r.noHotels.join(', ')}.` : ''}`
+        : r.noHotels.length ? `No contracted group hotels or outreach contacts with an email in ${r.noHotels.join(', ')}.` : 'Every suitable hotel has already been asked.';
     }
     else if (op === 'sent') { await markRequestSent(db, actor, str(fd, 'requestId')); msg = 'Marked as sent.'; }
     else if (op === 'request_status') await setRequestStatus(db, actor, str(fd, 'requestId'), str(fd, 'status') as 'declined');
@@ -404,5 +422,44 @@ export async function updateStaffAction(_: ActionResult | null, fd: FormData): P
       intent === 'disable' ? { status: 'disabled' } : intent === 'enable' ? { status: 'active' } : { role: str(fd, 'role') as StaffRole });
     revalidatePath('/admin/team');
     return intent === 'role' ? 'Role updated — they have been signed out to pick it up.' : intent === 'disable' ? 'Disabled and signed out.' : 'Enabled.';
+  });
+}
+
+export async function importProspectsAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const f = fd.get('csv');
+    if (!f || typeof f === 'string' || f.size === 0) throw new AppError('Choose the CSV file (docs/hotel-targets.csv)');
+    if (f.size > 2 * 1024 * 1024) throw new AppError('The file is larger than 2 MB');
+    const r = await importProspects(await getDb(), actor, await f.text());
+    revalidatePath('/admin/prospects');
+    return `${r.added} hotels added${r.skipped ? `, ${r.skipped} already in the list` : ''}.`;
+  });
+}
+
+export async function updateProspectAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const id = str(fd, 'prospectId');
+    await updateProspect(await getDb(), actor, id, {
+      stage: str(fd, 'stage') as 'contacted', priority: str(fd, 'priority') as 'P1', ownerId: optStr(fd, 'ownerId'),
+      contactName: optStr(fd, 'contactName'), contactRole: optStr(fd, 'contactRole'), contactEmail: optStr(fd, 'contactEmail'),
+      contactPhone: optStr(fd, 'contactPhone'), contactSource: optStr(fd, 'contactSource'), rateType: optStr(fd, 'rateType') as 'net',
+      nextStep: optStr(fd, 'nextStep'), nextStepOn: optStr(fd, 'nextStepOn'), lastContactOn: optStr(fd, 'lastContactOn'), notes: optStr(fd, 'notes'),
+    });
+    revalidatePath(`/admin/prospects/${id}`);
+    revalidatePath('/admin/prospects');
+    return 'Saved.';
+  });
+}
+
+export async function logProspectContactAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const id = str(fd, 'prospectId');
+    await logContact(await getDb(), actor, id, { note: optStr(fd, 'note'), nextStep: optStr(fd, 'nextStep'), nextStepOn: optStr(fd, 'nextStepOn') });
+    revalidatePath(`/admin/prospects/${id}`);
+    revalidatePath('/admin/prospects');
+    return 'Contact logged.';
   });
 }

@@ -25,11 +25,18 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
         <h1 className="mt-1 text-[2rem] font-semibold">{e.groupName}</h1>
         <div className="mt-2"><StagePill status={e.status} /></div>
       </header>
-      {isNew && <div className="mb-6"><Notice tone="success" title="Request received">We&apos;ll review it and reply by {formatDateTime(e.respondBy)}.</Notice></div>}
+      {isNew && <div className="mb-6"><Notice tone="success" title="Request received">{d.progress.asked > 0 ? <>We&apos;ve asked {d.progress.asked} hotel{d.progress.asked === 1 ? '' : 's'} already. They reply within 48 hours and your offer appears here.</> : <>The Group Desk will review it and reply by {formatDateTime(e.respondBy)}.</>}</Notice></div>}
+      {d.progress.asked > 0 && !['won', 'lost', 'cancelled'].includes(e.status) && d.proposals.every((p) => p.status !== 'sent') && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-3">
+          <div className="rounded-[var(--radius-md)] border border-line bg-surface p-4"><p className="text-[0.7rem] tracking-[0.12em] text-faint uppercase">Hotels asked</p><p className="num mt-1 text-[1.5rem] font-light">{d.progress.asked}</p></div>
+          <div className="rounded-[var(--radius-md)] border border-line bg-surface p-4"><p className="text-[0.7rem] tracking-[0.12em] text-faint uppercase">Offers in</p><p className="num mt-1 text-[1.5rem] font-light">{d.progress.offers}<span className="text-[0.85rem] text-muted"> of {d.progress.answered} answers</span></p></div>
+          <div className="rounded-[var(--radius-md)] border border-line bg-surface p-4"><p className="text-[0.7rem] tracking-[0.12em] text-faint uppercase">Replies due by</p><p className="num mt-1 text-[1rem]">{d.progress.due ? formatDateTime(d.progress.due) : '—'}</p></div>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] [&>*]:min-w-0">
         <div className="space-y-6">
           {d.proposals.map((p) => (
-            <Panel key={p.id} title={`Proposal v${p.version}`} description={`Valid until ${formatDate(p.validUntil)}`} actions={<Pill tone={p.status === 'sent' ? 'attention' : p.status === 'accepted' ? 'positive' : 'neutral'}>{p.status === 'sent' ? 'Awaiting your decision' : p.status}</Pill>}>
+            <Panel key={p.id} title={`Proposal v${p.version}`} description={p.expiresAt ? `Held until ${formatDateTime(p.expiresAt)} — accept before then to secure it` : `Valid until ${formatDate(p.validUntil)}`} actions={<Pill tone={p.status === 'sent' ? 'attention' : p.status === 'accepted' ? 'positive' : 'neutral'}>{p.status === 'sent' ? 'Awaiting your decision' : p.status}</Pill>}>
               <ul className="divide-y divide-line">
                 {d.offers.filter((o) => p.offerIds.includes(o.id)).map((o) => (
                   <li key={o.id} className="py-3 text-[0.88rem]">

@@ -50,6 +50,20 @@
       "when": 1793446480656,
       "tag": "0006_ledger_hotel_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793450864116,
+      "tag": "0007_hotel_prospects",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793522882619,
+      "tag": "0008_groups_automation_tiers",
+      "breakpoints": true
     }
   ]
 }

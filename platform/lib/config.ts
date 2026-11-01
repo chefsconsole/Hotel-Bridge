@@ -11,8 +11,8 @@ export const demoMode = !isProduction && process.env.HB_DEMO === '1';
 
 export const SESSION_DAYS = 7;
 export const QUOTE_TTL_MINUTES = 20;
-/** How long an unpaid prepay booking keeps its rooms. */
-export const PAYMENT_HOLD_HOURS = 48;
+/** How long the agent has to pay once the hotel has confirmed (or rooms are held). */
+export const PAYMENT_HOLD_HOURS = 24;
 /** How long we give ourselves to acknowledge a group enquiry. */
 export const GROUP_FIRST_RESPONSE_HOURS = 24;
 /** Default time a hotel has to accept or decline an on-request booking (per-contract override). */

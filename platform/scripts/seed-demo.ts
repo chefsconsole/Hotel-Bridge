@@ -10,7 +10,7 @@
  *   frontdesk@demo-hotel.test      / demo-hotel-2026   (hotel partner, Maison Lumière)
  * ------------------------------------------------------------------ */
 import './env';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { closeDb, getDb, schema } from '@/lib/db';
 import { isProduction } from '@/lib/config';
 import { addDays, todayIso } from '@/lib/domain/dates';
@@ -53,6 +53,10 @@ const HOTELS: H[] = [
     await seedHotel(db, h, slug, today, end);
     added++;
   }
+  // Curation tier for the fictional sample hotels (by their sample star rating).
+  await db.execute(sql`update hotels set tier = case when star_rating >= 5 then 'luxury' when star_rating = 4 then 'premium' else 'smart' end where is_sample and tier is null`);
+  // Two fictional group partners, so the automatic Group Desk can be shown. .invalid addresses can never receive mail.
+  await db.execute(sql`update hotels set accepts_groups = true, groups_email = 'groups@example.invalid' where is_sample and name in ('Patong Sample Resort', 'Beachfront Sample Pattaya') and groups_email is null`);
   const trip = await seedTrip(db, today);
   console.log(added ? `Demo data: added ${added} sample hotel(s). Logins are listed at the top of scripts/seed-demo.ts.` : 'Demo hotels already present.');
   if (trip) console.log('Demo data: added a sample client trip for the demo agency.');

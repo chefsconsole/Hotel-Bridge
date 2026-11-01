@@ -54,10 +54,10 @@ There is no single "API with the best rates". The best margin comes from **layer
 
 ## 4. Premium hotels to approach directly (Layer A)
 
-The full list is now **[HOTEL_TARGETS.md](HOTEL_TARGETS.md) — 170 hotels in 20 destinations, 159 web-checked** — with a working tracker **[hotel-targets.csv](hotel-targets.csv)** (status, contact, next step, rate type). Covered:
+The full list is now **[HOTEL_TARGETS.md](HOTEL_TARGETS.md) — 270 hotels in 32 destinations, 257 web-checked, room counts for 26 large hotels** — with a working tracker **[hotel-targets.csv](hotel-targets.csv)** (status, contact, next step, rate type). Covered:
 
-- **India:** Kashmir, Udaipur, Jaipur, Jodhpur/Jaisalmer/Ranthambore, Shimla/Manali/Rishikesh/Agra, Goa, Kerala, Ooty/Coonoor/Coorg/Kabini, **East & North-East** (Darjeeling, Gangtok, Pelling, Puri, Shillong, Kaziranga), Andaman.
-- **International:** Bangkok, Phuket/Krabi, Pattaya, Dubai, Sri Lanka, Vietnam, Maldives, Bali, Switzerland, Paris/London.
+- **India:** Mumbai, Delhi, Bengaluru, Hyderabad, Chennai, Kolkata, Varanasi, Amritsar, Mussoorie/Nainital/Corbett, Kashmir, Udaipur, Jaipur, Jodhpur/Jaisalmer/Ranthambore, Shimla/Manali/Rishikesh/Agra, Goa, Kerala, Ooty/Coonoor/Coorg/Kabini, **East & North-East** (Darjeeling, Gangtok, Pelling, Puri, Shillong, Kaziranga), Andaman.
+- **International:** Singapore, Kuala Lumpur/Langkawi, Abu Dhabi, Baku, Tbilisi, Istanbul/Cappadocia, Mauritius, Bangkok, Phuket/Krabi, Pattaya, Dubai, Sri Lanka, Vietnam, Maldives, Bali, Switzerland, Paris/London.
 
 Targets, not partners — no rates implied. Contacts come from each hotel's official site or brand sales office, recorded in the tracker. East India and Shillong/Kaziranga have fewer true luxury options; there the list leans on the best available 4–5★.
 

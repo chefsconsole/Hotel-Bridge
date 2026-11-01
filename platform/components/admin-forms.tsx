@@ -1,5 +1,6 @@
 import { ActionForm, Field, SubmitButton } from './forms';
 import { COLLECTIONS } from '@/lib/services/catalog';
+import { TIERS, TIER_INFO } from '@/lib/domain/tiers';
 import { toDecimalString } from '@/lib/domain/money';
 import type { schema } from '@/lib/db';
 import type { ActionResult } from '@/lib/action';
@@ -8,18 +9,29 @@ type Hotel = typeof schema.hotels.$inferSelect;
 type Contract = typeof schema.contracts.$inferSelect;
 type Act = (p: ActionResult | null, fd: FormData) => Promise<ActionResult>;
 
-export function HotelForm({ action, hotel, submit }: { action: Act; hotel?: Hotel; submit: string }) {
+export function HotelForm({ action, hotel, submit, prefill }: { action: Act; hotel?: Hotel; submit: string; prefill?: { prospectId: string; name: string; city: string } }) {
   return (
     <ActionForm action={action} className="space-y-4">
       {hotel && <input type="hidden" name="hotelId" value={hotel.id} />}
+      {prefill && <input type="hidden" name="prospectId" value={prefill.prospectId} />}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Hotel name" className="sm:col-span-3"><input name="name" defaultValue={hotel?.name} className="field" /></Field>
-        <Field label="City"><input name="city" defaultValue={hotel?.city} className="field" /></Field>
+        <Field label="Hotel name" className="sm:col-span-3"><input name="name" defaultValue={hotel?.name ?? prefill?.name} className="field" /></Field>
+        <Field label="City"><input name="city" defaultValue={hotel?.city ?? prefill?.city} className="field" /></Field>
         <Field label="Country"><input name="country" defaultValue={hotel?.country} className="field" /></Field>
         <Field label="Official star rating"><select name="starRating" defaultValue={hotel?.starRating ?? ''} className="field"><option value="">Not stated</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></Field>
         <Field label="Address" className="sm:col-span-2"><input name="address" defaultValue={hotel?.address ?? ''} className="field" /></Field>
         <label className="flex items-center gap-2 self-end pb-3 text-[0.85rem]"><input type="checkbox" name="starRatingVerified" defaultChecked={hotel?.starRatingVerified} className="size-4" /> Rating verified with official source</label>
+        <Field label="HotelBridge tier" hint="What agents filter by"><select name="tier" defaultValue={hotel?.tier ?? ''} className="field"><option value="">Not set</option>{TIERS.map((t) => <option key={t} value={t}>{TIER_INFO[t].label} · {TIER_INFO[t].stars}</option>)}</select></Field>
+        <Field label="Total rooms" hint="Inventory size"><input name="totalRooms" inputMode="numeric" defaultValue={hotel?.totalRooms ?? ''} className="field num" /></Field>
+        <div />
       </div>
+      <fieldset className="rounded-[var(--radius-md)] border border-line p-4">
+        <legend className="px-1 text-[0.82rem] font-medium">Group Desk</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-[0.88rem]"><input type="checkbox" name="acceptsGroups" defaultChecked={hotel?.acceptsGroups} className="size-4" /> Contracted for groups — send group requests here automatically</label>
+          <Field label="Group requests email"><input name="groupsEmail" type="email" defaultValue={hotel?.groupsEmail ?? ''} className="field" placeholder="groups@hotel.com" /></Field>
+        </div>
+      </fieldset>
       <fieldset><legend className="mb-2 text-[0.82rem] font-medium">Why it is in the collection</legend>
         <div className="flex flex-wrap gap-3">{COLLECTIONS.map(([k, l]) => <label key={k} className="flex items-center gap-1.5 text-[0.85rem]"><input type="checkbox" name="collections" value={k} defaultChecked={hotel?.collections.includes(k)} className="size-4" />{l}</label>)}</div>
       </fieldset>

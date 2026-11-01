@@ -11,10 +11,12 @@ import { requireAgent } from '@/lib/session';
 import { destinations, searchHotels, searchSchema } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
 import { getTrip } from '@/lib/services/trips';
+import { TIERS, TIER_INFO, parseTiers } from '@/lib/domain/tiers';
+import { HotelFacts } from '@/components/tier';
 
 export const metadata = { title: 'Search hotels' };
 
-type SP = { city?: string; in?: string; out?: string; rooms?: string; trip?: string };
+type SP = { city?: string; in?: string; out?: string; rooms?: string; trip?: string; tier?: string };
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<SP> }) {
   const { actor } = await requireAgent();
@@ -32,7 +34,9 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <Link href={`/agent/trips/${trip.trip.id}`} className="font-medium underline underline-offset-4">Back to trip</Link>
         </div>
       )}
-      <SearchForm destinations={dests} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city} keep={trip ? { trip: trip.trip.id } : undefined} />
+      <SearchForm destinations={dests} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city}
+        keep={{ ...(trip ? { trip: trip.trip.id } : {}), ...(sp.tier ? { tier: sp.tier } : {}) }} />
+      <TierFilter sp={sp} />
       <div className="mt-8">
         {sp.city && sp.in && sp.out ? (
           <Suspense key={JSON.stringify(sp)} fallback={<ResultsSkeleton />}>
@@ -56,20 +60,21 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
   if (!parsed.success) return <Notice tone="error" title="Check your search">{parsed.error.issues.map((i) => i.message).join(' · ')}</Notice>;
   // Router prefetches are not searches; don't let them inflate search metrics.
   const prefetch = !!(await headers()).get('next-router-prefetch');
-  const { results, warnings } = await searchHotels(db, actor, parsed.data, { log: !prefetch });
+  const tiers = parseTiers(sp.tier);
+  const { results, warnings } = await searchHotels(db, actor, parsed.data, { log: !prefetch, tiers });
   const nights = daysBetween(input.checkIn, input.checkOut);
   const q = new URLSearchParams({ in: input.checkIn, out: input.checkOut, rooms: encodeRooms(input.rooms), ...(tripId ? { trip: tripId } : {}) }).toString();
   return (
     <div className="animate-[var(--animate-rise)]">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[0.92rem] text-muted">
-          <span className="font-medium text-ink">{results.length} hotel{results.length === 1 ? '' : 's'}</span> in {input.city} · {formatDate(input.checkIn)} – {formatDate(input.checkOut)} · {nights} night{nights === 1 ? '' : 's'} · {describeRooms(input.rooms)}
+          <span className="font-medium text-ink">{results.length} {tiers.length ? tiers.map((t) => TIER_INFO[t].short).join(' / ') + ' ' : ''}hotel{results.length === 1 ? '' : 's'}</span> in {input.city} · {formatDate(input.checkIn)} – {formatDate(input.checkOut)} · {nights} night{nights === 1 ? '' : 's'} · {describeRooms(input.rooms)}
         </p>
       </div>
       {warnings.map((w) => <div key={w} className="mb-3"><Notice tone="warning">{w}</Notice></div>)}
       {results.length === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-line bg-surface">
-          <Empty title="Nothing available for this search" action={<Link href="/agent/groups/new" className="text-[0.9rem] font-medium underline underline-offset-4">Ask the Group Desk instead</Link>}>
+          <Empty title={tiers.length ? `No ${tiers.map((t) => TIER_INFO[t].label).join(' or ')} hotels free for this search` : 'Nothing available for this search'} action={<Link href="/agent/groups/new" className="text-[0.9rem] font-medium underline underline-offset-4">Ask the Group Desk instead</Link>}>
             None of our hotels in {input.city} can take this room configuration on these dates. Try different dates or fewer rooms per booking.
           </Empty>
         </div>
@@ -89,6 +94,7 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
                       <p className="mt-0.5 text-[0.85rem] text-muted">
                         {hotel.starRating && hotel.starRatingVerified ? `${hotel.starRating}-star · ` : ''}{hotel.address ?? hotel.city}
                       </p>
+                      <HotelFacts hotel={hotel} />
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {hotel.collections.map((c) => (
                           <span key={c} className="rounded-full bg-mist px-2 py-0.5 text-[0.72rem] text-muted">{COLLECTIONS.find(([k]) => k === c)?.[1] ?? c}</span>
@@ -129,6 +135,31 @@ function ResultsSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** "Who is the client?" — pick one or more tiers; none = every hotel we contract. */
+function TierFilter({ sp }: { sp: SP }) {
+  const active = parseTiers(sp.tier);
+  const href = (tiers: string[]) => {
+    const q = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== 'tier') as [string, string][]);
+    if (tiers.length) q.set('tier', tiers.join(','));
+    return `/agent/search?${q}`;
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <span className="mr-1 text-[0.8rem] text-muted">Client is</span>
+      <Link href={href([])} className={`rounded-full px-3.5 py-1.5 text-[0.82rem] ${active.length === 0 ? 'bg-ink text-paper' : 'bg-surface text-muted ring-1 ring-line hover:text-ink'}`}>Any — all our hotels</Link>
+      {TIERS.map((t) => {
+        const on = active.includes(t);
+        return (
+          <Link key={t} href={href(on ? active.filter((x) => x !== t) : [...active, t])} title={TIER_INFO[t].client}
+            className={`rounded-full px-3.5 py-1.5 text-[0.82rem] ${on ? 'bg-champagne text-paper' : 'bg-surface text-muted ring-1 ring-line hover:text-ink'}`}>
+            {on ? '✓ ' : ''}{TIER_INFO[t].label} <span className={on ? 'text-paper/70' : 'text-faint'}>· {TIER_INFO[t].stars}</span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

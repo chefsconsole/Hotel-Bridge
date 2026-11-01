@@ -93,9 +93,10 @@ const GroupDraft = z.object({
   accessibility: z.string().nullable(),
   specialRequests: z.string().nullable(),
   quoteNeededBy: z.string().nullable(),
+  tiers: z.array(z.enum(['smart', 'premium', 'luxury', 'ultra'])).describe('Hotel level the brief asks for: smart = 3.5–4 star value, premium = upper 4 star, luxury = 4.5–5 star, ultra = the most iconic hotels. Empty if not stated.'),
   missing: z.array(z.string()),
 });
-export type GroupDraftT = z.infer<typeof GroupDraft>;
+export type GroupDraftT = z.infer<typeof GroupDraft> & { brief?: string };
 
 export async function groupFromBrief(db: DB, actor: Actor, text: string) {
   if (text.trim().length < 20) throw new AppError('Paste the client’s brief — an email, WhatsApp message or notes.');

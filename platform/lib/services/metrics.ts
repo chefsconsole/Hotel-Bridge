@@ -4,7 +4,7 @@
  *  - "Created" and "realised" bookings are kept apart.
  *  - Sample (demo) records are excluded unless explicitly included.
  * ------------------------------------------------------------------ */
-import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { lte, and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { schema, type DB } from '@/lib/db';
 import { addDays, daysBetween, todayIso } from '@/lib/domain/dates';
 
@@ -141,6 +141,10 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
     const hours = (now.getTime() - a.createdAt.getTime()) / 3_600_000;
     issues.push({ severity: hours > 24 ? 'urgent' : 'attention', kind: 'agency', title: `${a.name}: waiting for approval`, detail: `Registered ${Math.round(hours)}h ago — check KYC and approve or decline`, href: `/admin/agencies/${a.id}` });
   }
+
+  const [{ n: dueProspects }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.hotelProspects)
+    .where(and(lte(schema.hotelProspects.nextStepOn, today), inArray(schema.hotelProspects.stage, ['to_contact', 'contacted', 'in_talks', 'rates_received'])));
+  if (dueProspects > 0) issues.push({ severity: 'attention', kind: 'sales', title: `${dueProspects} hotel follow-up${dueProspects === 1 ? '' : 's'} due`, detail: 'Hotel outreach — calls and emails planned for today or earlier', href: '/admin/prospects?stage=open&due=1' });
 
   const lateGroups = await db.select().from(groupEnquiries).where(and(inArray(groupEnquiries.status, ['new', 'under_review']), lt(groupEnquiries.respondBy, now)));
   for (const g of lateGroups) issues.push({ severity: 'urgent', kind: 'group', title: `${g.reference}: first response overdue`, detail: `${g.groupName} · ${g.totalPax} pax`, href: `/admin/groups/${g.id}` });
