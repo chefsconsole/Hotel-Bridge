@@ -12,6 +12,8 @@ import { decodeRooms, describeRooms } from '@/lib/domain/occupancy';
 import { requireAgent } from '@/lib/session';
 import { searchHotels, searchSchema } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
+import { RateRequestForm } from '@/components/rate-request-form';
+import { localCurrency } from '@/lib/services/rate-requests';
 
 export default async function HotelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ in?: string; out?: string; rooms?: string; trip?: string }> }) {
   const { actor } = await requireAgent();
@@ -29,7 +31,9 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
   let offersBlock: React.ReactNode = <Notice>Search with your dates and rooms to see prices for this hotel.</Notice>;
   const stay = { city: hotel.city, checkIn: sp.in ?? '', checkOut: sp.out ?? '', rooms: decodeRooms(sp.rooms) };
   const parsed = searchSchema.safeParse(stay);
-  if (sp.in && sp.out && parsed.success) {
+  if (hotel.bestRateOnRequest) {
+    offersBlock = <RateRequestForm hotelId={id} checkIn={sp.in} checkOut={sp.out} rooms={sp.rooms ? stay.rooms : null} currency={localCurrency(hotel.country)} />;
+  } else if (sp.in && sp.out && parsed.success) {
     const { results } = await searchHotels(db, actor, parsed.data, { log: false });
     const mine = results.find((r) => r.hotel.id === id);
     offersBlock = mine
@@ -61,7 +65,7 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
       </div>
 
       <div className="mt-6">
-        <Panel title="Rates for your stay" description={parsed.success && sp.in ? `${formatDate(stay.checkIn)} – ${formatDate(stay.checkOut)} · ${daysBetween(stay.checkIn, stay.checkOut)} nights · ${describeRooms(stay.rooms)}` : undefined}>
+        <Panel title={hotel.bestRateOnRequest ? 'Best rate on request' : 'Rates for your stay'} description={hotel.bestRateOnRequest ? undefined : parsed.success && sp.in ?`${formatDate(stay.checkIn)} – ${formatDate(stay.checkOut)} · ${daysBetween(stay.checkIn, stay.checkOut)} nights · ${describeRooms(stay.rooms)}` : undefined}>
           {offersBlock}
         </Panel>
       </div>

@@ -7,7 +7,7 @@ npm install
 cp .env.example .env.local   # HB_ENV=development, HB_DEMO=1
 npm run seed:demo            # fictional sample hotels/agencies — logins are listed at the top of scripts/seed-demo.ts
 npm run dev                  # http://localhost:3050
-npm run check                # types + lint + 65 tests
+npm run check                # types + lint + 68 tests
 npm run import:prospects     # load docs/hotel-targets.csv into Hotel outreach (safe to re-run)
 ```
 
@@ -61,6 +61,7 @@ Logic: `lib/domain/trip.ts` (pure), `lib/services/trips.ts`, tests in `tests/tri
 - **Agency KYC:** Indian agencies give PAN (format-checked) and upload a PAN card; GSTIN is validated (check digit, matches PAN, state). Files are type-checked by their bytes, max 4 MB, readable only by staff and the agency (`/documents/[id]`). Approval is blocked until KYC is complete; declining needs a reason.
 - **Arrivals & hotels** (`/admin/tracker`): today / tomorrow / 7 / 30 days, FIT vs Group Desk groups, and per hotel the volume, our revenue, what we owe it and the commission it owes us; finance records settlements. Hotels see their own arrivals and account in `/partner`.
 - **Curated tiers**: every hotel is Smart (3.5–4★), Premium (upper 4★), Luxury (4.5–5★) or Ultra-luxury; agents filter search by "Client is…" (one or more tiers, or any). Hotels carry room count and a group contact.
+- **Best rate on request** (`/agent/rate-requests`, `/admin/rate-requests`): for hotels that won't sign a fixed contract. The agent picks dates and rooms and may give the client's budget (private — never sent to the hotel). The hotel gets a private no-login link (`/r/<token>`) and 24 hours to quote its best net rate; the agent sees it with our markup (`rateRequests.markupPct`, default 8%) and accepts. If the quote is above budget, or the hotel declines or doesn't answer, the page suggests contracted hotels within budget and other on-request hotels (nearest tier) — one click asks them too. Mark hotels in Admin → Hotels → Best rate on request.
 - **Automated Group Desk**: on submit, the system asks up to 4 contracted group hotels in each city (in the requested tiers) — or up to 15 outreach hotels with an email — each with a private no-login reply link (`/g/<token>`) and 48 hours to answer; when every city has an offer it builds the agent's offer (best offer per city + group markup, default 8%) held 48 hours. Agents can paste the client's message for AI to fill the form. Switches and markup in Pricing & settings.
 - **Email** (`lib/services/email.ts`, Admin → Emails): Resend when `RESEND_API_KEY` + `EMAIL_FROM` are set; outside production also `EMAIL_ALLOW_NONPROD=1`. Otherwise every email is recorded as "Not sent" — never reported as sent. `APP_URL` makes reply links absolute.
 - **Payment window**: the agent pays within 24 hours of the hotel confirming (or of an instant hold).

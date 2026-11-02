@@ -130,7 +130,9 @@ export async function searchHotels(db: DB, actor: Actor, input: SearchInput, opt
   const hotelIds = [...new Set(offers.map((o) => o.hotelId))];
   const all = hotelIds.length ? await db.select().from(hotels).where(inArray(hotels.id, hotelIds)) : [];
   // Client-type filter: only hotels curated into the chosen tiers.
-  const hs = opts.tiers?.length ? all.filter((h) => h.tier && opts.tiers!.includes(h.tier)) : all;
+  // Best-rate-on-request hotels are asked per enquiry, never priced here.
+  const priceable = all.filter((h) => !h.bestRateOnRequest);
+  const hs = opts.tiers?.length ? priceable.filter((h) => h.tier && opts.tiers!.includes(h.tier)) : priceable;
   const results: HotelResult[] = [];
   for (const h of hs) {
     const priced: PricedOffer[] = [];

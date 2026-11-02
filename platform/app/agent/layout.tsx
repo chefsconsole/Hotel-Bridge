@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { lapseUnansweredRequests } from '@/lib/services/bookings';
+import { lapseRateRequests } from '@/lib/services/rate-requests';
 import { and, eq, inArray, lte, notInArray, sql } from 'drizzle-orm';
 import { todayIso } from '@/lib/domain/dates';
 import { formatMoney } from '@/lib/domain/money';
@@ -15,6 +16,9 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const db = await getDb();
   // No scheduler yet: lapse unanswered hotel requests so agents see the real status.
   await lapseUnansweredRequests(db);
+  await lapseRateRequests(db);
+  const [{ n: rates }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.rateRequests)
+    .where(and(eq(schema.rateRequests.agencyId, agency.id), eq(schema.rateRequests.status, 'quoted')));
   const [{ n: pending }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.bookings)
     .where(and(eq(schema.bookings.agencyId, agency.id), inArray(schema.bookings.status, ['awaiting_payment', 'pending_confirmation', 'outcome_unknown'])));
   const [{ n: followUps }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.trips)
@@ -23,6 +27,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   const nav: NavItem[] = [
     { href: '/agent', label: 'Overview', icon: 'overview', section: 'Book' },
     { href: '/agent/search', label: 'Search hotels', icon: 'search', section: 'Book' },
+    { href: '/agent/rate-requests', label: 'Best-rate requests', icon: 'spark', badge: rates, section: 'Book' },
     { href: '/agent/groups', label: 'Group Desk', icon: 'groups', section: 'Book' },
     { href: '/agent/saved', label: 'Saved hotels', icon: 'saved', section: 'Book' },
     { href: '/agent/trips', label: 'Client trips', icon: 'trips', badge: followUps, section: 'Sell' },

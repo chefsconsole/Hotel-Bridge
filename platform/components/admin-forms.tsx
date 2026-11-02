@@ -32,6 +32,13 @@ export function HotelForm({ action, hotel, submit, prefill }: { action: Act; hot
           <Field label="Group requests email"><input name="groupsEmail" type="email" defaultValue={hotel?.groupsEmail ?? ''} className="field" placeholder="groups@hotel.com" /></Field>
         </div>
       </fieldset>
+      <fieldset className="rounded-[var(--radius-md)] border border-line p-4">
+        <legend className="px-1 text-[0.82rem] font-medium">Best rate on request</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="flex items-center gap-2 text-[0.88rem]"><input type="checkbox" name="bestRateOnRequest" defaultChecked={hotel?.bestRateOnRequest} className="size-4" /> No fixed contract — agents ask this hotel for its best rate per stay</label>
+          <Field label="Rate requests email" hint="Else the reservations email"><input name="rateRequestEmail" type="email" defaultValue={hotel?.rateRequestEmail ?? ''} className="field" placeholder="sales@hotel.com" /></Field>
+        </div>
+      </fieldset>
       <fieldset><legend className="mb-2 text-[0.82rem] font-medium">Why it is in the collection</legend>
         <div className="flex flex-wrap gap-3">{COLLECTIONS.map(([k, l]) => <label key={k} className="flex items-center gap-1.5 text-[0.85rem]"><input type="checkbox" name="collections" value={k} defaultChecked={hotel?.collections.includes(k)} className="size-4" />{l}</label>)}</div>
       </fieldset>

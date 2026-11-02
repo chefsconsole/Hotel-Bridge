@@ -132,6 +132,10 @@ export const hotels = pgTable('hotels', {
   acceptsGroups: boolean('accepts_groups').notNull().default(false),
   groupsEmail: text('groups_email'),
   groupNotes: text('group_notes'),
+  // Best rate on request: no contract, the hotel quotes its best B2B rate per
+  // enquiry on a private link. Requests go to rateRequestEmail (else reservations).
+  bestRateOnRequest: boolean('best_rate_on_request').notNull().default(false),
+  rateRequestEmail: text('rate_request_email'),
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   reservationsEmail: text('reservations_email'),
@@ -562,6 +566,58 @@ export const groupMessages = pgTable('group_messages', {
   body: text('body').notNull(),
   createdAt: createdAt(),
 });
+
+/* ============================== Best rate on request ============================== *
+ * For hotels that won't sign a fixed contract but quote their best B2B rate
+ * per enquiry. The agent picks the hotel, dates and rooms; the hotel gets a
+ * private link and answers with a rate or "not available". The client's
+ * budget is ours alone: it is never sent to the hotel, and we use it to
+ * suggest other hotels when the quote comes in above it. */
+
+export const rateRequests = pgTable('rate_requests', {
+  id: id(),
+  reference: text('reference').notNull(),
+  agencyId: uuid('agency_id').notNull().references(() => agencies.id),
+  userId: uuid('user_id').notNull(),
+  hotelId: uuid('hotel_id').notNull().references(() => hotels.id),
+  hotelName: text('hotel_name').notNull(),
+  hotelEmail: text('hotel_email'),
+  city: text('city').notNull(),
+  checkIn: date('check_in').notNull(),
+  checkOut: date('check_out').notNull(),
+  rooms: jsonb('rooms').$type<RoomRequest[]>().notNull(),
+  mealPlan: text('meal_plan'),
+  notes: text('notes'),
+  // Private to HotelBridge and the agent — never shown or sent to the hotel.
+  budgetMinor: money('budget_minor'),
+  budgetCurrency: text('budget_currency'),
+  // sent | not_emailed -> quoted | declined | no_response; quoted -> accepted | expired; any open -> cancelled
+  status: text('status').notNull(),
+  token: text('token').notNull(),
+  respondByAt: timestamp('respond_by_at', { withTimezone: true }).notNull(),
+  answeredAt: timestamp('answered_at', { withTimezone: true }),
+  declineReason: text('decline_reason'),
+  // The hotel's quote (net, whole stay) and what the agent pays (with our markup).
+  quoteCurrency: text('quote_currency'),
+  quoteRoomType: text('quote_room_type'),
+  quoteRateMinor: money('quote_rate_minor'), // per room per night, net
+  quoteNetMinor: money('quote_net_minor'),
+  sellMinor: money('sell_minor'),
+  markupBps: integer('markup_bps'),
+  quoteMealPlan: text('quote_meal_plan'),
+  quoteCancellation: text('quote_cancellation'),
+  quoteNotes: text('quote_notes'),
+  quoteValidUntil: date('quote_valid_until'),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  // Set when the agent asked this hotel as an alternative to an earlier request.
+  parentId: uuid('parent_id'),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  uniqueIndex('rate_requests_token_uq').on(t.token),
+  uniqueIndex('rate_requests_ref_uq').on(t.reference),
+  index('rate_requests_agency_idx').on(t.agencyId, t.createdAt),
+]);
 
 /* ============================== Agents' own clients ============================== *
  * The agency's CRM: its travellers, their trips (packages) and what each

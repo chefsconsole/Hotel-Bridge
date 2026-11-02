@@ -45,11 +45,14 @@ export const hotelSchema = z.object({
   totalRooms: z.number().int().min(1).max(10_000).nullable().optional().transform((v) => v ?? null),
   acceptsGroups: z.boolean().default(false),
   groupsEmail: z.string().trim().max(200).optional().transform((v) => v || null).refine((v) => v == null || /^\S+@\S+\.\S+$/.test(v), 'Enter a valid groups email'),
+  bestRateOnRequest: z.boolean().default(false),
+  rateRequestEmail: z.string().trim().max(200).optional().transform((v) => v || null).refine((v) => v == null || /^\S+@\S+\.\S+$/.test(v), 'Enter a valid email for rate requests'),
   contactName: optText(120),
   contactEmail: z.string().trim().max(200).optional().transform((v) => v || null),
   reservationsEmail: z.string().trim().max(200).optional().transform((v) => v || null),
 }).superRefine((v, ctx) => {
   if (v.acceptsGroups && !v.groupsEmail && !v.reservationsEmail) ctx.addIssue({ code: 'custom', path: ['groupsEmail'], message: 'Add the email group requests go to' });
+  if (v.bestRateOnRequest && !v.rateRequestEmail && !v.reservationsEmail && !v.contactEmail) ctx.addIssue({ code: 'custom', path: ['rateRequestEmail'], message: 'Add the email rate requests go to' });
 });
 
 function slugify(s: string) {

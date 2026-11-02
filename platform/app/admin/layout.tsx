@@ -1,5 +1,6 @@
 import { lapseUnansweredRequests } from '@/lib/services/bookings';
 import { lapseGroupRequests } from '@/lib/services/group-desk';
+import { lapseRateRequests } from '@/lib/services/rate-requests';
 import { AppShell, type NavItem } from '@/components/shell';
 import { EnvBanner } from '@/components/env-banner';
 import { SignOut } from '@/components/sign-out';
@@ -13,6 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // No scheduler yet: lapse unanswered hotel requests whenever the console loads.
   await lapseUnansweredRequests(await getDb());
   await lapseGroupRequests(await getDb());
+  await lapseRateRequests(await getDb());
   const issues = await operationalIssues(await getDb());
   const role = user.platformRole as StaffRole;
   // Each role sees its own work; admin sees everything.
@@ -22,6 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     '/admin/tracker': ['admin', 'ops', 'finance'],
     '/admin/bookings': ['admin', 'ops', 'finance'],
     '/admin/groups': ['admin', 'ops', 'sales'],
+    '/admin/rate-requests': ['admin', 'ops', 'sales'],
     '/admin/support': ['admin', 'ops'],
     '/admin/hotels': ['admin', 'ops', 'sales'],
     '/admin/rate-check': ['admin', 'sales'],
@@ -41,6 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/tracker', label: 'Arrivals & hotels', icon: 'compare', section: 'Operations' },
     { href: '/admin/bookings', label: 'Bookings', icon: 'bookings', section: 'Operations' },
     { href: '/admin/groups', label: 'Group Desk', icon: 'groups', section: 'Operations' },
+    { href: '/admin/rate-requests', label: 'Best-rate requests', icon: 'spark', section: 'Operations' },
     { href: '/admin/support', label: 'Support', icon: 'support', section: 'Operations' },
     { href: '/admin/prospects', label: 'Hotel outreach', icon: 'inbox', section: 'Portfolio' },
     { href: '/admin/hotels', label: 'Hotels & contracts', icon: 'hotels', section: 'Portfolio' },

@@ -80,6 +80,7 @@ function hotelInput(fd: FormData) {
     reservationsEmail: optStr(fd, 'reservationsEmail'),
     tier: (optStr(fd, 'tier') as 'premium') ?? null, totalRooms: int(fd, 'totalRooms'),
     acceptsGroups: bool(fd, 'acceptsGroups'), groupsEmail: optStr(fd, 'groupsEmail'),
+    bestRateOnRequest: bool(fd, 'bestRateOnRequest'), rateRequestEmail: optStr(fd, 'rateRequestEmail'),
   };
 }
 

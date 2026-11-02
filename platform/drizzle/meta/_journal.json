@@ -64,6 +64,13 @@
       "when": 1793522882619,
       "tag": "0008_groups_automation_tiers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793624727539,
+      "tag": "0009_best_rate_on_request",
+      "breakpoints": true
     }
   ]
 }

@@ -9,11 +9,11 @@ export function TierBadge({ tier, className }: { tier: string | null; className?
   return <span className={cx('inline-flex items-center rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-[0.06em] uppercase', TONE[tier], className)}>{TIER_INFO[tier].label}</span>;
 }
 
-export function HotelFacts({ hotel }: { hotel: { tier: string | null; totalRooms: number | null; acceptsGroups: boolean } }) {
+export function HotelFacts({ hotel }: { hotel: { tier: string | null; totalRooms: number | null; acceptsGroups: boolean; bestRateOnRequest?: boolean } }) {
   const facts = [
     hotel.totalRooms ? `${hotel.totalRooms} rooms` : null,
     hotel.acceptsGroups ? 'Groups welcome' : null,
-    'Contracted rate',
+    hotel.bestRateOnRequest ? 'Best rate on request' : 'Contracted rate',
   ].filter(Boolean);
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.75rem] text-muted">

@@ -13,6 +13,7 @@ import { COLLECTIONS } from '@/lib/services/catalog';
 import { getTrip } from '@/lib/services/trips';
 import { TIERS, TIER_INFO, parseTiers } from '@/lib/domain/tiers';
 import { HotelFacts } from '@/components/tier';
+import { onRequestHotels } from '@/lib/services/rate-requests';
 
 export const metadata = { title: 'Search hotels' };
 
@@ -63,6 +64,8 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
   const tiers = parseTiers(sp.tier);
   const { results, warnings } = await searchHotels(db, actor, parsed.data, { log: !prefetch, tiers });
   const nights = daysBetween(input.checkIn, input.checkOut);
+  // Partner hotels that quote their best rate per enquiry (no fixed contract).
+  const onRequest = await onRequestHotels(db, input.city, { tiers, exclude: results.map((r) => r.hotel.id) });
   const q = new URLSearchParams({ in: input.checkIn, out: input.checkOut, rooms: encodeRooms(input.rooms), ...(tripId ? { trip: tripId } : {}) }).toString();
   return (
     <div className="animate-[var(--animate-rise)]">
@@ -72,7 +75,8 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
         </p>
       </div>
       {warnings.map((w) => <div key={w} className="mb-3"><Notice tone="warning">{w}</Notice></div>)}
-      {results.length === 0 ? (
+      {onRequest.length > 0 && <OnRequestList hotels={onRequest} q={q} />}
+      {results.length === 0 && onRequest.length > 0 ? null : results.length === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-line bg-surface">
           <Empty title={tiers.length ? `No ${tiers.map((t) => TIER_INFO[t].label).join(' or ')} hotels free for this search` : 'Nothing available for this search'} action={<Link href="/agent/groups/new" className="text-[0.9rem] font-medium underline underline-offset-4">Ask the Group Desk instead</Link>}>
             None of our hotels in {input.city} can take this room configuration on these dates. Try different dates or fewer rooms per booking.
@@ -116,6 +120,27 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Hotels without a fixed contract: the agent asks for the best rate per stay. */
+function OnRequestList({ hotels, q }: { hotels: Awaited<ReturnType<typeof onRequestHotels>>; q: string }) {
+  return (
+    <div className="mb-6 rounded-[var(--radius-lg)] border border-champagne/40 bg-champagne-soft/40 p-5">
+      <p className="text-[0.95rem] font-semibold">Best rate on request</p>
+      <p className="mt-0.5 text-[0.84rem] text-muted">These partner hotels give HotelBridge a special price for each enquiry, usually below their public rate. Ask, and the hotel answers within 24 hours.</p>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {hotels.map((h) => (
+          <li key={h.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-line bg-surface p-3">
+            <div className="min-w-0">
+              <p className="truncate font-medium">{h.name}</p>
+              <HotelFacts hotel={h} />
+            </div>
+            <Link href={`/agent/hotels/${h.id}?${q}`} className="shrink-0 rounded-full bg-ink px-3.5 py-1.5 text-[0.82rem] font-medium text-paper">Get best rate</Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

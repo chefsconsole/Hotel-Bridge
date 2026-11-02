@@ -11,6 +11,8 @@ export const SETTING_DEFAULTS = {
   'groups.autoDispatch': '1',
   'groups.autoProposal': '1',
   'groups.markupPct': '8',
+  // Best rate on request: our margin on top of the hotel's net quote.
+  'rateRequests.markupPct': '8',
 } as const;
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
 
@@ -23,7 +25,7 @@ export async function setSetting(db: DB, actor: Actor, key: SettingKey, value: s
   requireStaff(actor, ['admin', 'finance']);
   if (!(key in SETTING_DEFAULTS)) throw new AppError('Unknown setting');
   if ((key === 'groups.autoDispatch' || key === 'groups.autoProposal') && !['0', '1'].includes(value)) throw new AppError('Choose on or off');
-  if (key === 'groups.markupPct' && !(Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 50)) throw new AppError('Group markup must be between 0 and 50%');
+  if ((key === 'groups.markupPct' || key === 'rateRequests.markupPct') && !(Number.isFinite(Number(value)) && Number(value) >= 0 && Number(value) <= 50)) throw new AppError('Markup must be between 0 and 50%');
   await db.insert(schema.settings).values({ key, value }).onConflictDoUpdate({ target: schema.settings.key, set: { value, updatedAt: new Date() } });
   await audit(db, actor, 'settings.updated', 'settings', key);
 }
