@@ -33,7 +33,7 @@ export async function sendEmail(db: Executor, e: EmailInput): Promise<{ status: 
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM, to: [e.to], subject: e.subject, text: e.body,
+          from: process.env.EMAIL_FROM, to: [e.to], subject: e.subject, text: e.body, html: toHtml(e.body),
           ...(e.replyTo || process.env.EMAIL_REPLY_TO ? { reply_to: e.replyTo || process.env.EMAIL_REPLY_TO } : {}),
         }),
         signal: AbortSignal.timeout(10_000),
@@ -51,6 +51,20 @@ export async function sendEmail(db: Executor, e: EmailInput): Promise<{ status: 
     status, provider: cfg.ok ? 'resend' : null, providerId, error, sentAt: status === 'sent' ? new Date() : null,
   }).returning();
   return { status, id: row.id };
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/** The HTML version of a plain-text email: house style is Verdana. Blank
+ * lines become paragraphs, line breaks are kept, and links are clickable. */
+export function toHtml(text: string): string {
+  const paragraphs = text.trim().split(/\n{2,}/).map((p) => {
+    const html = escapeHtml(p)
+      .replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#1a4f8b;">${url}</a>`)
+      .replace(/\n/g, '<br>');
+    return `<p style="margin:0 0 14px;">${html}</p>`;
+  });
+  return `<div style="font-family:Verdana,Geneva,sans-serif;font-size:13px;line-height:1.55;color:#222;">${paragraphs.join('')}</div>`;
 }
 
 export async function recentEmails(db: Executor, limit = 100) {
