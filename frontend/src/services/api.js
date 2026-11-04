@@ -18,18 +18,34 @@ const KEYS = {
   bookings:    'hotelbridge.crm.bookings',
   commissions: 'hotelbridge.crm.commissions',
 };
-const SEED_FLAG = 'hotelbridge.crm.seeded.v1';
+const SEED_FLAG = 'hotelbridge.crm.seeded.v1';   // legacy: set by old builds that seeded demo data
+const CLEAN_FLAG = 'hotelbridge.crm.realonly.v1'; // run the demo-data cleanup once
 
+// IDs of the old demo/seed records, so we can remove exactly those and keep
+// everything real the user added. Real records use string uids, not these ints.
+const DEMO_IDS = {
+  [KEYS.hotels]:      new Set(mockHotels.map((x) => String(x.id))),
+  [KEYS.operators]:   new Set(mockOperators.map((x) => String(x.id))),
+  [KEYS.bookings]:    new Set(mockBookings.map((x) => String(x.id))),
+  [KEYS.commissions]: new Set(mockCommissions.map((x) => String(x.id))),
+};
+
+// Real data only. Never seed demo data; strip any demo records a previous
+// build planted in this browser, leaving the user's real records untouched.
 let _seeded = false;
 function ensureSeed() {
   if (_seeded) return;
   try {
-    if (!localStorage.getItem(SEED_FLAG)) {
-      localStorage.setItem(KEYS.hotels,      JSON.stringify(mockHotels));
-      localStorage.setItem(KEYS.operators,   JSON.stringify(mockOperators));
-      localStorage.setItem(KEYS.bookings,    JSON.stringify(mockBookings));
-      localStorage.setItem(KEYS.commissions, JSON.stringify(mockCommissions));
-      localStorage.setItem(SEED_FLAG, '1');
+    if (!localStorage.getItem(CLEAN_FLAG)) {
+      Object.keys(DEMO_IDS).forEach((key) => {
+        try {
+          const arr = JSON.parse(localStorage.getItem(key) || '[]');
+          const cleaned = arr.filter((x) => !DEMO_IDS[key].has(String(x.id)));
+          if (cleaned.length !== arr.length) localStorage.setItem(key, JSON.stringify(cleaned));
+        } catch { /* ignore a bad key */ }
+      });
+      localStorage.removeItem(SEED_FLAG);
+      localStorage.setItem(CLEAN_FLAG, '1');
     }
   } catch { /* private mode / disabled storage — degrade gracefully */ }
   _seeded = true;
@@ -157,16 +173,7 @@ function computeStats() {
 
 function monthlyRevenue() {
   const bookings = read(KEYS.bookings).filter((b) => b.status === 'confirmed');
-  if (!bookings.length) {
-    return [
-      { month: 'Jan', revenue: 45000, commission: 5400 },
-      { month: 'Feb', revenue: 52000, commission: 6240 },
-      { month: 'Mar', revenue: 64000, commission: 7680 },
-      { month: 'Apr', revenue: 58000, commission: 6960 },
-      { month: 'May', revenue: 71000, commission: 8520 },
-      { month: 'Jun', revenue: 48000, commission: 5760 },
-    ];
-  }
+  if (!bookings.length) return []; // real data only — no placeholder numbers
   const acc = {};
   bookings.forEach((b) => {
     const d = new Date(b.checkIn);
