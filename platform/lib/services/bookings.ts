@@ -91,7 +91,7 @@ async function postConfirmedEconomics(db: Executor, actor: Actor, b: Booking) {
 /** Decide where the booking goes once the supplier has accepted it. */
 async function applySupplierResult(db: DB, actor: Actor, b: Booking, r: BookResult | { state: 'confirmed' | 'held' | 'pending'; supplierRef?: string | null; hotelConfirmation?: string | null }, note?: string): Promise<Booking> {
   return db.transaction(async (tx) => {
-    const patch = { supplierRef: r.supplierRef ?? b.supplierRef, hotelConfirmation: r.hotelConfirmation ?? b.hotelConfirmation };
+    const patch = { supplierRef: r.supplierRef ?? b.supplierRef, hotelConfirmation: r.hotelConfirmation ?? b.hotelConfirmation, assignedHotel: b.assignedHotel };
     if (r.state === 'pending') {
       // The hotel gets a fixed window (per contract) to accept or decline; then the request lapses.
       const [c] = b.contractId ? await tx.select({ hours: contracts.responseHours }).from(contracts).where(eq(contracts.id, b.contractId)) : [];
@@ -454,7 +454,7 @@ export async function resolveAmendment(db: DB, actor: Actor, bookingId: string, 
 
 /* ------------------------- hotel confirmations ------------------------- */
 
-export async function hotelRespond(db: DB, actor: Actor, bookingId: string, input: { accept: boolean; confirmation?: string; note?: string }) {
+export async function hotelRespond(db: DB, actor: Actor, bookingId: string, input: { accept: boolean; confirmation?: string; note?: string; assignedHotel?: string }) {
   const [b] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
   if (!b) throw new NotFoundError('Booking');
   const isPartner = actor.partnerHotelId != null && actor.partnerHotelId === b.hotelId;
@@ -468,8 +468,15 @@ export async function hotelRespond(db: DB, actor: Actor, bookingId: string, inpu
   }
   if (!input.accept) return transition(db, actor, b, 'declined', input.note?.trim() || 'Declined by hotel');
   const confirmation = z.string().trim().min(2, 'Enter the hotel confirmation number').max(60).parse(input.confirmation ?? '');
-  return applySupplierResult(db, actor, b, { state: 'confirmed', hotelConfirmation: confirmation },
-    `${isPartner ? 'Confirmed by hotel' : 'Hotel confirmation recorded by HotelBridge'} (${confirmation})`);
+  // A collection booking is guaranteed in the group's hotels; the group says which one.
+  const [h] = await db.select({ collectionHotels: hotels.collectionHotels }).from(hotels).where(eq(hotels.id, b.hotelId));
+  let assigned: string | null = null;
+  if (h?.collectionHotels.length) {
+    assigned = h.collectionHotels.find((n) => n === input.assignedHotel?.trim()) ?? null;
+    if (!assigned) throw new AppError('Choose which hotel in the collection the guests will stay at');
+  }
+  return applySupplierResult(db, actor, { ...b, assignedHotel: assigned ?? b.assignedHotel }, { state: 'confirmed', hotelConfirmation: confirmation },
+    `${isPartner ? 'Confirmed by hotel' : 'Hotel confirmation recorded by HotelBridge'} (${confirmation})${assigned ? ` at ${assigned}` : ''}`);
 }
 
 /* ------------------------------ housekeeping ------------------------------ */
@@ -542,7 +549,7 @@ export async function listForPartner(db: Executor, actor: Actor) {
     id: bookings.id, reference: bookings.reference, status: bookings.status, checkIn: bookings.checkIn, checkOut: bookings.checkOut,
     rooms: bookings.rooms, leadGuest: bookings.leadGuest, specialRequests: bookings.specialRequests,
     supplierCostMinor: bookings.supplierCostMinor, currency: bookings.currency, collectionModel: bookings.collectionModel,
-    hotelConfirmation: bookings.hotelConfirmation, hotelRespondBy: bookings.hotelRespondBy, createdAt: bookings.createdAt,
+    hotelConfirmation: bookings.hotelConfirmation, assignedHotel: bookings.assignedHotel, hotelRespondBy: bookings.hotelRespondBy, createdAt: bookings.createdAt,
   }).from(bookings).where(and(eq(bookings.hotelId, actor.partnerHotelId), eq(bookings.supplier, 'contracted')))
     .orderBy(desc(bookings.createdAt)).limit(200);
 }

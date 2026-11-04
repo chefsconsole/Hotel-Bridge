@@ -136,6 +136,10 @@ export const hotels = pgTable('hotels', {
   // enquiry on a private link. Requests go to rateRequestEmail (else reservations).
   bestRateOnRequest: boolean('best_rate_on_request').notNull().default(false),
   rateRequestEmail: text('rate_request_email'),
+  // Hotel collection: one contracted rate across a group's hotels in this city.
+  // Non-empty = this listing is a collection; the group picks the hotel when it
+  // confirms each booking (always on request). Empty = a single hotel.
+  collectionHotels: text('collection_hotels').array().notNull().default([]),
   contactName: text('contact_name'),
   contactEmail: text('contact_email'),
   reservationsEmail: text('reservations_email'),
@@ -327,6 +331,8 @@ export const bookings = pgTable('bookings', {
   supplierRef: text('supplier_ref'),
   hotelConfirmation: text('hotel_confirmation'),
   hotelId: uuid('hotel_id').notNull().references(() => hotels.id),
+  // For a hotel collection: the hotel the group allocated when confirming.
+  assignedHotel: text('assigned_hotel'),
   contractId: uuid('contract_id'),
   offerKey: text('offer_key').notNull(),
   checkIn: date('check_in').notNull(),

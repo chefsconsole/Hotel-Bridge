@@ -45,6 +45,9 @@ export const hotelSchema = z.object({
   totalRooms: z.number().int().min(1).max(10_000).nullable().optional().transform((v) => v ?? null),
   acceptsGroups: z.boolean().default(false),
   groupsEmail: z.string().trim().max(200).optional().transform((v) => v || null).refine((v) => v == null || /^\S+@\S+\.\S+$/.test(v), 'Enter a valid groups email'),
+  collectionHotels: z.array(z.string().trim().min(2).max(120)).max(10).default([])
+    .transform((v) => [...new Set(v)])
+    .refine((v) => v.length !== 1, 'A collection needs at least two hotels — leave it empty for a single hotel'),
   bestRateOnRequest: z.boolean().default(false),
   rateRequestEmail: z.string().trim().max(200).optional().transform((v) => v || null).refine((v) => v == null || /^\S+@\S+\.\S+$/.test(v), 'Enter a valid email for rate requests'),
   contactName: optText(120),
@@ -80,6 +83,7 @@ export async function updateHotel(db: DB, actor: Actor, id: string, input: z.inp
   const data = hotelSchema.parse(input);
   const [before] = await db.select().from(hotels).where(eq(hotels.id, id));
   if (!before) throw new NotFoundError('Hotel');
+  if (data.collectionHotels.length) await assertCollectionContracts(db, id);
   await db.update(hotels).set({ ...data, starRating: data.starRating ?? null, updatedAt: new Date() }).where(eq(hotels.id, id));
   await audit(db, actor, 'hotel.updated', 'hotel', id, { changed: Object.keys(data).filter((k) => JSON.stringify((before as Record<string, unknown>)[k]) !== JSON.stringify((data as Record<string, unknown>)[k])) });
 }
@@ -163,9 +167,23 @@ export const contractSchema = z.object({
   }
 });
 
+/** A collection's hotel is chosen by the group when it confirms, so its contracts can't confirm instantly. */
+async function assertCollectionContracts(db: DB, hotelId: string, incoming?: { confirmationMode: string }) {
+  if (incoming && incoming.confirmationMode !== 'on_request') {
+    const [h] = await db.select({ collectionHotels: hotels.collectionHotels }).from(hotels).where(eq(hotels.id, hotelId));
+    if (h?.collectionHotels.length) throw new AppError('A hotel collection confirms on request — the group picks the hotel for each booking');
+    return;
+  }
+  if (incoming) return;
+  const instant = await db.select({ id: contracts.id }).from(contracts)
+    .where(and(eq(contracts.hotelId, hotelId), eq(contracts.confirmationMode, 'instant_allocation'), ne(contracts.status, 'suspended')));
+  if (instant.length) throw new AppError('Switch this hotel’s contracts to "on request" before making it a collection — the group picks the hotel for each booking');
+}
+
 export async function createContract(db: DB, actor: Actor, hotelId: string, input: z.input<typeof contractSchema>) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = contractSchema.parse(input);
+  await assertCollectionContracts(db, hotelId, data);
   const [c] = await db.insert(contracts).values({ ...data, hotelId, status: 'draft' }).returning();
   await audit(db, actor, 'contract.created', 'contract', c.id, { reference: c.reference, hotelId });
   return c;
@@ -176,6 +194,7 @@ export async function updateContract(db: DB, actor: Actor, id: string, input: z.
   const data = contractSchema.parse(input);
   const [before] = await db.select().from(contracts).where(eq(contracts.id, id));
   if (!before) throw new NotFoundError('Contract');
+  await assertCollectionContracts(db, before.hotelId, data);
   const changed = Object.keys(data).filter((k) => (before as Record<string, unknown>)[k] !== (data as Record<string, unknown>)[k]);
   // Changing a live contract's commercial terms sends it back for approval.
   const commercial = changed.filter((k) => !['internalNotes', 'documentUrl', 'paymentTerms'].includes(k));

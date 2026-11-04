@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { AssignedHotelField } from '@/components/tier';
 import { notFound } from 'next/navigation';
 import { desc, eq } from 'drizzle-orm';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
@@ -59,7 +60,7 @@ export default async function AdminBooking({ params }: { params: Promise<{ id: s
             <div className="grid gap-3 md:grid-cols-2">
               {(b.status === 'outcome_unknown' || b.status === 'submitting') && <Op op="reconcile" id={b.id} label="Reconcile with supplier" variant="primary"><p className="text-[0.85rem] text-muted">Look the reservation up at {b.supplier}.</p></Op>}
               {b.status === 'pending_confirmation' && <>
-                <Op op="confirm" id={b.id} label="Record hotel confirmation" variant="primary"><Field label="Hotel confirmation number"><input name="confirmation" className="field" /></Field></Op>
+                <Op op="confirm" id={b.id} label="Record hotel confirmation" variant="primary"><Field label="Hotel confirmation number"><input name="confirmation" className="field" /></Field><AssignedHotelField hotels={hotel.collectionHotels} /></Op>
                 <Op op="decline" id={b.id} label="Hotel declined" variant="danger"><Field label="Reason"><input name="note" className="field" /></Field></Op>
               </>}
               {b.paymentArrangement !== 'direct' && bal.agentBalance > 0 && (
@@ -84,7 +85,7 @@ export default async function AdminBooking({ params }: { params: Promise<{ id: s
           </Panel>
           <Panel title={hotel.name} description={`${formatDate(b.checkIn)} – ${formatDate(b.checkOut)} · lead guest ${b.leadGuest}`}>
             <ul className="space-y-1 text-[0.88rem]">{b.rooms.map((r, i) => <li key={i}>Room {i + 1}: {r.roomName} ({r.mealPlan}) · {describeRoom(r)}{r.guestNames.length ? ` — ${r.guestNames.join(', ')}` : ''}</li>)}</ul>
-            <div className="mt-4"><DL items={[['Supplier', b.supplier], ['Supplier ref', b.supplierRef], ['Hotel confirmation', b.hotelConfirmation], ['Agent ref', b.agentReference], ['Cancellation', describePolicy(b.cancelPolicy as CancelPolicy, b.checkIn)], ['Payment due', b.paymentDueAt ? formatDateTime(b.paymentDueAt) : null]]} /></div>
+            <div className="mt-4"><DL items={[['Supplier', b.supplier], ['Supplier ref', b.supplierRef], ['Hotel confirmation', b.hotelConfirmation], ['Hotel allocated', b.assignedHotel], ['Agent ref', b.agentReference], ['Cancellation', describePolicy(b.cancelPolicy as CancelPolicy, b.checkIn)], ['Payment due', b.paymentDueAt ? formatDateTime(b.paymentDueAt) : null]]} /></div>
           </Panel>
           <Panel title="Ledger" padded={false}>
             <table className="table"><thead><tr><th>When</th><th>Account</th><th>Kind</th><th>Memo</th><th className="text-right">Amount</th></tr></thead>

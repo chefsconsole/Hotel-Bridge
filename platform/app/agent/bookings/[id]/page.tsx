@@ -5,6 +5,7 @@ import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { HotelDeadline, PaymentPill, StatusPill, Timeline } from '@/components/booking-bits';
 import { DL, LinkButton, Money, Notice, Panel, SampleTag } from '@/components/ui';
 import { CancellationBox } from '@/components/cancellation';
+import { CollectionNote } from '@/components/tier';
 import { amendBookingAction, cancelBookingAction, payFromWalletAction } from '@/app/actions/agent';
 import { getDb, schema } from '@/lib/db';
 import { STATUS_EXPLAINER } from '@/lib/domain/booking-state';
@@ -68,6 +69,7 @@ export default async function BookingPage({ params, searchParams }: { params: Pr
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
         <div className="space-y-6">
           <Panel title={hotel.name} description={`${hotel.address ?? ''}${hotel.address ? ' · ' : ''}${hotel.city}, ${hotel.country}`}>
+            <CollectionNote hotels={hotel.collectionHotels} assigned={b.assignedHotel} className="mb-4" />
             <DL items={[
               ['Check-in', `${formatDate(b.checkIn, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}${hotel.checkInTime ? ` from ${hotel.checkInTime}` : ''}`],
               ['Check-out', `${formatDate(b.checkOut, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}${hotel.checkOutTime ? ` by ${hotel.checkOutTime}` : ''}`],

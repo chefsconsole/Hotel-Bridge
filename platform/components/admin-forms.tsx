@@ -33,6 +33,12 @@ export function HotelForm({ action, hotel, submit, prefill }: { action: Act; hot
         </div>
       </fieldset>
       <fieldset className="rounded-[var(--radius-md)] border border-line p-4">
+        <legend className="px-1 text-[0.82rem] font-medium">Hotel collection</legend>
+        <Field label="Hotels in this collection" hint="One per line. Leave empty for a single hotel. A collection sells one contracted rate across the group's hotels in this city; the group picks the hotel when it confirms each booking (contracts must be on request).">
+          <textarea name="collectionHotels" rows={3} defaultValue={hotel?.collectionHotels.join('\n')} className="field" placeholder={'Deevana Plaza Phuket Patong\nDeevana Patong Resort & Spa\nRamada by Wyndham Phuket Deevana'} />
+        </Field>
+      </fieldset>
+      <fieldset className="rounded-[var(--radius-md)] border border-line p-4">
         <legend className="px-1 text-[0.82rem] font-medium">Best rate on request</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-[0.88rem]"><input type="checkbox" name="bestRateOnRequest" defaultChecked={hotel?.bestRateOnRequest} className="size-4" /> No fixed contract — agents ask this hotel for its best rate per stay</label>

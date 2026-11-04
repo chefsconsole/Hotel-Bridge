@@ -49,7 +49,7 @@ export async function bookingOpsAction(_: ActionResult | null, fd: FormData): Pr
     if (op === 'reconcile') { const r = await reconcileBooking(db, actor, id); msg = `Reconciled: now ${r.status}.`; }
     else if (op === 'payment') { const r = await recordPayment(db, actor, id, { amountMinor: money(fd, 'amount', b.currency) ?? 0, reference: str(fd, 'reference') }); msg = `Payment recorded. Booking ${r.status}, payment ${r.paymentStatus}.`; }
     else if (op === 'refund') { await recordRefund(db, actor, id, { amountMinor: money(fd, 'amount', b.currency) ?? 0, reference: str(fd, 'reference') }); msg = 'Refund recorded.'; }
-    else if (op === 'confirm') { await hotelRespond(db, actor, id, { accept: true, confirmation: str(fd, 'confirmation') }); msg = 'Hotel confirmation recorded.'; }
+    else if (op === 'confirm') { await hotelRespond(db, actor, id, { accept: true, confirmation: str(fd, 'confirmation'), assignedHotel: str(fd, 'assignedHotel') }); msg = 'Hotel confirmation recorded.'; }
     else if (op === 'decline') { await hotelRespond(db, actor, id, { accept: false, note: str(fd, 'note') }); msg = 'Marked as declined by the hotel.'; }
     else if (op === 'cancel') { await processCancellation(db, actor, id); msg = 'Cancelled with the supplier; ledger updated.'; }
     else if (op === 'amend') { await resolveAmendment(db, actor, id, str(fd, 'note')); msg = 'Amendment resolved.'; }
@@ -81,6 +81,7 @@ function hotelInput(fd: FormData) {
     tier: (optStr(fd, 'tier') as 'premium') ?? null, totalRooms: int(fd, 'totalRooms'),
     acceptsGroups: bool(fd, 'acceptsGroups'), groupsEmail: optStr(fd, 'groupsEmail'),
     bestRateOnRequest: bool(fd, 'bestRateOnRequest'), rateRequestEmail: optStr(fd, 'rateRequestEmail'),
+    collectionHotels: str(fd, 'collectionHotels').split('\n').map((x) => x.trim()).filter(Boolean),
   };
 }
 

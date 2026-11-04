@@ -22,3 +22,30 @@ export function HotelFacts({ hotel }: { hotel: { tier: string | null; totalRooms
     </div>
   );
 }
+
+/** A hotel collection: one rate across a group's hotels; the group picks the hotel on confirmation. */
+export function CollectionNote({ hotels, assigned, className = '' }: { hotels: string[]; assigned?: string | null; className?: string }) {
+  if (!hotels.length) return null;
+  return (
+    <div className={`rounded-[var(--radius-sm)] border border-champagne/40 bg-champagne-soft/50 px-3 py-2 text-[0.82rem] ${className}`}>
+      {assigned
+        ? <p><span className="font-medium">Your hotel: {assigned}</span> <span className="text-muted">· allocated by the hotel group from this collection</span></p>
+        : <><p className="font-medium">Hotel collection · guaranteed in one of {hotels.length} hotels</p>
+          <p className="mt-0.5 text-muted">{hotels.join(' · ')}. The hotel group confirms which one; a specific hotel isn&apos;t guaranteed unless it confirms it.</p></>}
+    </div>
+  );
+}
+
+/** For the hotel group (or HotelBridge staff) confirming a collection booking. */
+export function AssignedHotelField({ hotels }: { hotels: string[] }) {
+  if (!hotels.length) return null;
+  return (
+    <label className="mt-2 block text-[0.82rem]">
+      <span className="font-medium">Hotel allocated</span>
+      <select name="assignedHotel" defaultValue="" className="field mt-1" required>
+        <option value="" disabled>Choose the hotel…</option>
+        {hotels.map((h) => <option key={h}>{h}</option>)}
+      </select>
+    </label>
+  );
+}

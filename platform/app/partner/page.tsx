@@ -7,6 +7,9 @@ import { addDays, formatDate, formatDateTime, todayIso } from '@/lib/domain/date
 import { describeRoom } from '@/lib/domain/occupancy';
 import { requirePartner } from '@/lib/session';
 import { listForPartner } from '@/lib/services/bookings';
+import { AssignedHotelField } from '@/components/tier';
+import { eq } from 'drizzle-orm';
+import { schema } from '@/lib/db';
 import { arrivals, hotelAccounts, hotelVolume, partnerHotel } from '@/lib/services/tracker';
 
 export const metadata = { title: 'Reservations' };
@@ -22,6 +25,8 @@ export default async function PartnerHome() {
     hotelAccounts(db, hotelId),
     hotelVolume(db, { from: addDays(today, -30), to: addDays(today, 365), hotelId }),
   ]);
+  const [me] = await db.select({ collectionHotels: schema.hotels.collectionHotels }).from(schema.hotels).where(eq(schema.hotels.id, hotelId));
+  const collection = me?.collectionHotels ?? [];
   const on = (d: string) => coming.filter((a) => a.date === d);
   const pending = rows.filter((r) => r.status === 'pending_confirmation');
   const rest = rows.filter((r) => r.status !== 'pending_confirmation');
@@ -57,11 +62,13 @@ export default async function PartnerHome() {
                 <p className="mt-1">{formatDate(b.checkIn)} – {formatDate(b.checkOut)} · lead guest {b.leadGuest}</p>
                 <ul className="mt-1 text-[0.85rem] text-muted">{b.rooms.map((r, i) => <li key={i}>{r.roomName} ({r.mealPlan}) · {describeRoom(r)}</li>)}</ul>
                 {b.specialRequests && <p className="mt-1 text-[0.85rem]">Requests: {b.specialRequests}</p>}
+                {collection.length > 0 && <p className="mt-1 text-[0.85rem] text-muted">Collection booking — choose which of your hotels the guests stay at.</p>}
                 {b.collectionModel === 'prepaid_to_hb' ? <p className="mt-1 text-[0.85rem]">Payable to hotel: <Money minor={b.supplierCostMinor} currency={b.currency} /></p> : <p className="mt-1 text-[0.85rem]">Guest pays at the hotel</p>}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <ActionForm action={partnerRespondAction}><input type="hidden" name="bookingId" value={b.id} />
                   <Field label="Your confirmation number"><input name="confirmation" className="field" /></Field>
+                  <AssignedHotelField hotels={collection} />
                   <SubmitButton size="sm" className="mt-2" name="decision" value="accept">Confirm</SubmitButton>
                 </ActionForm>
                 <ActionForm action={partnerRespondAction}><input type="hidden" name="bookingId" value={b.id} />
@@ -76,7 +83,7 @@ export default async function PartnerHome() {
       <Panel title="All reservations" padded={false}>
         {rest.length === 0 ? <Empty title="No reservations yet" /> : (
           <table className="table"><thead><tr><th>Reference</th><th>Stay</th><th>Guest</th><th>Rooms</th><th>Status</th><th>Your confirmation</th></tr></thead>
-            <tbody>{rest.map((b) => <tr key={b.id}><td className="num">{b.reference}</td><td className="num">{formatDate(b.checkIn)} – {formatDate(b.checkOut)}</td><td>{b.leadGuest}</td><td>{b.rooms.length}</td><td><StatusPill status={b.status} /></td><td>{b.hotelConfirmation ?? '—'}</td></tr>)}</tbody></table>
+            <tbody>{rest.map((b) => <tr key={b.id}><td className="num">{b.reference}</td><td className="num">{formatDate(b.checkIn)} – {formatDate(b.checkOut)}</td><td>{b.leadGuest}</td><td>{b.rooms.length}</td><td><StatusPill status={b.status} /></td><td>{b.hotelConfirmation ?? '—'}{b.assignedHotel && <p className="text-[0.72rem] text-muted">{b.assignedHotel}</p>}</td></tr>)}</tbody></table>
         )}
       </Panel>
     </>

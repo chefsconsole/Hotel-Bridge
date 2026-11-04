@@ -13,6 +13,7 @@ import { requireAgent } from '@/lib/session';
 import { searchHotels, searchSchema } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
 import { RateRequestForm } from '@/components/rate-request-form';
+import { CollectionNote } from '@/components/tier';
 import { localCurrency } from '@/lib/services/rate-requests';
 
 export default async function HotelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ in?: string; out?: string; rooms?: string; trip?: string }> }) {
@@ -65,6 +66,7 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
       </div>
 
       <div className="mt-6">
+        <CollectionNote hotels={hotel.collectionHotels} className="mb-4" />
         <Panel title={hotel.bestRateOnRequest ? 'Best rate on request' : 'Rates for your stay'} description={hotel.bestRateOnRequest ? undefined : parsed.success && sp.in ?`${formatDate(stay.checkIn)} – ${formatDate(stay.checkOut)} · ${daysBetween(stay.checkIn, stay.checkOut)} nights · ${describeRooms(stay.rooms)}` : undefined}>
           {offersBlock}
         </Panel>

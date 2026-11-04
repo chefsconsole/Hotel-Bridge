@@ -71,6 +71,13 @@
       "when": 1793624727539,
       "tag": "0009_best_rate_on_request",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793688705919,
+      "tag": "0010_hotel_collections",
+      "breakpoints": true
     }
   ]
 }

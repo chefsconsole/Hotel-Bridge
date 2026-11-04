@@ -9,7 +9,7 @@ export async function partnerRespondAction(_: ActionResult | null, fd: FormData)
   return attempt(async () => {
     const { actor } = await requirePartner();
     const accept = str(fd, 'decision') === 'accept';
-    await hotelRespond(await getDb(), actor, str(fd, 'bookingId'), { accept, confirmation: str(fd, 'confirmation'), note: str(fd, 'note') });
+    await hotelRespond(await getDb(), actor, str(fd, 'bookingId'), { accept, confirmation: str(fd, 'confirmation'), note: str(fd, 'note'), assignedHotel: str(fd, 'assignedHotel') });
     revalidatePath('/partner');
     return accept ? 'Confirmed. The agent has been updated.' : 'Declined. The agent has been informed; no charge applies.';
   });

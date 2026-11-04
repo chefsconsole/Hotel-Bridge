@@ -99,6 +99,7 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
                         {hotel.starRating && hotel.starRatingVerified ? `${hotel.starRating}-star · ` : ''}{hotel.address ?? hotel.city}
                       </p>
                       <HotelFacts hotel={hotel} />
+                      {hotel.collectionHotels.length > 0 && <p className="mt-1 text-[0.78rem] text-muted">Collection · one of: {hotel.collectionHotels.join(' · ')}</p>}
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {hotel.collections.map((c) => (
                           <span key={c} className="rounded-full bg-mist px-2 py-0.5 text-[0.72rem] text-muted">{COLLECTIONS.find(([k]) => k === c)?.[1] ?? c}</span>

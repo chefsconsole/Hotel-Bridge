@@ -47,7 +47,8 @@ export default async function VoucherPage({ params }: { params: Promise<{ id: st
         <section className="grid gap-6 py-6 sm:grid-cols-2">
           <div>
             <p className="text-[0.75rem] tracking-wide text-faint uppercase">Hotel</p>
-            <p className="mt-1 font-semibold">{hotel.name}</p>
+            <p className="mt-1 font-semibold">{b.assignedHotel ?? hotel.name}</p>
+            {b.assignedHotel && <p className="text-[0.8rem] text-muted">Allocated from {hotel.name}</p>}
             <p className="text-[0.88rem] text-muted">{hotel.address}<br />{hotel.city}, {hotel.country}</p>
           </div>
           <div>
