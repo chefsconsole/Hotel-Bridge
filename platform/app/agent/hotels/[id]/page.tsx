@@ -15,6 +15,8 @@ import { COLLECTIONS } from '@/lib/services/catalog';
 import { RateRequestForm } from '@/components/rate-request-form';
 import { CollectionNote } from '@/components/tier';
 import { localCurrency } from '@/lib/services/rate-requests';
+import { ExtrasList } from '@/components/extras';
+import { extrasForAgent } from '@/lib/services/extras';
 
 export default async function HotelPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ in?: string; out?: string; rooms?: string; trip?: string }> }) {
   const { actor } = await requireAgent();
@@ -25,6 +27,7 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
   const [hotel] = await db.select().from(schema.hotels).where(and(eq(schema.hotels.id, id), eq(schema.hotels.status, 'active')));
   if (!hotel) notFound();
   const rooms = await db.select().from(schema.roomTypes).where(and(eq(schema.roomTypes.hotelId, id), eq(schema.roomTypes.active, true)));
+  const extras = await extrasForAgent(db, id);
   const [saved] = await db.select().from(schema.savedHotels).where(and(eq(schema.savedHotels.userId, actor.userId), eq(schema.savedHotels.hotelId, id)));
 
   // Only a trip of this agency switches offers to "Add to trip".
@@ -70,6 +73,11 @@ export default async function HotelPage({ params, searchParams }: { params: Prom
         <Panel title={hotel.bestRateOnRequest ? 'Best rate on request' : 'Rates for your stay'} description={hotel.bestRateOnRequest ? undefined : parsed.success && sp.in ?`${formatDate(stay.checkIn)} – ${formatDate(stay.checkOut)} · ${daysBetween(stay.checkIn, stay.checkOut)} nights · ${describeRooms(stay.rooms)}` : undefined}>
           {offersBlock}
         </Panel>
+        {extras.length > 0 && (
+          <Panel title="Extras from the hotel" description="Add them for your client in Special requests when you book. The hotel confirms them with the booking." className="mt-6">
+            <ExtrasList rows={extras} />
+          </Panel>
+        )}
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">

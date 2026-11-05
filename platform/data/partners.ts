@@ -154,3 +154,49 @@ export const ASHLEE: RateContract[] = [
 export const ASHLEE_EXTRA_BED = 1200;
 export const ASHLEE_CHILD_BREAKFAST = 250;
 export const ASHLEE_NYE_SUPPLEMENT_PER_ROOM = 5000;
+
+/* ------------------------------ Ashlee Group extras ------------------------------ */
+/* Net THB from the same 2026–27 agreements ("Special request", "Activity at Thailand Mountain
+ * Phuket", "Meal Rates"). Agents see these with the extras markup. Valid 1 Nov 2026 – 31 Oct 2027. */
+export type Extra = {
+  name: string; category: 'dining' | 'activity' | 'spa' | 'meal_plan' | 'celebration' | 'other';
+  unit: 'per_person' | 'per_couple' | 'per_room' | 'per_stay'; price: number; child?: number;
+  note?: string; compulsory?: boolean; validFrom?: string; validTo?: string;
+};
+
+const ACTIVITIES: Extra[] = [
+  { name: 'Kayak at Thailand Mountain Phuket', category: 'activity', unit: 'per_person', price: 420, child: 210 },
+  { name: 'Fishing at Thailand Mountain Phuket', category: 'activity', unit: 'per_person', price: 490, child: 245 },
+  { name: 'Zipline at Thailand Mountain Phuket', category: 'activity', unit: 'per_person', price: 1750, child: 875 },
+];
+const mealsAt = (venue: string): Extra[] => [
+  { name: 'Buffet breakfast', category: 'dining', unit: 'per_person', price: 500, child: 250, note: `${venue}; children 0–3 free` },
+  { name: 'Set lunch', category: 'dining', unit: 'per_person', price: 550, child: 350, note: `${venue}; drinks not included; children 0–3 free` },
+  { name: 'Set dinner', category: 'dining', unit: 'per_person', price: 650, child: 400, note: `${venue}; drinks not included; children 0–3 free` },
+];
+const NYE: Extra = { name: "New Year's Eve gala dinner", category: 'celebration', unit: 'per_person', price: 2500, child: 1250, compulsory: true, validFrom: '2026-12-31', validTo: '2026-12-31', note: 'Compulsory for guests in house on 31 Dec 2026, non-refundable. Already included in room prices for 2 adults on that night; children are extra.' };
+const JOINER: Extra = { name: 'Visitor staying overnight (not on the booking)', category: 'other', unit: 'per_person', price: 1000, note: 'Per person per night, charged by the hotel; ID card required at the front desk' };
+
+const ASHLEE_STANDARD: Extra[] = [
+  { name: 'Candle-light dinner', category: 'dining', unit: 'per_couple', price: 3500 },
+  { name: 'Floating breakfast', category: 'dining', unit: 'per_couple', price: 499 },
+  { name: 'Wellness day pass', category: 'spa', unit: 'per_person', price: 590 },
+  ...ACTIVITIES, ...mealsAt('Dip on the Roof, ASHLEE Plaza Patong'), NYE, JOINER,
+];
+
+export const ASHLEE_EXTRAS: Record<string, Extra[]> = {
+  'ASHLEE Plaza Patong Hotel & Spa': ASHLEE_STANDARD,
+  'ASHLEE Hub Hotel Patong': ASHLEE_STANDARD,
+  'ASHLEE Heights Hotel Patong': ASHLEE_STANDARD,
+  'Bel Aire Patong Resort': ASHLEE_STANDARD,
+  "Fishermen's Harbour Urban Resort": [
+    { name: 'Candle-light dinner', category: 'dining', unit: 'per_couple', price: 2990 },
+    { name: 'Floating breakfast', category: 'dining', unit: 'per_couple', price: 499 },
+    { name: 'Afternoon tea', category: 'dining', unit: 'per_couple', price: 400 },
+    { name: 'Thai massage (1 hour)', category: 'spa', unit: 'per_person', price: 500 },
+    { name: 'Thai cooking class', category: 'activity', unit: 'per_person', price: 1500 },
+    { name: 'Half board (add dinner or lunch)', category: 'meal_plan', unit: 'per_person', price: 700, note: 'Per person per night, on top of a breakfast rate' },
+    { name: 'Full board (add lunch and dinner)', category: 'meal_plan', unit: 'per_person', price: 1100, note: 'Per person per night, on top of a breakfast rate' },
+    ...ACTIVITIES, ...mealsAt('Thailand Mountain Phuket Restaurant'), NYE, JOINER,
+  ],
+};

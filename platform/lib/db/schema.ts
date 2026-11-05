@@ -165,6 +165,26 @@ export const roomTypes = pgTable('room_types', {
   createdAt: createdAt(),
 });
 
+/** Extras a hotel sells alongside the room — dinners, activities, spa, meal plans —
+ *  at the NET price the hotel gave us. Agents see them with the extras markup. */
+export const hotelExtras = pgTable('hotel_extras', {
+  id: id(),
+  hotelId: uuid('hotel_id').notNull().references(() => hotels.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  category: text('category').notNull(), // dining | activity | spa | meal_plan | celebration | other
+  unit: text('unit').notNull(), // per_person | per_couple | per_room | per_stay
+  priceMinor: money('price_minor').notNull(), // net, adult (or the whole unit)
+  childPriceMinor: money('child_price_minor'), // net, per child; null = not priced for children
+  currency: text('currency').notNull(),
+  validFrom: date('valid_from'),
+  validTo: date('valid_to'),
+  note: text('note'),
+  compulsory: boolean('compulsory').notNull().default(false),
+  sortOrder: integer('sort_order').notNull().default(0),
+  active: boolean('active').notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [index('hotel_extras_hotel_idx').on(t.hotelId)]);
+
 /* ============================== Contracts ============================== */
 
 export const contracts = pgTable('contracts', {

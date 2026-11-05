@@ -78,6 +78,13 @@
       "when": 1793688705919,
       "tag": "0010_hotel_collections",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793878913714,
+      "tag": "0011_hotel_extras",
+      "breakpoints": true
     }
   ]
 }

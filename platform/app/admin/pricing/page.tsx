@@ -13,7 +13,7 @@ export const metadata = { title: 'Pricing & settings' };
 export default async function PricingPage() {
   await requireStaff();
   const db = await getDb();
-  const [autoDispatch, autoProposal, groupMarkup] = await Promise.all([getSetting(db, 'groups.autoDispatch'), getSetting(db, 'groups.autoProposal'), getSetting(db, 'groups.markupPct')]);
+  const [autoDispatch, autoProposal, groupMarkup, extrasMarkup] = await Promise.all([getSetting(db, 'groups.autoDispatch'), getSetting(db, 'groups.autoProposal'), getSetting(db, 'groups.markupPct'), getSetting(db, 'extras.markupPct')]);
   const [rules, hotels, instructions] = await Promise.all([
     db.select().from(schema.pricingRules).where(and(isNull(schema.pricingRules.agencyId), eq(schema.pricingRules.active, true))),
     db.select({ id: schema.hotels.id, name: schema.hotels.name }).from(schema.hotels),
@@ -58,6 +58,14 @@ export default async function PricingPage() {
               <div className="mt-3 flex items-center gap-2"><input name="value" defaultValue={groupMarkup} inputMode="decimal" className="field num !w-24 py-1.5" /><span className="text-[0.85rem]">%</span><SubmitButton size="sm" variant="secondary">Save</SubmitButton></div>
             </ActionForm>
           </div>
+        </Panel>
+        <Panel title="Hotel extras" description="Candle-light dinners, activities, spa and meal plans from the hotel's rate sheet." className="lg:col-span-2">
+          <ActionForm action={settingAction} className="max-w-md rounded-[var(--radius-md)] border border-line p-4">
+            <input type="hidden" name="key" value="extras.markupPct" />
+            <p className="font-medium">Extras markup</p>
+            <p className="mt-1 text-[0.8rem] text-muted">Added to the hotel&apos;s net price for every extra. Kept separate from the room markup. Agents only see the selling price.</p>
+            <div className="mt-3 flex items-center gap-2"><input name="value" defaultValue={extrasMarkup} inputMode="decimal" className="field num !w-24 py-1.5" /><span className="text-[0.85rem]">%</span><SubmitButton size="sm" variant="secondary">Save</SubmitButton></div>
+          </ActionForm>
         </Panel>
       </div>
     </>

@@ -9,6 +9,8 @@ import { addRoomTypeAction, createContractAction, hotelImageAction, hotelStatusA
 import { getDb, schema } from '@/lib/db';
 import { formatDate } from '@/lib/domain/dates';
 import { requireStaff } from '@/lib/session';
+import { ExtrasList } from '@/components/extras';
+import { extraSellMinor, extrasMarkupBps, listHotelExtras } from '@/lib/services/extras';
 
 export default async function AdminHotel({ params }: { params: Promise<{ id: string }> }) {
   await requireStaff();
@@ -17,10 +19,12 @@ export default async function AdminHotel({ params }: { params: Promise<{ id: str
   const db = await getDb();
   const [h] = await db.select().from(schema.hotels).where(eq(schema.hotels.id, id));
   if (!h) notFound();
-  const [rooms, contracts, partners] = await Promise.all([
+  const [rooms, contracts, partners, extras, extrasBps] = await Promise.all([
     db.select().from(schema.roomTypes).where(eq(schema.roomTypes.hotelId, id)),
     db.select().from(schema.contracts).where(eq(schema.contracts.hotelId, id)).orderBy(desc(schema.contracts.validFrom)),
     db.select().from(schema.users).where(and(isNotNull(schema.users.partnerHotelId), eq(schema.users.partnerHotelId, id))),
+    listHotelExtras(db, id),
+    extrasMarkupBps(db),
   ]);
   return (
     <>
@@ -49,6 +53,11 @@ export default async function AdminHotel({ params }: { params: Promise<{ id: str
               <div className="mt-4"><ContractForm action={createContractAction} hotelId={h.id} submit="Create draft contract" /></div>
             </details>
           </Panel>
+          {extras.length > 0 && (
+            <Panel title="Extras from the hotel" description={`Net price from the hotel, and what agents pay with the ${extrasBps / 100}% extras markup (Pricing → Extras markup).`}>
+              <ExtrasList staff rows={extras.map((x) => ({ ...x, sellMinor: extraSellMinor(x.priceMinor, x.currency, extrasBps), childSellMinor: x.childPriceMinor == null ? null : extraSellMinor(x.childPriceMinor, x.currency, extrasBps), netMinor: x.priceMinor, childNetMinor: x.childPriceMinor }))} />
+            </Panel>
+          )}
           <Panel title="Profile"><HotelForm action={updateHotelAction} hotel={h} submit="Save profile" /></Panel>
         </div>
         <div className="space-y-6">

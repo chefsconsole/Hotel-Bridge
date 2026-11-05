@@ -8,7 +8,7 @@ import { closeDb, getDb, schema } from '@/lib/db';
 import { addDays, todayIso } from '@/lib/domain/dates';
 import { SYSTEM } from '@/lib/services/actor';
 import { audit } from '@/lib/services/audit';
-import { ASHLEE, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
+import { ASHLEE, ASHLEE_EXTRAS, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
 
 type DBT = Awaited<ReturnType<typeof getDb>>;
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -92,6 +92,14 @@ async function upsertHotel(db: DBT, values: Omit<typeof schema.hotels.$inferInse
       description: 'HotelBridge contracted rates for 2026–27, room only or with breakfast. Every booking is confirmed by the hotel.\nNew Year\'s Eve 31 Dec 2026: a gala dinner is compulsory (included in the price for those dates). Check-out is not possible on 31 Dec or 1 Jan.',
       updatedAt: new Date(),
     }).where(eq(schema.hotels.id, hotel.id));
+    // Extras: replaced in full on every run, so the list always matches data/partners.ts.
+    const extras = ASHLEE_EXTRAS[k.hotelName] ?? [];
+    await db.delete(schema.hotelExtras).where(eq(schema.hotelExtras.hotelId, hotel.id));
+    if (extras.length) await db.insert(schema.hotelExtras).values(extras.map((x, i) => ({
+      hotelId: hotel.id, name: x.name, category: x.category, unit: x.unit, priceMinor: x.price * 100,
+      childPriceMinor: x.child == null ? null : x.child * 100, currency: 'THB',
+      validFrom: x.validFrom ?? '2026-11-01', validTo: x.validTo ?? k.validTo, note: x.note ?? null, compulsory: x.compulsory ?? false, sortOrder: i,
+    })));
     const [exists] = await db.select({ id: schema.contracts.id }).from(schema.contracts).where(eq(schema.contracts.reference, k.reference));
     if (exists) continue;
     const [c] = await db.insert(schema.contracts).values({
