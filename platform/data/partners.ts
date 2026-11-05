@@ -38,6 +38,17 @@ export const ON_REQUEST: OnRequestPartner[] = [
   { name: "Fishermen's Harbour Urban Resort", city: 'Phuket', country: 'Thailand', email: 'contracting@ashleehub.com', reservationsEmail: 'rsvn@fishermensharbour.com', contactName: 'Nadia, Sales Coordinator (Ashlee Group)', terms: 'As ASHLEE Plaza Patong.' },
   // Sri Lanka — Jetwing: rates on enquiry; properties not yet named, so one listing for the group.
   { name: 'Jetwing Hotels (any Sri Lanka property)', city: 'Sri Lanka', country: 'Sri Lanka', email: 'vinuja@jetwinghotels.com', contactName: 'Vinuja Silva, Sales Executive', address: 'Jetwing House II, 46/26 Nawam Mawatha, Colombo 02 (head office)', terms: '5 Nov: rates on an inquiry basis — send each enquiry. Ask for a preferred-partner commission.' },
+  // Hotels that have already quoted HotelBridge for real groups (Oct–Nov 2026) — on request for FIT and groups.
+  { name: 'Garner Hotel Pattaya Central', city: 'Pattaya', country: 'Thailand', email: 'pimnika.yiamweha@ihg.com', contactName: 'Pimnika (Jessica) Yiamweha, Sales (IHG)', terms: 'Quoted group 22–24 Nov 2026 (client booked elsewhere). Keen for business.' },
+  { name: 'Holiday Inn Express Bangkok Sukhumvit 11', city: 'Bangkok', country: 'Thailand', email: 'anirut.jankrajang@ihg.com', reservationsEmail: 'rsvn.bkkex@ihg.com', contactName: 'Anirut Jankrajang (IHG)', terms: 'Quoted group 20–22 Nov 2026; could not meet THB 1,700 budget in high demand.' },
+  { name: 'Mercure Phuket Patong JourneyHub', city: 'Phuket', country: 'Thailand', email: 'rawinpat.phunphu@accor.com', reservationsEmail: 'hc543@accor.com', contactName: 'Rawinpat Phunphu (Bow), Cluster Sales Manager (also Mövenpick Resort Phuket Kamala Beach)', terms: 'Group 26–28 Nov 2026 confirmed (#655375) at THB 2,000 net Classic Room. Net rates only — no commission contract.' },
+  { name: 'Cassia Phuket', city: 'Phuket', country: 'Thailand', email: 'kamonrat.a@cassia.com', reservationsEmail: 'friends@cassia.com', contactName: 'Kamonrat Aunkhom, Sales Manager', terms: 'Quoted THB 4,000 for group 26–28 Nov 2026 (above budget). Follows up actively.' },
+  { name: 'Radisson RED Phuket Patong', city: 'Phuket', country: 'Thailand', email: 'salesindia@destination-hospitality.com', contactName: 'Indian Wholesale desk, Destination Hospitality (4 Phuket hotels)', terms: 'Sent winter promo rates (to end Nov) and a Diwali deal; group budget THB 2,200 too low for them.' },
+  { name: 'Holiday Inn Resort Krabi Ao Nang Beach', city: 'Krabi', country: 'Thailand', email: 'thewikan.sangthong@ihg.com', reservationsEmail: 'hikb.rsvn@ihg.com', contactName: 'Thewikan Sangthong (IHG)', terms: 'Quoted THB 4,900 with breakfast for 10 rooms 24–26 Nov 2026 (above budget). Follows up actively.' },
+  { name: 'Campanile PRIME Villejuif', city: 'Paris', country: 'France', email: 'commercial.villejuif@campanile.fr', reservationsEmail: 'villejuif@campanile.fr', contactName: 'Commercial team, Campanile PRIME Villejuif (Louvre Hotels; key account Ida Tamborrino)', terms: 'Hosted our 28-room group 17–19 Oct 2026, paid commission on invoice. Louvre Hotels want group payment before arrival.' },
+  { name: 'Rokeby Manor', city: 'Mussoorie', country: 'India', email: 'reservations@rokebymanor.com', contactName: 'Reservations, Rokeby Manor & Rokeby Villas', terms: 'Quoted New Year group 30 Dec 2026 – 1 Jan 2027.' },
+  { name: 'Taj Rishikesh Resort & Spa', city: 'Rishikesh', country: 'India', email: 'reservations.rishikesh@tajhotels.com', contactName: 'Reservations, Taj Rishikesh', terms: 'Quoted group 27–30 Dec 2026.' },
+  { name: 'SeaShell Neil', city: 'Neil Island (Andaman)', country: 'India', email: 'info@seashellhotels.net', contactName: 'SeaShell Hotels & Resorts reservations', terms: 'Quoted 2 rooms 25–26 Dec 2026; holds only against same-day payment in peak.' },
   // Krabi
   { name: 'Centara Ao Nang Beach Resort & Spa Krabi', city: 'Krabi', country: 'Thailand', email: 'salescnk@chr.co.th', reservationsEmail: 'cnk@chr.co.th', contactName: 'Chardbanoo Nisakul (Nadia), Sales Coordinator', address: 'Moo 1, Tambon Ao Nang, Amphur Muang, Krabi 81180', terms: '3 Nov: no contract rates; best available rates case by case.' },
   { name: 'Sofitel Krabi Phokeethra Golf & Spa Resort', city: 'Krabi', country: 'Thailand', email: 'walaiporn.buapakham@sofitel.com', contactName: 'Walaiporn Buapakham, Director of Sales – Leisure', terms: 'Accor policy: net rates case by case; will review a contract after a period of business.' },
@@ -151,6 +162,8 @@ export const ASHLEE: RateContract[] = [
     { name: 'Honeymoon Pool Suite', includedAdults: 2, maxAdults: 2, maxChildren: 0, extraBed: false, ro: r('7000 8000 7500 8000 7500 7000 6000'), bb: r('7500 8500 8000 8500 8000 7500 6500') },
   ] },
 ];
+/** Ashlee enquiries come to us — we quote from the contract instead of asking the hotel each time. */
+export const ASHLEE_QUOTES_TO = 'info@hotelbridge.co';
 export const ASHLEE_EXTRA_BED = 1200;
 export const ASHLEE_CHILD_BREAKFAST = 250;
 export const ASHLEE_NYE_SUPPLEMENT_PER_ROOM = 5000;
@@ -200,3 +213,69 @@ export const ASHLEE_EXTRAS: Record<string, Extra[]> = {
     ...ACTIVITIES, ...mealsAt('Thailand Mountain Phuket Restaurant'), NYE, JOINER,
   ],
 };
+
+/* ------------------------------ Fragrant Nature 2026–27 ------------------------------ */
+/* Source: "Winter Rates 2026-27 for Fragrant Nature Munnar, Kochi and Kollam.pdf" (Drive folder
+ * 1oZ_bQA1PFhZ44JIu6R8J0begJMCJczqG; emailed 3 Nov 2026 by sales6@fragrantnature.com).
+ * INR per room per night, single or double, CP (breakfast), the "CPAI" figure = GST INCLUDED.
+ * Net, non-commissionable. Child under 6 free; 12+ is an adult. On request — enquiries come to us. */
+export type FlatContract = {
+  hotelName: string; city: string; reference: string; currency: string; validTo: string; quotesTo: string;
+  checkInTime: string; checkOutTime: string; extraAdult: number; extraChild: number;
+  freeCancelDays: number; notes: string;
+  rooms: { name: string; maxAdults: number; maxChildren: number; maxOccupancy: number; periods: [string, string, number][] }[];
+  /** Compulsory gala nights, charged per room for 2 adults. */
+  supplements: [string, number, string][];
+  extras: Extra[];
+};
+
+const FN_NOTES = 'Fragrant Nature winter 2026–27 rate sheet (PDF, 3 Nov 2026). INR, GST included (CPAI column), net, non-commissionable. FIT cancellation: free until 15 days before arrival, 50% from 15 days, 100% within 7 days / no-show (GIT: 45/30/20 days). Reconfirm FIT with exchange order or full prepayment 30 days before arrival (GIT 45). Child under 6 free sharing; 6–12 extra child rate; 12+ adult. Includes welcome, in-room tea/coffee, pool, gym, Wi-Fi. Rates loaded as single/double; extra adult and child per night as listed. Contact: Edson Thomas, Sales Manager, sales2@fragrantnature.com.';
+const span = (a: string, b: string, rate: number): [string, string, number] => [a, b, rate];
+const gala = (date: string, adult: number, child: number, label: string): Extra =>
+  ({ name: label, category: 'celebration', unit: 'per_person', price: adult, child, compulsory: true, validFrom: date, validTo: date, note: 'Compulsory for guests in house, gala dinner with live music. Included in room prices for 2 adults that night; children are extra.' });
+
+export const FRAGRANT_NATURE: FlatContract[] = [
+  { hotelName: 'Fragrant Nature Kollam', city: 'Kollam', reference: 'FN-KOLLAM-W2627', currency: 'INR', validTo: '2027-03-31', quotesTo: ASHLEE_QUOTES_TO,
+    checkInTime: '14:00', checkOutTime: '12:00', extraAdult: 1750, extraChild: 1250, freeCancelDays: 15, notes: FN_NOTES,
+    rooms: [
+      { name: 'Premium Lake View Room', maxAdults: 3, maxChildren: 1, maxOccupancy: 4, periods: [span('2026-10-01', '2027-03-31', 6350)] },
+      { name: 'Premium Lake View Villa', maxAdults: 3, maxChildren: 1, maxOccupancy: 4, periods: [span('2026-10-01', '2027-03-31', 7850)] },
+      { name: 'Premium Lake View Private Pool Villa', maxAdults: 3, maxChildren: 1, maxOccupancy: 4, periods: [span('2026-10-01', '2027-03-31', 15000)] },
+      { name: 'Twin Bedroom Lake View Pool Villa (up to 6 guests)', maxAdults: 3, maxChildren: 3, maxOccupancy: 6, periods: [span('2026-10-01', '2027-03-31', 23000)] },
+    ],
+    supplements: [['2026-12-24', 5500, 'Compulsory Christmas Eve gala (2 adults × 2,750)'], ['2026-12-31', 7000, 'Compulsory New Year gala (2 adults × 3,500)']],
+    extras: [
+      { name: 'Breakfast', category: 'dining', unit: 'per_person', price: 350, child: 200, note: 'For room-only add-ons and extra guests' },
+      { name: 'Lunch or dinner', category: 'dining', unit: 'per_person', price: 1200, child: 500 },
+      gala('2026-12-24', 2750, 1500, 'Christmas Eve gala dinner'), gala('2026-12-31', 3500, 2000, "New Year's Eve gala dinner"),
+    ] },
+  { hotelName: 'Fragrant Nature Kochi', city: 'Kochi', reference: 'FN-KOCHI-W2627', currency: 'INR', validTo: '2027-03-31', quotesTo: ASHLEE_QUOTES_TO,
+    checkInTime: '14:00', checkOutTime: '12:00', extraAdult: 3000, extraChild: 2500, freeCancelDays: 15, notes: FN_NOTES,
+    rooms: ([['Duke’s Chamber', 11800, 12800, 16000], ['Ocean Blue', 16000, 18500, 23000], ['Royal Dutch', 27000, 28500, 30000]] as const).map(([name, a, b, peak]) => ({
+      name, maxAdults: 3, maxChildren: 1, maxOccupancy: 4,
+      periods: [span('2026-10-01', '2026-11-30', a), span('2026-12-01', '2026-12-20', b), span('2026-12-21', '2027-01-10', peak), span('2027-01-11', '2027-02-28', b), span('2027-03-01', '2027-03-31', a)],
+    })),
+    supplements: [['2026-12-24', 7000, 'Compulsory Christmas Eve gala (2 adults × 3,500)'], ['2026-12-31', 10000, 'Compulsory New Year gala (2 adults × 5,000)']],
+    extras: [
+      { name: 'Candle-light dinner', category: 'dining', unit: 'per_couple', price: 5500, note: 'Bay View Terrace, with cake and badam milk' },
+      { name: 'Clock Tower dinner', category: 'dining', unit: 'per_couple', price: 10000, note: '5-course dinner, with cake and badam milk' },
+      { name: 'Fisherman seafood dinner', category: 'dining', unit: 'per_person', price: 2500, note: 'Minimum 15 guests' },
+      { name: 'Breakfast', category: 'dining', unit: 'per_person', price: 500, child: 300, note: 'For extra guests' },
+      { name: 'Lunch or dinner', category: 'dining', unit: 'per_person', price: 1500, child: 750 },
+      gala('2026-12-24', 3500, 2000, 'Christmas Eve gala dinner'), gala('2026-12-31', 5000, 2500, "New Year's Eve gala dinner"),
+    ] },
+  { hotelName: 'Fragrant Nature Munnar', city: 'Munnar', reference: 'FN-MUNNAR-W2627', currency: 'INR', validTo: '2027-05-30', quotesTo: ASHLEE_QUOTES_TO,
+    checkInTime: '14:00', checkOutTime: '12:00', extraAdult: 2500, extraChild: 2000, freeCancelDays: 15, notes: FN_NOTES,
+    rooms: ([['Tropic Green', 9850, 12500], ['Moonlight Bliss', 12200, 14000], ['Wild Orchid Suite', 28000, 28000], ['Royal Fragrant Suite', 33000, 33000]] as const).map(([name, a, peak]) => ({
+      name, maxAdults: 3, maxChildren: 1, maxOccupancy: 4,
+      periods: [span('2026-10-01', '2026-12-20', a), span('2026-12-21', '2027-01-10', peak), span('2027-01-11', '2027-05-30', a)],
+    })),
+    supplements: [['2026-12-24', 6000, 'Compulsory Christmas Eve gala (2 adults × 3,000)'], ['2026-12-31', 8000, 'Compulsory New Year gala (2 adults × 4,000)']],
+    extras: [
+      { name: 'Candle-light dinner', category: 'dining', unit: 'per_couple', price: 5500, note: 'At the Glass House restaurant, with cake and badam milk' },
+      { name: 'Moonlight Bliss terrace dinner', category: 'dining', unit: 'per_couple', price: 7000, note: 'Candle-light dinner on the terrace with a butler, cake and badam milk' },
+      { name: 'Breakfast', category: 'dining', unit: 'per_person', price: 400, child: 250, note: 'For extra guests' },
+      { name: 'Lunch or dinner', category: 'dining', unit: 'per_person', price: 1300, child: 600 },
+      gala('2026-12-24', 3000, 1500, 'Christmas Eve gala dinner'), gala('2026-12-31', 4000, 2000, "New Year's Eve gala dinner"),
+    ] },
+];
