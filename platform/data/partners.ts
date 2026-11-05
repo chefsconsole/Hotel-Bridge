@@ -95,3 +95,62 @@ export const MUONG_THANH = {
     ['2027-04-29', '2027-05-02', 'Reunification / Labour Day'], ['2027-09-02', '2027-09-04', 'National Day'],
   ] as const,
 };
+
+/* ------------------------- Ashlee Group 2026–27 contracts ------------------------- */
+/* Source: "HOTELBRIDGE (…) - SPECIAL PROMOTION FOR OVERSEAS AGENT 2026 - 2027.pdf", issued 5 Nov 2026
+ * (Drive folder 1vOnJRUxKgo6Qx4t4OZNRsOdLO3xswGs8). THB per room per night, NET, government taxes and
+ * service charge INCLUDED, non-commissionable. FIT 1–7 rooms only. RO = room only, BB = with breakfast.
+ * Extra bed / third person 1,200 THB (adult or child). Child 4–11 sharing: breakfast 250 THB. */
+
+export const ASHLEE_PERIODS = [
+  ['2026-11-01', '2026-12-23'], ['2026-12-24', '2027-01-09'], ['2027-01-10', '2027-02-03'], ['2027-02-04', '2027-02-14'],
+  ['2027-02-15', '2027-02-28'], ['2027-03-01', '2027-03-31'], ['2027-04-01', '2027-10-31'],
+] as const;
+
+export type ContractRoom = {
+  name: string; bedding?: string; sizeSqm?: number;
+  /** Adults the room rate already covers (2 = double; 3 = triple room; 4 = family). */
+  includedAdults: number; maxAdults: number; maxChildren: number;
+  extraBed: boolean; ro: number[]; bb: number[];
+};
+export type RateContract = {
+  hotelName: string; city: string; address: string; reference: string; validTo: string;
+  rooms: ContractRoom[]; checkInTime: string; checkOutTime: string;
+};
+
+const ASHLEE_NOTES = 'Ashlee Group 2026–27 special promotion for overseas agents (PDF of 5 Nov 2026) — COUNTERSIGN AND RETURN WITHIN 30 DAYS or it is void. Net, taxes + service included, non-commissionable, FIT 1–7 rooms; groups (8+) on request: 5,000 THB deposit, 1 FOC per 15 paying. Cancellation: 1 Nov–23 Dec, 10 Jan–31 Oct — charges inside 7 days; PEAK 24 Dec–9 Jan — charges inside 14 days; no-show = full stay. Full prepayment 7 days before arrival (14 in peak). No check-out on 31 Dec or 1 Jan. Mandatory NYE gala 31 Dec 2026: 2,500 THB adult / 1,250 child (loaded as a 5,000 THB per room supplement for 2 adults). Rates not for B2C/online consumer sale — confirm in writing that a closed B2B agent portal is fine. Rates reviewable every 6 months.';
+export const ashleeNotes = ASHLEE_NOTES;
+
+const r = (s: string) => s.split(' ').map(Number);
+export const ASHLEE: RateContract[] = [
+  { hotelName: 'ASHLEE Plaza Patong Hotel & Spa', city: 'Phuket', address: '34/50-57 Prachanukhro Road, Patong, Phuket 83150', reference: 'ASHLEE-PLAZA-2627', validTo: '2027-10-31', checkInTime: '14:00', checkOutTime: '12:00', rooms: [
+    { name: 'Superior Room', bedding: 'King or twin', sizeSqm: 28, includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('3200 4200 3700 4200 3700 3200 2500'), bb: r('3700 4700 4200 4700 4200 3700 3000') },
+    { name: 'Deluxe Room', bedding: 'King or twin', sizeSqm: 30, includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('3700 4700 4200 4700 4200 3700 3000'), bb: r('4200 5200 4700 5200 4700 4200 3500') },
+    { name: 'Family Room with Bunk Bed', bedding: 'King + bunk bed (2 adults + 2 children)', sizeSqm: 59, includedAdults: 2, maxAdults: 2, maxChildren: 2, extraBed: false, ro: r('5000 6000 5500 6000 5500 5000 4000'), bb: r('6000 7000 6500 7000 6500 6000 5000') },
+  ] },
+  { hotelName: 'ASHLEE Hub Hotel Patong', city: 'Phuket', address: '237/23 Rat-U-Thit Song Roi Pee Road, Patong, Kathu, Phuket 83150', reference: 'ASHLEE-HUB-2627', validTo: '2027-10-31', checkInTime: '14:00', checkOutTime: '12:00', rooms: [
+    { name: 'Deluxe Room', bedding: 'King or twin', sizeSqm: 42, includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('3500 4500 4000 4500 4000 3500 3000'), bb: r('4000 5000 4500 5000 4500 4000 3500') },
+  ] },
+  { hotelName: 'ASHLEE Heights Hotel Patong', city: 'Phuket', address: '160/36 Phang Muang Sai Kor Road, Soi Nanai Ruamjai (Nanai Soi 8), Patong, Phuket 83150', reference: 'ASHLEE-HEIGHTS-2627', validTo: '2027-10-31', checkInTime: '14:00', checkOutTime: '12:00', rooms: [
+    { name: 'Superior Room', bedding: 'King or twin', sizeSqm: 30, includedAdults: 2, maxAdults: 2, maxChildren: 1, extraBed: false, ro: r('3500 4500 4000 4500 4000 3500 3000'), bb: r('4000 5000 4500 5000 4500 4000 3500') },
+    { name: 'Deluxe Room', bedding: 'King', sizeSqm: 36, includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('4000 5000 4500 5000 4500 4000 3500'), bb: r('4500 5500 5000 5500 5000 4500 4000') },
+    { name: 'Premier Triple', bedding: 'King + single', sizeSqm: 54, includedAdults: 3, maxAdults: 3, maxChildren: 1, extraBed: false, ro: r('5000 6000 5500 6000 5500 5000 4500'), bb: r('5750 6750 6250 6750 6250 5750 5250') },
+    { name: '2-Bedroom Family (up to 4 adults)', bedding: 'King + twin', sizeSqm: 96, includedAdults: 3, maxAdults: 3, maxChildren: 2, extraBed: false, ro: r('7000 9000 8500 9000 8500 7000 6500'), bb: r('8000 10000 9500 10000 9500 8000 7500') },
+  ] },
+  { hotelName: 'Bel Aire Patong Resort', city: 'Phuket', address: '59/1-3 Sainamyen Road, Kathu, Phuket 83150', reference: 'ASHLEE-BELAIRE-2627', validTo: '2027-10-31', checkInTime: '14:00', checkOutTime: '12:00', rooms: [
+    { name: 'Superior Room', bedding: 'King or twin', sizeSqm: 36, includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('2700 3700 3200 3700 3200 2700 2200'), bb: r('3200 4200 3700 4200 3700 3200 2700') },
+    { name: 'Superior Triple Room', bedding: 'King + single', sizeSqm: 40, includedAdults: 3, maxAdults: 3, maxChildren: 1, extraBed: false, ro: r('3700 4700 4200 4700 4200 3700 3200'), bb: r('4450 5450 4950 5450 4950 4450 3950') },
+    { name: 'Family Room (up to 4 adults)', bedding: 'Two kings', sizeSqm: 45, includedAdults: 3, maxAdults: 3, maxChildren: 2, extraBed: false, ro: r('4700 5700 5200 5700 5200 4700 4200'), bb: r('5700 6700 6200 6700 6200 5700 5200') },
+  ] },
+  { hotelName: "Fishermen's Harbour Urban Resort", city: 'Phuket', address: '2/21 Siriraj Road, Patong, Kathu, Phuket 83150', reference: 'ASHLEE-FMH-2627', validTo: '2027-10-31', checkInTime: '14:00', checkOutTime: '12:00', rooms: [
+    { name: 'Deluxe Room', includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('4000 5000 4500 5000 4500 4000 3500'), bb: r('4500 5500 5000 5500 5000 4500 4000') },
+    { name: 'Deluxe Plus Room', includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('4300 5300 4800 5300 4800 4300 3800'), bb: r('4800 5800 5300 5800 5300 4800 4300') },
+    { name: 'Premier Deluxe', includedAdults: 2, maxAdults: 3, maxChildren: 1, extraBed: true, ro: r('4500 5500 5000 5500 5000 4500 4000'), bb: r('5000 6000 5500 6000 5500 5000 4500') },
+    { name: 'Deluxe Family (3 adults)', includedAdults: 3, maxAdults: 3, maxChildren: 1, extraBed: false, ro: r('5000 6000 5500 6000 5500 5000 4500'), bb: r('5750 6750 6250 6750 6250 5750 5250') },
+    { name: 'Family Suite with Bunk Bed', bedding: '2 adults + 2 children', includedAdults: 2, maxAdults: 2, maxChildren: 2, extraBed: false, ro: r('6500 7500 7000 7500 7000 6500 6000'), bb: r('7500 8500 8000 8500 8000 7500 7000') },
+    { name: 'Honeymoon Pool Suite', includedAdults: 2, maxAdults: 2, maxChildren: 0, extraBed: false, ro: r('7000 8000 7500 8000 7500 7000 6000'), bb: r('7500 8500 8000 8500 8000 7500 6500') },
+  ] },
+];
+export const ASHLEE_EXTRA_BED = 1200;
+export const ASHLEE_CHILD_BREAKFAST = 250;
+export const ASHLEE_NYE_SUPPLEMENT_PER_ROOM = 5000;

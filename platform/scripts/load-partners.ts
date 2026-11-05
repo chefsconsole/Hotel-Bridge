@@ -8,7 +8,7 @@ import { closeDb, getDb, schema } from '@/lib/db';
 import { addDays, todayIso } from '@/lib/domain/dates';
 import { SYSTEM } from '@/lib/services/actor';
 import { audit } from '@/lib/services/audit';
-import { MUONG_THANH as MT, ON_REQUEST, onRequestDescription } from '@/data/partners';
+import { ASHLEE, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
 
 type DBT = Awaited<ReturnType<typeof getDb>>;
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -78,6 +78,54 @@ async function upsertHotel(db: DBT, values: Omit<typeof schema.hotels.$inferInse
     })));
     await audit(db, SYSTEM, 'contract.created', 'contract', c.id, { reference: c.reference, source: 'load-partners' });
     console.log(`Muong Thanh: contract ${c.reference} with ${MT.rooms.length} room types loaded.`);
+  }
+
+  // Ashlee Group — signed-by-hotel 2026–27 contracts (net THB, RO + BB).
+  const today = todayIso();
+  for (const k of ASHLEE) {
+    const slug = slugify(`${k.hotelName}-${k.city}`);
+    const [hotel] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
+    if (!hotel) throw new Error(`Load ${k.hotelName} before its contract`);
+    await db.update(schema.hotels).set({
+      address: k.address, checkInTime: k.checkInTime, checkOutTime: k.checkOutTime, bestRateOnRequest: false,
+      summary: 'Contracted 2026–27 rates — room only or with breakfast.',
+      description: 'HotelBridge contracted rates for 2026–27, room only or with breakfast. Every booking is confirmed by the hotel.\nNew Year\'s Eve 31 Dec 2026: a gala dinner is compulsory (included in the price for those dates). Check-out is not possible on 31 Dec or 1 Jan.',
+      updatedAt: new Date(),
+    }).where(eq(schema.hotels.id, hotel.id));
+    const [exists] = await db.select({ id: schema.contracts.id }).from(schema.contracts).where(eq(schema.contracts.reference, k.reference));
+    if (exists) continue;
+    const [c] = await db.insert(schema.contracts).values({
+      hotelId: hotel.id, reference: k.reference, inventoryModel: 'direct_net', rateBasis: 'net', collectionModel: 'prepaid_to_hb',
+      currency: 'THB', validFrom: today, validTo: k.validTo, commissionBps: 0, taxMode: 'included', taxBps: 0,
+      confirmationMode: 'on_request', responseHours: 48, freeCancelDays: 7, latePenaltyType: 'full',
+      distributionPermitted: true, status: 'active', approvedAt: new Date(), internalNotes: ashleeNotes,
+    }).returning();
+    for (const room of k.rooms) {
+      const [rt] = await db.insert(schema.roomTypes).values({
+        hotelId: hotel.id, name: room.name, bedding: room.bedding ?? null, sizeSqm: room.sizeSqm ?? null,
+        maxAdults: room.maxAdults, maxChildren: room.maxChildren, maxOccupancy: room.maxAdults + room.maxChildren,
+      }).returning();
+      const rows = ASHLEE_PERIODS.flatMap(([from, to], i) => {
+        if (to < today) return [];
+        const dateFrom = from < today ? today : from;
+        return (['RO', 'BB'] as const).map((mealPlan) => {
+          const rate = (mealPlan === 'RO' ? room.ro : room.bb)[i] * 100; // THB → satang
+          const third = room.includedAdults >= 3 ? rate : room.extraBed ? rate + ASHLEE_EXTRA_BED * 100 : null;
+          return {
+            contractId: c.id, roomTypeId: rt.id, mealPlan, dateFrom, dateTo: to,
+            price1Minor: rate, price2Minor: rate, price3Minor: room.maxAdults >= 3 ? third : null,
+            childMinor: mealPlan === 'BB' ? ASHLEE_CHILD_BREAKFAST * 100 : 0,
+          };
+        });
+      });
+      await db.insert(schema.ratePeriods).values(rows);
+    }
+    await db.insert(schema.restrictions).values({
+      contractId: c.id, roomTypeId: null, kind: 'supplement', dateFrom: '2026-12-31', dateTo: '2026-12-31',
+      amountMinor: ASHLEE_NYE_SUPPLEMENT_PER_ROOM * 100, note: 'Compulsory New Year\'s Eve gala dinner (2 adults × 2,500 THB)',
+    });
+    await audit(db, SYSTEM, 'contract.created', 'contract', c.id, { reference: c.reference, source: 'load-partners' });
+    console.log(`${k.hotelName}: contract ${k.reference} with ${k.rooms.length} room type(s).`);
   }
 
   console.log(`Partners: ${created} added, ${updated} updated (${ON_REQUEST.length} on request + Muong Thanh).`);
