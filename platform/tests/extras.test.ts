@@ -19,13 +19,13 @@ describe('hotel extras', () => {
     await f.db.insert(schema.hotelExtras).values({ hotelId: f.hotel.id, name: 'Candle-light dinner', category: 'dining', unit: 'per_couple', priceMinor: 350_000, childPriceMinor: null, currency: 'THB' });
     await f.db.insert(schema.hotelExtras).values({ hotelId: f.hotel.id, name: 'Zipline', category: 'activity', unit: 'per_person', priceMinor: 175_000, childPriceMinor: 87_500, currency: 'THB', active: false });
 
-    let [x, ...rest] = await extrasForAgent(f.db, f.hotel.id);
-    expect(rest).toHaveLength(0); // inactive extras are hidden
-    expect(x.sellMinor).toBe(420_000); // default extras markup 20%
-    expect(x).not.toHaveProperty('priceMinor');
+    const first = await extrasForAgent(f.db, f.hotel.id);
+    expect(first).toHaveLength(1); // inactive extras are hidden
+    expect(first[0].sellMinor).toBe(420_000); // default extras markup 20%
+    expect(first[0]).not.toHaveProperty('priceMinor');
 
     await setSetting(f.db, f.ADMIN, 'extras.markupPct', '30');
-    [x] = await extrasForAgent(f.db, f.hotel.id);
+    const [x] = await extrasForAgent(f.db, f.hotel.id);
     expect(x.sellMinor).toBe(455_000);
     await expect(setSetting(f.db, f.ADMIN, 'extras.markupPct', '80')).rejects.toThrow(/between 0 and 50/);
   });
