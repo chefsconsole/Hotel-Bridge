@@ -16,6 +16,7 @@ export DATABASE_URL='postgresql://…pooled string…'
 npm run db:migrate
 HB_ADMIN_PASSWORD='choose-a-long-password' npm run create-admin -- you@hotelbridge.co "Your Name" admin
 npm run import:prospects
+npm run load:partners      # the 21 best-rate-on-request hotels + Muong Thanh 2027 rates (real data, data/partners.ts)
 ```
 Never run `npm run seed:demo` against the live database.
 
