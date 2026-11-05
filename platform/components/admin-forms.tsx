@@ -1,7 +1,7 @@
 import { ActionForm, Field, SubmitButton } from './forms';
 import { COLLECTIONS } from '@/lib/services/catalog';
 import { TIERS, TIER_INFO } from '@/lib/domain/tiers';
-import { toDecimalString } from '@/lib/domain/money';
+import { CURRENCIES, toDecimalString } from '@/lib/domain/money';
 import type { schema } from '@/lib/db';
 import type { ActionResult } from '@/lib/action';
 
@@ -81,7 +81,7 @@ export function ContractForm({ action, hotelId, contract, submit }: { action: Ac
         <Field label="Inventory model"><select name="inventoryModel" defaultValue={c?.inventoryModel ?? 'direct_net'} className="field"><option value="direct_net">Direct net rates</option><option value="direct_commissionable">Direct commissionable</option><option value="request_only">Request-to-book only</option></select></Field>
         <Field label="Rate basis"><select name="rateBasis" defaultValue={c?.rateBasis ?? 'net'} className="field"><option value="net">Net (we add markup)</option><option value="commissionable">Commissionable (hotel pays us)</option></select></Field>
         <Field label="Who collects payment"><select name="collectionModel" defaultValue={c?.collectionModel ?? 'prepaid_to_hb'} className="field"><option value="prepaid_to_hb">Agent pays HotelBridge</option><option value="pay_direct_to_hotel">Guest pays hotel directly</option></select></Field>
-        <Field label="Currency"><select name="currency" defaultValue={cur} className="field">{['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((x) => <option key={x}>{x}</option>)}</select></Field>
+        <Field label="Currency"><select name="currency" defaultValue={cur} className="field">{CURRENCIES.map((x) => <option key={x}>{x}</option>)}</select></Field>
         <Field label="Commission %" hint="Commissionable contracts"><input name="commissionPct" defaultValue={c ? c.commissionBps / 100 : ''} className="field num" inputMode="decimal" /></Field>
         <Field label="Confirmation"><select name="confirmationMode" defaultValue={c?.confirmationMode ?? 'on_request'} className="field"><option value="on_request">On request — hotel confirms</option><option value="instant_allocation">Instant from allotment</option></select></Field>
         <Field label="Hotel must answer within (hours)" hint="On-request bookings lapse after this — no charge"><input name="responseHours" defaultValue={c?.responseHours ?? 48} className="field num" inputMode="numeric" /></Field>

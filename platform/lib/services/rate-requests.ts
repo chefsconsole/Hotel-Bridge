@@ -336,6 +336,6 @@ export const tierLabel = (t: string | null) => (isTier(t) ? `${TIER_INFO[t].labe
 /** The currency a hotel most likely quotes in — the budget default, so the two compare. */
 export function localCurrency(country: string): string {
   const c = country.trim().toLowerCase();
-  const map: Record<string, string> = { thailand: 'THB', 'united arab emirates': 'AED', uae: 'AED', singapore: 'SGD', india: 'INR', japan: 'JPY', switzerland: 'CHF', 'united kingdom': 'GBP', uk: 'GBP', 'united states': 'USD', usa: 'USD' };
+  const map: Record<string, string> = { thailand: 'THB', 'united arab emirates': 'AED', uae: 'AED', singapore: 'SGD', india: 'INR', vietnam: 'VND', indonesia: 'IDR', 'hong kong': 'HKD', 'czech republic': 'CZK', czechia: 'CZK', malaysia: 'MYR', 'sri lanka': 'LKR', maldives: 'USD', japan: 'JPY', switzerland: 'CHF', 'united kingdom': 'GBP', uk: 'GBP', 'united states': 'USD', usa: 'USD' };
   return map[c] ?? 'EUR';
 }

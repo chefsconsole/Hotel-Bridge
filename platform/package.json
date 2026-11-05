@@ -15,7 +15,8 @@
     "create-admin": "tsx scripts/create-admin.ts",
     "check": "tsc --noEmit && eslint && vitest run",
     "import:prospects": "tsx scripts/import-prospects.ts",
-    "go-live:check": "tsx scripts/go-live-check.ts"
+    "go-live:check": "tsx scripts/go-live-check.ts",
+    "load:partners": "tsx scripts/load-partners.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

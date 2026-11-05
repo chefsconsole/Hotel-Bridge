@@ -7,7 +7,7 @@ import { and, asc, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
 import { addDays, daysBetween, isIsoDate, nightsOf } from '@/lib/domain/dates';
-import { parseMoney } from '@/lib/domain/money';
+import { CURRENCIES, parseMoney } from '@/lib/domain/money';
 import { validateTerms, PricingError } from '@/lib/domain/pricing';
 import { requireStaff, type Actor } from './actor';
 import { audit } from './audit';
@@ -137,7 +137,7 @@ export const contractSchema = z.object({
   inventoryModel: z.enum(['direct_net', 'direct_commissionable', 'request_only']),
   rateBasis: z.enum(['net', 'commissionable']),
   collectionModel: z.enum(['prepaid_to_hb', 'pay_direct_to_hotel']),
-  currency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD']),
+  currency: z.enum(CURRENCIES),
   validFrom: z.string().refine(isIsoDate, 'Start date required'),
   validTo: z.string().refine(isIsoDate, 'End date required'),
   commissionBps: z.number().int().min(0).max(5000),

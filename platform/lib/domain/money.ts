@@ -5,7 +5,7 @@
 
 export type Money = { minor: number; currency: string };
 
-export const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD', 'JPY'] as const;
+export const CURRENCIES = ['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD', 'JPY', 'VND', 'IDR', 'HKD', 'CZK', 'MYR', 'LKR'] as const;
 
 export function isCurrency(c: string): boolean {
   return /^[A-Z]{3}$/.test(c);
