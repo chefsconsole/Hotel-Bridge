@@ -39,7 +39,7 @@ Never run `npm run seed:demo` against the live database.
 
 Do **not** set `HB_DEMO` or `HB_SANDBOX_SUPPLIER` in production.
 
-5. **Deploy.** Scheduled jobs run from `vercel.json` (`/api/cron` every 15 minutes). On Vercel's free Hobby plan crons run at most once a day — fine to start, because requests also lapse whenever the admin console loads; upgrade to Pro for 15-minute runs.
+5. **Deploy.** Scheduled jobs run from `vercel.json` (`/api/cron` once a day, 02:30 UTC — the most the free Hobby plan allows; a more frequent schedule makes Hobby deployments fail). Requests also lapse whenever the admin console loads. On Pro, change the schedule to `*/15 * * * *`.
 
 ## 4. Domain (you)
 Vercel → Project → **Settings → Domains** → add `portal.hotelbridge.co` → copy the **CNAME** it shows → add that record where `hotelbridge.co`'s DNS is managed. HTTPS is automatic.
