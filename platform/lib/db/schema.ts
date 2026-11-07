@@ -29,6 +29,13 @@ export const agencies = pgTable('agencies', {
   country: text('country').notNull(),
   city: text('city'),
   address: text('address'),
+  state: text('state'),
+  pincode: text('pincode'),
+  // Optional "about your business" answers from registration.
+  topDestinations: text('top_destinations'),
+  segments: text('segments'),
+  monthlyBookings: text('monthly_bookings'),
+  heardFrom: text('heard_from'),
   taxId: text('tax_id'),
   // India KYC: PAN is required to approve an Indian agency; GSTIN when registered for GST.
   pan: text('pan'),

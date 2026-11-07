@@ -11,7 +11,8 @@ import { promisify } from 'node:util';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
-import { SESSION_DAYS } from '@/lib/config';
+import { NOTIFY_EMAIL, SESSION_DAYS } from '@/lib/config';
+import { appUrl, sendEmail } from './email';
 import { AppError, isUniqueViolation } from './errors';
 import type { Actor } from './actor';
 import { audit } from './audit';
@@ -107,6 +108,13 @@ export const registrationSchema = z.object({
   pan: z.string().optional(),
   gstin: z.string().optional(),
   phone: z.string().trim().max(40).optional(),
+  address: z.string().trim().max(300).optional(),
+  state: z.string().trim().max(80).optional(),
+  pincode: z.string().trim().max(20).optional(),
+  topDestinations: z.string().trim().max(300).optional(),
+  segments: z.string().trim().max(200).optional(),
+  monthlyBookings: z.string().trim().max(40).optional(),
+  heardFrom: z.string().trim().max(120).optional(),
   billingCurrency: z.enum(['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD']),
   name: z.string().trim().min(2, 'Your name is required').max(120),
   email: emailSchema,
@@ -122,11 +130,15 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
   const panCard = checkDocument(files.panCard ?? null, india, 'PAN card');
   const gstCertificate = checkDocument(files.gstCertificate ?? null, false, 'GST certificate');
   const passwordHash = await hashPassword(data.password);
+  let created: { agency: typeof agencies.$inferSelect; user: typeof users.$inferSelect };
   try {
-    return await db.transaction(async (tx) => {
+    created = await db.transaction(async (tx) => {
       const [agency] = await tx.insert(agencies).values({
         name: data.agencyName, legalName: data.legalName || null, country: data.country, city: data.city || null,
         website: data.website || null, taxId: data.taxId || ids.gstin || null, phone: data.phone || null,
+        address: data.address || null, state: data.state || null, pincode: data.pincode || null,
+        topDestinations: data.topDestinations || null, segments: data.segments || null,
+        monthlyBookings: data.monthlyBookings || null, heardFrom: data.heardFrom || null,
         pan: ids.pan, gstin: ids.gstin,
         billingCurrency: data.billingCurrency, status: 'pending',
       }).returning();
@@ -144,6 +156,43 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
     if (isUniqueViolation(e)) throw new AppError('An account with this email already exists. Sign in instead.', 'exists');
     throw e;
   }
+  // Tell HotelBridge. The registration stands even if the email can't be sent
+  // (it is still listed under Admin → Agencies → Waiting for approval).
+  try { await notifyRegistration(db, created.agency, created.user, { panCard: !!panCard, gstCertificate: !!gstCertificate }); } catch { /* logged by sendEmail */ }
+  return created;
+}
+
+async function notifyRegistration(db: DB, a: typeof agencies.$inferSelect, u: typeof users.$inferSelect, docs: { panCard: boolean; gstCertificate: boolean }) {
+  const line = (label: string, v: string | null | undefined) => `  ${label.padEnd(20)}${v || '—'}`;
+  const where = [a.city, a.state, a.country].filter(Boolean).join(', ');
+  await sendEmail(db, {
+    to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'agency_registered', relatedId: a.id, replyTo: u.email,
+    subject: `New agency registration · ${a.name}${where ? ` · ${where}` : ''}`,
+    body: [
+      'A new travel agency has registered on HotelBridge and is waiting for approval.',
+      '',
+      line('Agency', a.name),
+      line('Legal name', a.legalName),
+      line('Contact', `${u.name} <${u.email}>`),
+      line('Phone', a.phone),
+      line('Address', [a.address, a.pincode].filter(Boolean).join(' ')),
+      line('City / state', where),
+      line('Website', a.website),
+      line('PAN', a.pan),
+      line('GSTIN', a.gstin),
+      line('Documents', [docs.panCard && 'PAN card', docs.gstCertificate && 'GST certificate'].filter(Boolean).join(', ') || 'none uploaded'),
+      '',
+      line('Top destinations', a.topDestinations),
+      line('Business', a.segments),
+      line('Bookings / month', a.monthlyBookings),
+      line('Heard about us', a.heardFrom),
+      '',
+      'Approve or decline (sign in as admin):',
+      appUrl(`/admin/agencies/${a.id}`),
+      '',
+      'Reply to this email to write to the agency directly.',
+    ].join('\n'),
+  });
 }
 
 /** Agency owners add colleagues. The owner sets a first password and shares it privately. */

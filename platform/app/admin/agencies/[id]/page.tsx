@@ -37,7 +37,7 @@ export default async function AgencyPage({ params }: { params: Promise<{ id: str
       <PageHeader eyebrow={a.country} title={a.name} actions={<Pill tone={a.status === 'verified' ? 'positive' : 'attention'}>{a.status}</Pill>} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Registration">
-          <DL items={[['Legal name', a.legalName], ['PAN', a.pan], ['GSTIN', a.gstin], ['Other registration', a.taxId], ['City', a.city], ['Website', a.website], ['Phone', a.phone], ['Registered', formatDate(a.createdAt)], ['Verified', a.verifiedAt ? formatDate(a.verifiedAt) : null], ['Billing currency', a.billingCurrency]]} />
+          <DL items={[['Legal name', a.legalName], ['PAN', a.pan], ['GSTIN', a.gstin], ['Other registration', a.taxId], ['Address', [a.address, a.pincode].filter(Boolean).join(' ') || null], ['City', a.city], ['State', a.state], ['Website', a.website], ['Phone', a.phone], ['Top destinations', a.topDestinations], ['Business', a.segments], ['Bookings / month', a.monthlyBookings], ['Heard about us', a.heardFrom], ['Registered', formatDate(a.createdAt)], ['Verified', a.verifiedAt ? formatDate(a.verifiedAt) : null], ['Billing currency', a.billingCurrency]]} />
           <ul className="mt-5 border-t border-line pt-4 text-[0.88rem]">{users.map((u) => <li key={u.id}>{u.name} · <span className="text-muted">{u.email} · {u.agencyRole}</span></li>)}</ul>
           {a.internalNotes && <p className="mt-4 text-[0.82rem] whitespace-pre-line text-muted">{a.internalNotes}</p>}
         </Panel>

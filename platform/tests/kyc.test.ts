@@ -60,6 +60,20 @@ describe('agency verification', () => {
     await expect(updateTaxIds(f.db, owner, agency.id, { pan: 'AAAPZ1234C' })).rejects.toThrow(/Contact HotelBridge/);
   });
 
+  it('keeps the optional business details and tells HotelBridge about the registration', async () => {
+    f = await setup();
+    const { agency } = await registerAgency(f.db, { ...base, email: 'n@x.test', pan: 'AAPFU0939F', city: 'Pune', state: 'Maharashtra', address: '12 FC Road', topDestinations: 'Thailand, Dubai / UAE', segments: 'Groups', monthlyBookings: '11–50' }, { panCard: PDF });
+    expect(agency.topDestinations).toBe('Thailand, Dubai / UAE');
+    expect(agency.state).toBe('Maharashtra');
+    const mails = await f.db.select().from(schema.outboundEmails).where(eq(schema.outboundEmails.relatedId, agency.id));
+    const m = mails.find((e) => e.kind === 'agency_registered');
+    expect(m?.toEmail).toBe('info@hotelbridge.co');
+    expect(m?.subject).toContain('Mumbai Trips');
+    expect(m?.body).toContain(`/admin/agencies/${agency.id}`);
+    expect(m?.body).toContain('Thailand, Dubai / UAE');
+    expect(m?.status).toBe('not_configured'); // never claims "sent" without a provider
+  });
+
   it('lets only staff and the agency itself read a document', async () => {
     f = await setup();
     const { agency, user } = await registerAgency(f.db, { ...base, email: 'r@x.test', pan: 'AAPFU0939F' }, { panCard: PDF });

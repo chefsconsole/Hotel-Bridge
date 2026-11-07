@@ -38,7 +38,12 @@ export async function registerAction(_: ActionResult | null, fd: FormData): Prom
     const db = await getDb();
     const { user } = await registerAgency(db, {
       agencyName: str(fd, 'agencyName'), legalName: optStr(fd, 'legalName'), country: str(fd, 'country'), city: optStr(fd, 'city'),
-      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: optStr(fd, 'phone'), pan: optStr(fd, 'pan'), gstin: optStr(fd, 'gstin'),
+      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: optStr(fd, 'phone'),
+      address: optStr(fd, 'address'), state: optStr(fd, 'state'), pincode: optStr(fd, 'pincode'),
+      topDestinations: [...fd.getAll('destinations').map(String), optStr(fd, 'otherDestinations') ?? ''].filter(Boolean).join(', ') || undefined,
+      segments: fd.getAll('segments').map(String).join(', ') || undefined,
+      monthlyBookings: optStr(fd, 'monthlyBookings'), heardFrom: optStr(fd, 'heardFrom'),
+      pan: optStr(fd, 'pan'), gstin: optStr(fd, 'gstin'),
       billingCurrency: str(fd, 'billingCurrency') as 'EUR', name: str(fd, 'name'), email: str(fd, 'email'), password: str(fd, 'password'),
     }, { panCard: await file(fd, 'panCard'), gstCertificate: await file(fd, 'gstCertificate') });
     const s = await createSession(db, user.id);

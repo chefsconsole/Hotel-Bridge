@@ -4,6 +4,9 @@ import { registerAction } from '@/app/actions/auth';
 
 export const metadata = { title: 'Register your agency' };
 
+const DESTINATIONS = ['Thailand', 'Dubai / UAE', 'Vietnam', 'Bali', 'Singapore', 'Malaysia', 'Maldives', 'Sri Lanka', 'Europe', 'UK', 'Switzerland', 'Australia / NZ', 'Domestic India'];
+const SEGMENTS = ['FIT / couples & families', 'Honeymoons', 'Groups', 'MICE', 'Weddings'];
+
 export default function RegisterPage() {
   return (
     <div className="mx-auto grid max-w-6xl gap-14 px-4 py-16 md:grid-cols-[1fr_1.4fr] md:px-6 md:py-24">
@@ -27,12 +30,44 @@ export default function RegisterPage() {
           <Field label="Other registration number" hint="Outside India: VAT / trade licence"><input name="taxId" className="field" /></Field>
           <Field label="City"><input name="city" className="field" autoComplete="address-level2" /></Field>
           <Field label="Website"><input name="website" className="field" placeholder="https://" /></Field>
-          <Field label="Phone"><input name="phone" className="field" autoComplete="tel" /></Field>
+          <Field label="Phone / WhatsApp"><input name="phone" className="field" autoComplete="tel" /></Field>
+          <Field label="Office address" hint="Optional" className="sm:col-span-2"><input name="address" className="field" autoComplete="street-address" /></Field>
+          <Field label="State" hint="Optional"><input name="state" className="field" autoComplete="address-level1" /></Field>
+          <Field label="PIN code" hint="Optional"><input name="pincode" className="field" autoComplete="postal-code" inputMode="numeric" /></Field>
           <Field label="Billing currency">
             <select name="billingCurrency" className="field" defaultValue="INR">
               {['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((c) => <option key={c}>{c}</option>)}
             </select>
           </Field>
+        </div>
+        <h2 className="mt-8 font-semibold">About your business <span className="text-[0.8rem] font-normal text-muted">· optional</span></h2>
+        <p className="mt-1 text-[0.85rem] text-muted">Helps us add the hotels your clients actually ask for.</p>
+        <fieldset className="mt-4">
+          <legend className="text-[0.85rem] font-medium">Destinations you sell most</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {DESTINATIONS.map((d) => (
+              <label key={d} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.84rem] has-[:checked]:border-ink has-[:checked]:bg-mist">
+                <input type="checkbox" name="destinations" value={d} className="size-3.5 accent-[var(--color-ink)]" />{d}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Other destinations" className="sm:col-span-2"><input name="otherDestinations" className="field" placeholder="e.g. Japan, Kenya, Kashmir" /></Field>
+          <fieldset className="sm:col-span-2">
+            <legend className="text-[0.85rem] font-medium">What you book</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SEGMENTS.map((d) => (
+                <label key={d} className="flex cursor-pointer items-center gap-1.5 rounded-full border border-line px-3 py-1 text-[0.84rem] has-[:checked]:border-ink has-[:checked]:bg-mist">
+                  <input type="checkbox" name="segments" value={d} className="size-3.5 accent-[var(--color-ink)]" />{d}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <Field label="Hotel bookings per month">
+            <select name="monthlyBookings" className="field" defaultValue=""><option value="">Prefer not to say</option>{['1–10', '11–50', '51–200', '200+'].map((v) => <option key={v}>{v}</option>)}</select>
+          </Field>
+          <Field label="How did you hear about us?"><input name="heardFrom" className="field" placeholder="Email, WhatsApp, a friend…" /></Field>
         </div>
         <h2 className="mt-8 font-semibold">Documents</h2>
         <p className="mt-1 text-[0.85rem] text-muted">PDF, JPG or PNG, up to 4 MB each. Only HotelBridge&apos;s verification team can open them.</p>

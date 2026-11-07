@@ -19,3 +19,5 @@ export const GROUP_FIRST_RESPONSE_HOURS = 24;
 export const HOTEL_RESPONSE_HOURS = 48;
 
 export const SUPPORT_EMAIL = 'info@hotelbridge.co';
+/** Where new-agency registrations are announced (set HB_NOTIFY_EMAIL to e.g. registrations@hotelbridge.co). */
+export const NOTIFY_EMAIL = process.env.HB_NOTIFY_EMAIL || SUPPORT_EMAIL;
