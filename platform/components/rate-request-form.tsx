@@ -7,7 +7,7 @@ import { CURRENCIES } from '@/lib/domain/money';
 import { describeRooms, encodeRooms } from '@/lib/domain/occupancy';
 import type { RoomRequest } from '@/lib/db/schema';
 import { MEAL_PLANS } from '@/lib/services/catalog';
-import { RATE_REPLY_HOURS } from '@/lib/services/rate-requests';
+import { RATE_TARGET_HOURS } from '@/lib/services/rate-requests';
 
 export function RateRequestForm({ hotelId, checkIn, checkOut, rooms, currency }: { hotelId: string; checkIn?: string; checkOut?: string; rooms?: RoomRequest[] | null; currency: string }) {
   const tomorrow = addDays(todayIso(), 1);
@@ -15,7 +15,7 @@ export function RateRequestForm({ hotelId, checkIn, checkOut, rooms, currency }:
     <ActionForm action={createRateRequestAction} className="space-y-4">
       <input type="hidden" name="hotelId" value={hotelId} />
       <p className="text-[0.88rem] text-muted">
-        This hotel gives HotelBridge a special rate for each enquiry, usually below its public price. Send your client&apos;s dates and rooms: the hotel answers within {RATE_REPLY_HOURS} hours and you see the price here.
+        This hotel gives HotelBridge a special rate for each enquiry, usually below its public price. Send your client&apos;s dates and rooms: we aim to get you the hotel&apos;s best offer within {RATE_TARGET_HOURS} hour, right here on the portal.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Arrival"><input name="checkIn" type="date" min={todayIso()} defaultValue={checkIn ?? ''} className="field num" required /></Field>

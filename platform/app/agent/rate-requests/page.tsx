@@ -13,7 +13,7 @@ export default async function RateRequestsPage() {
   const rows = await listRateRequests(await getDb(), actor);
   return (
     <>
-      <PageHeader eyebrow="Book" title="Best-rate requests" description="Hotels marked “Best rate on request” quote a special price for each enquiry, usually below their public rate. Ask from the hotel page; the answer arrives here within 24 hours." />
+      <PageHeader eyebrow="Book" title="Best-rate requests" description="Hotels marked “Best rate on request” quote a special price for each enquiry, usually below their public rate. Ask from the hotel page; we aim to get you the offer here within 1 hour." />
       <div className="overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface">
         {rows.length === 0 ? <Empty title="No requests yet" action={<Link href="/agent/search" className="text-[0.9rem] font-medium underline underline-offset-4">Search hotels</Link>}>Open a hotel marked “Best rate on request” and press Get best rate.</Empty> : (
           <div className="overflow-x-auto"><table className="table">

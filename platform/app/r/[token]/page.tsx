@@ -54,7 +54,7 @@ export default async function HotelRatePage({ params }: { params: Promise<{ toke
             <ActionForm action={hotelQuoteAction} className="mt-6 rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)] sm:p-8">
               <input type="hidden" name="token" value={token} />
               <h2 className="text-[1.1rem] font-medium">Your best rate</h2>
-              <p className="mt-1 text-[0.85rem] text-muted">Net rate per room per night for these dates. The best rate wins the booking; we pay before arrival.</p>
+              <p className="mt-1 text-[0.85rem] text-muted">Your best rate per room per night for these dates. The best rate wins the booking; payment and guest arrangements stay directly between your hotel and the travel agency.</p>
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <Field label="Room type" className="sm:col-span-2"><input name="roomType" className="field" placeholder="e.g. Deluxe Sea View" /></Field>
                 <Field label="Currency"><select name="currency" defaultValue="THB" className="field">{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></Field>

@@ -4,7 +4,9 @@ import { LinkButton } from '@/components/ui';
 export default function Home() {
   return (
     <>
+      <DiwaliStrip />
       <Hero />
+      <DirectToHotel />
       <Network />
       <AgentFlow />
       <HotelPartners />
@@ -12,6 +14,48 @@ export default function Home() {
       <Join />
       <Clarity />
     </>
+  );
+}
+
+/* ------------------------------- diwali -------------------------------- */
+
+/** Launch greeting; hides itself after the festive season. */
+function DiwaliStrip() {
+  if (new Date() > new Date('2026-11-21T00:00:00+05:30')) return null;
+  return (
+    <Link href="/diwali" className="block bg-champagne text-ink">
+      <p className="mx-auto max-w-6xl px-4 py-2.5 text-center text-[0.88rem] font-medium md:px-6">
+        🪔 Happy Diwali from HotelBridge — we are live. <span className="underline underline-offset-4">See what we have built for Indian travel agents →</span>
+      </p>
+    </Link>
+  );
+}
+
+/* ---------------------------- direct to hotel ---------------------------- */
+
+function DirectToHotel() {
+  const points = [
+    ['No APIs, no wholesalers', 'Our rates do not come from a chain of booking feeds. Every price is a direct contract or a direct quote from the hotel itself.'],
+    ['Your enquiry goes to the hotel', 'For best-rate hotels, your client’s dates and rooms go straight to the hotel’s own sales team — no middleman reselling someone else’s inventory.'],
+    ['Confirmation from the hotel', 'Your booking is confirmed by the hotel directly, not by a third-party system that may not have the room.'],
+    ['Best offer within 1 hour', 'We aim to get you the hotel’s best offer within an hour, right in the portal.'],
+  ];
+  return (
+    <section className="border-b border-line bg-paper">
+      <div className="mx-auto max-w-6xl px-4 py-16 md:px-6 md:py-20">
+        <p className="eyebrow">Direct to the hotel</p>
+        <h2 className="mt-3 max-w-2xl text-[1.9rem] leading-tight font-semibold tracking-[-0.025em] md:text-[2.4rem]">No middleman between you and the hotel.</h2>
+        <p className="mt-4 max-w-2xl text-[1rem] leading-relaxed text-muted">Most B2B portals pass your booking through APIs that connect to other APIs. We work with each hotel directly, so the rate, the room and the confirmation all come from the hotel.</p>
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {points.map(([t, d]) => (
+            <div key={t} className="rounded-[var(--radius-lg)] border border-line bg-surface p-5">
+              <p className="font-semibold">{t}</p>
+              <p className="mt-2 text-[0.9rem] leading-relaxed text-muted">{d}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -254,7 +298,7 @@ function Join() {
 function Clarity() {
   const items = [
     ['How bookings are confirmed', 'Instant bookings are confirmed against allotment we hold with the hotel. Requests go to the hotel and stay “pending” until the hotel answers. You only receive a voucher for confirmed bookings.'],
-    ['Prices', 'The price you see is the total for the stay, for every room. Before booking we check it again with the hotel or supplier. If it has changed, we show you the new price and you decide.'],
+    ['Prices', 'The price you see is the total for the stay, for every room. Before booking we check it again with the hotel. If it has changed, we show you the new price and you decide.'],
     ['Cancellations', 'Every rate shows its cancellation deadline as a date. When you cancel, we show the charge (if any) before you confirm.'],
     ['Payment', 'New agencies prepay before a booking is confirmed; rooms are held until a stated deadline. Credit terms are available only after a review by our finance team.'],
     ['Support', 'Reach a person for urgent issues. Every booking has a full timeline, so nobody has to ask what happened.'],

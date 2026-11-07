@@ -130,7 +130,7 @@ function OnRequestList({ hotels, q }: { hotels: Awaited<ReturnType<typeof onRequ
   return (
     <div className="mb-6 rounded-[var(--radius-lg)] border border-champagne/40 bg-champagne-soft/40 p-5">
       <p className="text-[0.95rem] font-semibold">Best rate on request</p>
-      <p className="mt-0.5 text-[0.84rem] text-muted">These partner hotels give HotelBridge a special price for each enquiry, usually below their public rate. Ask, and the hotel answers within 24 hours.</p>
+      <p className="mt-0.5 text-[0.84rem] text-muted">These partner hotels give HotelBridge a special price for each enquiry, usually below their public rate. Ask, and we aim to get you their best offer within 1 hour, here on the portal.</p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {hotels.map((h) => (
           <li key={h.id} className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] border border-line bg-surface p-3">

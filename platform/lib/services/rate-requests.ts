@@ -7,7 +7,8 @@
  *  1. The agent picks the hotel, dates and rooms, and may tell us the
  *     client's budget. The budget is ours: it is never sent or shown to
  *     the hotel.
- *  2. The hotel is emailed a private link and answers within 24 hours:
+ *  2. The hotel is emailed a private link and asked to answer within
+ *     1 hour (the request stays open for 24 hours):
  *     a rate per room per night, or "not available".
  *  3. The agent sees the price with our markup and can accept it. If the
  *     quote is above the budget, or the hotel can't help, we show other
@@ -36,6 +37,9 @@ import { getSetting } from './settings';
 
 const { rateRequests, hotels, users } = schema;
 
+/** How fast we aim to get agents an offer (hotels are asked for this). */
+export const RATE_TARGET_HOURS = 1;
+/** How long a request stays open before it lapses. */
 export const RATE_REPLY_HOURS = 24;
 const OPEN = ['sent', 'not_emailed'];
 const MAX_NIGHTS = 30;
@@ -70,7 +74,7 @@ export async function onRequestHotels(db: DB, city: string, opts: { tiers?: stri
 function hotelEmail(r: RateRequest, h: Hotel) {
   const nights = daysBetween(r.checkIn, r.checkOut);
   const link = appUrl(`/r/${r.token}`);
-  const subject = `Best rate request · ${h.name} · ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)} · ${r.rooms.length} room${r.rooms.length === 1 ? '' : 's'} · reply in ${RATE_REPLY_HOURS}h`;
+  const subject = `Best rate request · ${h.name} · ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)} · ${r.rooms.length} room${r.rooms.length === 1 ? '' : 's'} · reply within ${RATE_TARGET_HOURS}h`;
   const body = [
     `Dear ${h.name} team,`,
     '',
@@ -82,10 +86,10 @@ function hotelEmail(r: RateRequest, h: Hotel) {
     `  Meals:      ${r.mealPlan ? MEAL_PLANS[r.mealPlan as keyof typeof MEAL_PLANS] : 'Best option — room only or with breakfast'}`,
     ...(r.notes ? [`  Notes:      ${r.notes}`] : []),
     '',
-    `Please reply within ${RATE_REPLY_HOURS} hours (by ${formatDateTime(r.respondByAt)}) with your best net rate — one click, no login:`,
+    `The travel agent is waiting: please reply within ${RATE_TARGET_HOURS} hour if you can (the request closes ${formatDateTime(r.respondByAt)}) with your best rate — one click, no login:`,
     link,
     '',
-    'The best rate wins the booking. We pay before arrival, so you carry no credit risk.',
+    'The best rate wins the booking. Booking, payment and guest arrangements stay directly between your hotel and the travel agency.',
     '',
     `Reference: ${r.reference}`,
   ].join('\n');
