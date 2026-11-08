@@ -1,3 +1,4 @@
+import { atMostEvery, memo } from '@/lib/services/throttle';
 import { lapseUnansweredRequests } from '@/lib/services/bookings';
 import { lapseGroupRequests } from '@/lib/services/group-desk';
 import { lapseRateRequests } from '@/lib/services/rate-requests';
@@ -12,10 +13,9 @@ import { operationalIssues } from '@/lib/services/metrics';
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireStaff();
   // No scheduler yet: lapse unanswered hotel requests whenever the console loads.
-  await lapseUnansweredRequests(await getDb());
-  await lapseGroupRequests(await getDb());
-  await lapseRateRequests(await getDb());
-  const issues = await operationalIssues(await getDb());
+  const db = await getDb();
+  await atMostEvery('lapse-requests', 60_000, () => Promise.all([lapseUnansweredRequests(db), lapseGroupRequests(db), lapseRateRequests(db)]));
+  const issues = await memo('admin-issues', 20_000, () => operationalIssues(db));
   const role = user.platformRole as StaffRole;
   // Each role sees its own work; admin sees everything.
   const ROLES: Record<string, StaffRole[]> = {

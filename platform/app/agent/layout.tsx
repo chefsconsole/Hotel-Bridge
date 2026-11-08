@@ -1,3 +1,4 @@
+import { atMostEvery } from '@/lib/services/throttle';
 import Link from 'next/link';
 import { lapseUnansweredRequests } from '@/lib/services/bookings';
 import { lapseRateRequests } from '@/lib/services/rate-requests';
@@ -14,16 +15,18 @@ import { requireAgent } from '@/lib/session';
 export default async function AgentLayout({ children }: { children: React.ReactNode }) {
   const { user, agency } = await requireAgent();
   const db = await getDb();
-  // No scheduler yet: lapse unanswered hotel requests so agents see the real status.
-  await lapseUnansweredRequests(db);
-  await lapseRateRequests(db);
-  const [{ n: rates }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.rateRequests)
-    .where(and(eq(schema.rateRequests.agencyId, agency.id), eq(schema.rateRequests.status, 'quoted')));
-  const [{ n: pending }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.bookings)
-    .where(and(eq(schema.bookings.agencyId, agency.id), inArray(schema.bookings.status, ['awaiting_payment', 'pending_confirmation', 'outcome_unknown'])));
-  const [{ n: followUps }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.trips)
-    .where(and(eq(schema.trips.agencyId, agency.id), lte(schema.trips.followUpOn, todayIso()), notInArray(schema.trips.status, ['completed', 'cancelled'])));
-  const wallet = (await walletBalances(db, agency.id)).filter((w) => w.minor > 0);
+  // Keeps statuses honest without slowing every click (the daily cron is the backstop).
+  await atMostEvery('lapse-requests-agent', 60_000, () => Promise.all([lapseUnansweredRequests(db), lapseRateRequests(db)]));
+  const [[{ n: rates }], [{ n: pending }], [{ n: followUps }], balances] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.rateRequests)
+      .where(and(eq(schema.rateRequests.agencyId, agency.id), eq(schema.rateRequests.status, 'quoted'))),
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.bookings)
+      .where(and(eq(schema.bookings.agencyId, agency.id), inArray(schema.bookings.status, ['awaiting_payment', 'pending_confirmation', 'outcome_unknown']))),
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.trips)
+      .where(and(eq(schema.trips.agencyId, agency.id), lte(schema.trips.followUpOn, todayIso()), notInArray(schema.trips.status, ['completed', 'cancelled']))),
+    walletBalances(db, agency.id),
+  ]);
+  const wallet = balances.filter((w) => w.minor > 0);
   const nav: NavItem[] = [
     { href: '/agent', label: 'Overview', icon: 'overview', section: 'Book' },
     { href: '/agent/search', label: 'Search hotels', icon: 'search', section: 'Book' },

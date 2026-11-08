@@ -6,6 +6,9 @@ import { getDb, schema } from '@/lib/db';
 /* Homepage. Every number shown is read from the database — never a marketing
  * figure. Product previews are labelled "Example". */
 
+/** Served from the CDN; the live counts refresh every 5 minutes. */
+export const revalidate = 300;
+
 async function liveCounts() {
   try {
     const db = await getDb();

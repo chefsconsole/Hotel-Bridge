@@ -40,7 +40,7 @@ function create(): Handle {
   if (url) {
     const postgres = require('postgres');
     const { drizzle } = require('drizzle-orm/postgres-js');
-    const client = postgres(url, { max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 10, prepare: false });
+    const client = postgres(url, { max: Number(process.env.DATABASE_MAX_CONNECTIONS) || 5, prepare: false, connect_timeout: 10, idle_timeout: 30 });
     const db = drizzle(client, { schema }) as DB;
     // Against a server database, migrations are an explicit deploy step.
     return { db, ready: Promise.resolve(), close: () => client.end() };

@@ -1,11 +1,9 @@
 import Link from 'next/link';
 import { LinkButton, Logo } from '@/components/ui';
-import { getSession, homeFor } from '@/lib/session';
 import { SUPPORT_EMAIL } from '@/lib/config';
 import { EnvBanner } from '@/components/env-banner';
 
-export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSession();
+export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <EnvBanner />
@@ -20,14 +18,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             <Link href="/#how" className="hover:text-ink">How it works</Link>
           </nav>
           <div className="flex items-center gap-2">
-            {session ? (
-              <LinkButton href={homeFor(session.user)} size="sm">Open workspace</LinkButton>
-            ) : (
-              <>
-                <Link href="/login" className="hidden px-2 text-[0.88rem] font-medium text-ink hover:underline sm:inline">Sign in</Link>
-                <LinkButton href="/register" size="sm">Register agency</LinkButton>
-              </>
-            )}
+            <Link href="/login" className="hidden px-2 text-[0.88rem] font-medium text-ink hover:underline sm:inline">Sign in</Link>
+            <LinkButton href="/register" size="sm">Register agency</LinkButton>
           </div>
         </div>
       </header>

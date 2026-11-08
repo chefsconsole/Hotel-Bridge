@@ -17,8 +17,8 @@ export function messageFor(e: unknown): string {
   return 'Something went wrong on our side. Nothing was charged. Please try again or contact support.';
 }
 
-function humanPath(p: (string | number)[]) {
-  return p.map((x) => (typeof x === 'number' ? `#${x + 1}` : x.replace(/([A-Z])/g, ' $1').toLowerCase())).join(' ');
+function humanPath(p: PropertyKey[]) {
+  return p.map((x) => (typeof x === 'number' ? `#${x + 1}` : String(x).replace(/([A-Z])/g, ' $1').toLowerCase())).join(' ');
 }
 
 export async function attempt(fn: () => Promise<string | void | ActionResult>): Promise<ActionResult> {

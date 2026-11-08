@@ -109,7 +109,7 @@ export const passwordLinks = pgTable('password_links', {
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
   createdAt: createdAt(),
-});
+}, (t) => [index('password_links_user_idx').on(t.userId)]);
 
 export const loginAttempts = pgTable('login_attempts', {
   id: id(),
@@ -659,6 +659,7 @@ export const rateRequests = pgTable('rate_requests', {
   uniqueIndex('rate_requests_token_uq').on(t.token),
   uniqueIndex('rate_requests_ref_uq').on(t.reference),
   index('rate_requests_agency_idx').on(t.agencyId, t.createdAt),
+  index('rate_requests_status_idx').on(t.status, t.respondByAt),
 ]);
 
 /* ============================== Agents' own clients ============================== *
@@ -842,7 +843,7 @@ export const supportTickets = pgTable('support_tickets', {
   reply: text('reply'),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [index('support_tickets_agency_idx').on(t.agencyId, t.createdAt)]);
 
 export const partnerApplications = pgTable('partner_applications', {
   id: id(),
