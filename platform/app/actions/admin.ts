@@ -465,3 +465,20 @@ export async function logProspectContactAction(_: ActionResult | null, fd: FormD
     return 'Contact logged.';
   });
 }
+
+/** Proves email works end to end: sends a short message to HotelBridge's own inbox. */
+export async function testEmailAction(): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const db = await getDb();
+    const { sendEmail } = await import('@/lib/services/email');
+    const { NOTIFY_EMAIL } = await import('@/lib/config');
+    const r = await sendEmail(db, {
+      to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'test', subject: 'HotelBridge portal · test email',
+      body: `This is a test from the HotelBridge portal, sent by ${actor.label}.\n\nIf you can read this, registration, best-rate and group emails will reach their recipients.`,
+    });
+    revalidatePath('/admin/emails');
+    if (r.status !== 'sent') throw new AppError(`Not sent (${r.status}). See the row below for the reason.`);
+    return `Sent to ${NOTIFY_EMAIL} — check the inbox.`;
+  });
+}
