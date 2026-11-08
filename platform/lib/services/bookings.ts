@@ -11,6 +11,7 @@
  *     never by booking again.
  *  4. Money moves only through the append-only ledger.
  * ------------------------------------------------------------------ */
+import { bookingCreated } from './notify';
 import { and, desc, eq, inArray, lt } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB, type Executor } from '@/lib/db';
@@ -147,6 +148,12 @@ export type CreateResult =
   | { kind: 'unavailable'; reason: string };
 
 export async function createBooking(db: DB, actor: Actor, input: z.infer<typeof guestSchema>): Promise<CreateResult> {
+  const r = await createBookingCore(db, actor, input);
+  if (r.kind === 'created') await bookingCreated(db, r.booking);
+  return r;
+}
+
+async function createBookingCore(db: DB, actor: Actor, input: z.infer<typeof guestSchema>): Promise<CreateResult> {
   const agencyId = agencyOf(actor);
   const data = guestSchema.parse(input);
 

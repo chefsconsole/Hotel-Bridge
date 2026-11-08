@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <p className="mt-6 text-center text-[0.9rem] text-muted">
         New to HotelBridge? <Link href="/register" className="font-medium text-ink underline underline-offset-4">Register your agency</Link>
       </p>
-      <p className="mt-2 text-center text-[0.8rem] text-faint">Forgotten your password? Email info@hotelbridge.co from your registered address.</p>
+      <p className="mt-2 text-center text-[0.85rem] text-muted"><Link href="/forgot-password" className="text-ink underline underline-offset-4">Forgot your password?</Link></p>
     </div>
   );
 }

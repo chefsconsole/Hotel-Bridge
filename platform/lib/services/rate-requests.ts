@@ -28,6 +28,8 @@ import { describeRoom, describeRooms, roomsSchema } from '@/lib/domain/occupancy
 import { TIER_INFO, isTier } from '@/lib/domain/tiers';
 import { SYSTEM, agencyOf, isStaff, type Actor } from './actor';
 import { audit } from './audit';
+import { rateRequestOpened } from './notify';
+import { NOTIFY_EMAIL } from '@/lib/config';
 import { nextNumber, randomCode } from './counters';
 import { AppError, NotFoundError } from './errors';
 import { appUrl, sendEmail } from './email';
@@ -41,6 +43,8 @@ const { rateRequests, hotels, users } = schema;
 export const RATE_TARGET_HOURS = 1;
 /** How long a request stays open before it lapses. */
 export const RATE_REPLY_HOURS = 24;
+/** Best-rate requests an agency may send before it is verified. */
+export const UNVERIFIED_LIMIT = 3;
 const OPEN = ['sent', 'not_emailed'];
 const MAX_NIGHTS = 30;
 
@@ -108,6 +112,13 @@ export async function createRateRequest(db: DB, actor: Actor, input: z.input<typ
   const [h] = await db.select().from(hotels).where(and(eq(hotels.id, v.hotelId), eq(hotels.status, 'active')));
   if (!h) throw new NotFoundError('Hotel');
   if (!h.bestRateOnRequest) throw new AppError('This hotel is booked at contracted rates — search your dates to see them');
+  // Protect partner hotels from unverified sign-ups: a few requests while we verify, then wait for approval.
+  const [ag] = await db.select({ status: schema.agencies.status }).from(schema.agencies).where(eq(schema.agencies.id, agencyId));
+  if (ag && ag.status !== 'verified') {
+    if (ag.status !== 'pending') throw new AppError('Your agency account is not active. Please contact HotelBridge.', 'forbidden');
+    const open = await db.select({ id: rateRequests.id }).from(rateRequests).where(eq(rateRequests.agencyId, agencyId));
+    if (open.length >= UNVERIFIED_LIMIT) throw new AppError(`While we verify your agency you can send ${UNVERIFIED_LIMIT} best-rate requests. Verification usually takes one working day — we'll email you as soon as you're approved.`, 'not_verified');
+  }
   const to = hotelEmailOf(h);
   if (!to) throw new AppError('We have no email for this hotel yet — ask HotelBridge support');
 
@@ -133,6 +144,7 @@ export async function createRateRequest(db: DB, actor: Actor, input: z.input<typ
   const status = mail.status === 'sent' ? 'sent' : 'not_emailed';
   if (status !== r.status) await db.update(rateRequests).set({ status }).where(eq(rateRequests.id, r.id));
   await audit(db, actor, 'rate_request.created', 'rate_request', r.id, { hotel: h.name, emailed: status === 'sent' }, agencyId);
+  await rateRequestOpened(db, { ...r, status });
   return { ...r, status };
 }
 
@@ -319,6 +331,23 @@ export async function cancelRateRequest(db: DB, actor: Actor, id: string) {
 export async function lapseRateRequests(db: DB, now = new Date()) {
   const late = await db.update(rateRequests).set({ status: 'no_response', updatedAt: now })
     .where(and(inArray(rateRequests.status, OPEN), lt(rateRequests.respondByAt, now))).returning();
+  // Nobody is left waiting: the agent is told and offered other hotels; HotelBridge is told.
+  for (const r of late) {
+    try {
+      await notifyAgent(db, r, `${r.hotelName} did not reply in time`, [
+        `${r.hotelName} didn't send a rate for ${r.checkIn} → ${r.checkOut} in time. Sorry about that.`,
+        '',
+        'Open the request to ask another hotel in the same city in one click — or reply to this email and our team will find one for you:',
+      ]);
+      await sendEmail(db, {
+        to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_rate_lapsed', relatedId: r.id,
+        subject: `No hotel reply · ${r.reference} · ${r.hotelName}`,
+        body: `${r.hotelName} (${r.hotelEmail ?? 'no email'}) never answered ${r.reference} (${r.checkIn} → ${r.checkOut}). The agent has been told. Consider calling the hotel or offering another one.
+
+${appUrl('/admin/rate-requests')}`,
+      });
+    } catch (e) { console.error('[rate-requests] lapse notice failed', e); }
+  }
   const stale = await db.update(rateRequests).set({ status: 'expired', updatedAt: now })
     .where(and(eq(rateRequests.status, 'quoted'), lt(rateRequests.quoteValidUntil, todayIso(now)))).returning();
   return late.length + stale.length;

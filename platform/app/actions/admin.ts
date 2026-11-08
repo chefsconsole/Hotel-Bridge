@@ -27,6 +27,7 @@ import {
 import { setSetting } from '@/lib/services/settings';
 import { AppError } from '@/lib/services/errors';
 import { audit } from '@/lib/services/audit';
+import { supportReplied } from '@/lib/services/notify';
 
 const staff = async () => (await requireStaff()).actor;
 const money = (fd: FormData, k: string, currency: string): number | null => {
@@ -353,10 +354,11 @@ export async function supportReplyAction(_: ActionResult | null, fd: FormData): 
   return attempt(async () => {
     const actor = await staff();
     const db = await getDb();
-    await db.update(schema.supportTickets).set({ reply: str(fd, 'reply'), status: bool(fd, 'close') ? 'closed' : 'answered', updatedAt: new Date() }).where(eq(schema.supportTickets.id, str(fd, 'id')));
+    const [t] = await db.update(schema.supportTickets).set({ reply: str(fd, 'reply'), status: bool(fd, 'close') ? 'closed' : 'answered', updatedAt: new Date() }).where(eq(schema.supportTickets.id, str(fd, 'id'))).returning();
+    if (t?.reply) await supportReplied(db, { id: t.id, subject: t.subject, reply: t.reply, userId: t.userId });
     await audit(db, actor, 'support.replied', 'support_ticket', str(fd, 'id'));
     revalidatePath('/admin/support');
-    return 'Reply saved. (Email delivery is not connected yet — the agent sees it in their Support page.)';
+    return 'Reply saved and emailed to the agent (see Admin → Emails for delivery).';
   });
 }
 

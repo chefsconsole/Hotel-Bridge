@@ -18,6 +18,7 @@ import { SYSTEM } from '@/lib/services/actor';
 import { parseTiers } from '@/lib/domain/tiers';
 import { addAgencyUser, changePassword } from '@/lib/services/auth';
 import { AppError } from '@/lib/services/errors';
+import { supportTicketOpened } from '@/lib/services/notify';
 
 export async function quoteAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   let id = '';
@@ -164,7 +165,7 @@ export async function changePasswordAction(_: ActionResult | null, fd: FormData)
 
 export async function supportAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   return attempt(async () => {
-    const { actor } = await requireAgent();
+    const { actor, agency, user } = await requireAgent();
     const subject = str(fd, 'subject');
     const body = str(fd, 'body');
     if (subject.length < 3 || body.length < 10) throw new AppError('Add a subject and describe what you need');
@@ -176,7 +177,8 @@ export async function supportAction(_: ActionResult | null, fd: FormData): Promi
       if (!b) throw new AppError(`We can't find booking ${bookingRef} in your agency`);
       bookingId = b.id;
     }
-    await db.insert(schema.supportTickets).values({ agencyId: actor.agencyId!, userId: actor.userId, bookingId, subject, body, urgency: bool(fd, 'urgent') ? 'urgent' : 'normal' });
+    const [t] = await db.insert(schema.supportTickets).values({ agencyId: actor.agencyId!, userId: actor.userId, bookingId, subject, body, urgency: bool(fd, 'urgent') ? 'urgent' : 'normal' }).returning();
+    await supportTicketOpened(db, t, agency.name, { email: user.email, name: user.name });
     revalidatePath('/agent/support');
     return 'Received. Our team will reply here and by email.';
   });

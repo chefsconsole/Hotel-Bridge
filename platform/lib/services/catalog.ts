@@ -15,6 +15,7 @@ import { TIERS } from '@/lib/domain/tiers';
 import { assertReadyToVerify } from './kyc';
 import { emailSchema, hashPassword, passwordSchema } from './auth';
 import { AppError, NotFoundError, isUniqueViolation } from './errors';
+import { agencyStatusChanged, partnerApplicationReceived } from './notify';
 
 const { hotels, roomTypes, contracts, ratePeriods, restrictions, allocations, pricingRules, agencies, users, partnerApplications } = schema;
 
@@ -426,6 +427,7 @@ export async function setAgencyStatus(db: DB, actor: Actor, agencyId: string, st
     ...(status === 'verified' ? { verifiedBy: actor.userId, verifiedAt: new Date() } : {}),
   }).where(eq(agencies.id, agencyId));
   await audit(db, actor, `agency.${status}`, 'agency', agencyId, { from: a.status, note }, agencyId);
+  if (a.status !== status) await agencyStatusChanged(db, a, status);
 }
 
 export async function setAgencyCredit(db: DB, actor: Actor, agencyId: string, input: { enabled: boolean; limitMinor: number; termsDays: number; note: string }) {
@@ -463,6 +465,7 @@ export async function submitPartnerApplication(db: DB, input: z.input<typeof par
     .where(and(eq(partnerApplications.email, data.email), gte(partnerApplications.createdAt, new Date(Date.now() - 86_400_000))));
   if (n > 0) throw new AppError('We already have your application from today — we will be in touch.');
   const [a] = await db.insert(partnerApplications).values({ ...data, rooms: data.rooms ?? null }).returning();
+  await partnerApplicationReceived(db, a);
   return a;
 }
 

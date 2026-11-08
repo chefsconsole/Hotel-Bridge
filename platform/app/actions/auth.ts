@@ -76,3 +76,11 @@ export async function setPasswordAction(_: ActionResult | null, fd: FormData): P
   if (done) redirect('/login?password=1');
   return r;
 }
+
+export async function forgotPasswordAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const { sendPasswordLink } = await import('@/lib/services/notify');
+    await sendPasswordLink(await getDb(), str(fd, 'email'));
+    return 'If that email has a HotelBridge account, a link to set your password is on its way. Check your inbox (and spam) in a minute.';
+  });
+}

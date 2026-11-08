@@ -3,6 +3,7 @@
  * structure, deadlines, hotel enquiries, offer comparison, proposals,
  * margins, history — is the system's job.
  * ------------------------------------------------------------------ */
+import { groupEnquiryOpened } from './notify';
 import { and, asc, desc, eq, inArray, max } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
@@ -90,6 +91,7 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
     body: `Thank you — we've received ${e.reference}. A Group Desk specialist will review it and reply within ${GROUP_FIRST_RESPONSE_HOURS} hours. We'll approach suitable hotels and send you a written proposal before ${formatDate(e.quoteNeededBy)}.`,
   });
   await audit(db, actor, 'group.created', 'group_enquiry', e.id, { reference: e.reference }, agencyId);
+  await groupEnquiryOpened(db, e);
   return e;
 }
 

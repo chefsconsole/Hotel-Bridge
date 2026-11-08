@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
 import { NOTIFY_EMAIL, SESSION_DAYS } from '@/lib/config';
 import { appUrl, sendEmail } from './email';
+import { welcomeAgency } from './notify';
 import { AppError, isUniqueViolation } from './errors';
 import type { Actor } from './actor';
 import { audit } from './audit';
@@ -159,6 +160,7 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
   // Tell HotelBridge. The registration stands even if the email can't be sent
   // (it is still listed under Admin → Agencies → Waiting for approval).
   try { await notifyRegistration(db, created.agency, created.user, { panCard: !!panCard, gstCertificate: !!gstCertificate }); } catch { /* logged by sendEmail */ }
+  await welcomeAgency(db, created.agency, created.user);
   return created;
 }
 
