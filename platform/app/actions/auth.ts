@@ -37,9 +37,9 @@ export async function registerAction(_: ActionResult | null, fd: FormData): Prom
     if (!fd.get('terms')) throw new AppError('Please accept the terms of business to continue.');
     const db = await getDb();
     const { user } = await registerAgency(db, {
-      agencyName: str(fd, 'agencyName'), legalName: optStr(fd, 'legalName'), country: str(fd, 'country'), city: optStr(fd, 'city'),
-      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: optStr(fd, 'phone'),
-      address: optStr(fd, 'address'), state: optStr(fd, 'state'), pincode: optStr(fd, 'pincode'),
+      agencyName: str(fd, 'agencyName'), legalName: optStr(fd, 'legalName'), country: str(fd, 'country'), city: str(fd, 'city'),
+      website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: str(fd, 'phone'),
+      address: str(fd, 'address'), state: str(fd, 'state'), pincode: optStr(fd, 'pincode'),
       topDestinations: [...fd.getAll('destinations').map(String), optStr(fd, 'otherDestinations') ?? ''].filter(Boolean).join(', ') || undefined,
       segments: fd.getAll('segments').map(String).join(', ') || undefined,
       monthlyBookings: optStr(fd, 'monthlyBookings'), heardFrom: optStr(fd, 'heardFrom'),

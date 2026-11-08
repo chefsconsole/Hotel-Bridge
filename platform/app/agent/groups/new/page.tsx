@@ -3,7 +3,7 @@ import { DateField, StayDatesField } from '@/components/date-fields';
 import { Notice, PageHeader } from '@/components/ui';
 import type { GroupDraftT } from '@/lib/ai/tools';
 import { createGroupAction } from '@/app/actions/agent';
-import { groupBriefAction } from '@/app/actions/ai';
+import { quickGroupAction } from '@/app/actions/ai';
 import { aiConfigured } from '@/lib/ai/client';
 import { TIERS, TIER_INFO } from '@/lib/domain/tiers';
 import { requireAgent } from '@/lib/session';
@@ -30,15 +30,18 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
         </Notice></div>
       )}
       {!d && (
-        <details className="mb-6 max-w-4xl rounded-[var(--radius-lg)] border border-champagne/40 bg-champagne-soft p-5" open={aiOn}>
-          <summary className="cursor-pointer font-medium">Paste the client&apos;s message — AI fills the form</summary>
-          {aiOn ? (
-            <ActionForm action={groupBriefAction} className="mt-4 space-y-3">
-              <textarea name="brief" rows={5} className="field" placeholder="e.g. 40 pax wedding group, Phuket 12–15 Feb, 18 doubles 2 triples, breakfast, 5-star, need quote by Friday" />
-              <SubmitButton size="sm" pendingLabel="Reading…">Read it and fill the form</SubmitButton>
-            </ActionForm>
-          ) : <p className="mt-3 text-[0.85rem] text-muted">The AI reader isn&apos;t connected yet. Fill the form below — paste the client&apos;s words in “Client&apos;s message” so the Group Desk sees them.</p>}
-        </details>
+        <div className="mb-6 max-w-4xl rounded-[var(--radius-lg)] border border-champagne/40 bg-champagne-soft p-5">
+          <p className="font-semibold">Got a group enquiry? Just paste it.</p>
+          <p className="mt-1 text-[0.86rem] text-muted">WhatsApp message, client email, your notes — in any format. {aiOn ? 'Our AI sorts it into a group request and sends it to our Group Desk. If something is missing, we still get your message and come back to you.' : 'It goes straight to our Group Desk, who will come back to you.'}</p>
+          <ActionForm action={quickGroupAction} className="mt-4 space-y-3">
+            <textarea name="brief" rows={6} className="field" placeholder="e.g. 40 pax wedding group, Phuket 12–15 Feb, 18 doubles 2 triples, breakfast, 5-star, need quote by Friday" />
+            <div className="flex flex-wrap items-center gap-3">
+              <SubmitButton size="sm" pendingLabel="Sending…">Send to Group Desk</SubmitButton>
+              {aiOn && <SubmitButton size="sm" variant="secondary" name="mode" value="review" pendingLabel="Reading…">Fill the form first, I’ll check it</SubmitButton>}
+            </div>
+          </ActionForm>
+          <p className="mt-4 text-[0.82rem] text-muted">Prefer to type it yourself? Use the form below.</p>
+        </div>
       )}
       <ActionForm action={createGroupAction} className="max-w-4xl space-y-6">
         <section className={section}>

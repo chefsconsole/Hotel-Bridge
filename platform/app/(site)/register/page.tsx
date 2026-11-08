@@ -28,11 +28,11 @@ export default function RegisterPage() {
           <Field label="PAN" hint="Required in India · e.g. ABCDE1234F"><input name="pan" className="field uppercase" maxLength={10} autoComplete="off" /></Field>
           <Field label="GSTIN" hint="If GST-registered · 15 characters"><input name="gstin" className="field uppercase" maxLength={15} autoComplete="off" /></Field>
           <Field label="Other registration number" hint="Outside India: VAT / trade licence"><input name="taxId" className="field" /></Field>
-          <Field label="City"><input name="city" className="field" autoComplete="address-level2" /></Field>
+          <Field label="City"><input name="city" required className="field" autoComplete="address-level2" /></Field>
           <Field label="Website"><input name="website" className="field" placeholder="https://" /></Field>
-          <Field label="Phone / WhatsApp"><input name="phone" className="field" autoComplete="tel" /></Field>
-          <Field label="Office address" hint="Optional" className="sm:col-span-2"><input name="address" className="field" autoComplete="street-address" /></Field>
-          <Field label="State" hint="Optional"><input name="state" className="field" autoComplete="address-level1" /></Field>
+          <Field label="Phone / WhatsApp"><input name="phone" required className="field" autoComplete="tel" /></Field>
+          <Field label="Office address" className="sm:col-span-2"><input name="address" required className="field" autoComplete="street-address" /></Field>
+          <Field label="State"><input name="state" required className="field" autoComplete="address-level1" /></Field>
           <Field label="PIN code" hint="Optional"><input name="pincode" className="field" autoComplete="postal-code" inputMode="numeric" /></Field>
           <Field label="Billing currency">
             <select name="billingCurrency" className="field" defaultValue="INR">

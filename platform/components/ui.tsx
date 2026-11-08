@@ -14,12 +14,10 @@ export function cx(...c: Array<string | false | null | undefined>) {
 export function Logo({ inverse = false, className = '' }: { inverse?: boolean; className?: string }) {
   return (
     <span className={cx('inline-flex items-center gap-2.5', className)}>
-      <svg viewBox="0 0 40 28" className="h-6 w-auto" aria-hidden>
-        <path d="M3 22C7.5 11 13.5 6 20 6s12.5 5 17 16" fill="none" stroke="var(--color-champagne)" strokeWidth="2.4" strokeLinecap="round" />
-        <path d="M3 25h34" stroke={inverse ? 'var(--color-paper)' : 'var(--color-ink)'} strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-      <span className={cx('font-[family-name:var(--font-display)] text-[1.08rem] font-semibold tracking-[-0.02em]', inverse ? 'text-paper' : 'text-ink')}>
-        HotelBridge
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={inverse ? '/hotelbridge-mark-inverse.png' : '/hotelbridge-mark.png'} alt="" width={56} height={34} className="h-8 w-auto" />
+      <span className="font-[family-name:var(--font-display)] text-[1.15rem] font-semibold tracking-[-0.02em]">
+        <span className={inverse ? 'text-paper' : 'text-[#1f2b55]'}>Hotel</span><span className="text-[#b8862e]">Bridge</span>
       </span>
     </span>
   );

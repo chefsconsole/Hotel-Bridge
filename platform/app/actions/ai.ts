@@ -6,7 +6,12 @@ import { encodeRooms } from '@/lib/domain/occupancy';
 import { clientMessage, founderBrief, groupFromBrief, helpAnswer, readRateSheet, smartSearch } from '@/lib/ai/tools';
 import { audit } from '@/lib/services/audit';
 import { founderMetrics, operationalIssues } from '@/lib/services/metrics';
-import { getSession } from '@/lib/session';
+import { getSession, requireAgent } from '@/lib/session';
+import { aiConfigured } from '@/lib/ai/client';
+import { sendPastedGroupEnquiry } from '@/lib/services/quick-group';
+import { getSetting } from '@/lib/services/settings';
+import { dispatchToHotels } from '@/lib/services/group-desk';
+import { SYSTEM } from '@/lib/services/actor';
 import { AppError, ForbiddenError } from '@/lib/services/errors';
 import { demoMode } from '@/lib/config';
 
@@ -89,4 +94,25 @@ export async function helpAction(_: ActionResult | null, fd: FormData): Promise<
     if (!q) throw new AppError('Type a question first.');
     return { ok: true, data: { output: await helpAnswer(await getDb(), await actor(), q) } };
   });
+}
+
+/** One step: paste any group enquiry. AI makes the request if it can; otherwise the Group Desk gets the message. */
+export async function quickGroupAction(prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  if (fd.get('mode') === 'review') return groupBriefAction(prev, fd);
+  let dest = '';
+  const r = await attempt(async () => {
+    const { actor: a, agency } = await requireAgent();
+    const db = await getDb();
+    const res = await sendPastedGroupEnquiry(db, a, agency, str(fd, 'brief'), aiConfigured() ? (t) => groupFromBrief(db, a, t) : null);
+    if (res.kind === 'enquiry') {
+      if ((await getSetting(db, 'groups.autoDispatch')) === '1') {
+        try { await dispatchToHotels(db, SYSTEM, res.id); } catch (err) { console.error('[groups] auto-dispatch failed', err); }
+      }
+      dest = `/agent/groups/${res.id}?new=1`;
+      return { ok: true };
+    }
+    return 'Sent to our Group Desk. We will read your message and reply within 24 hours — you will see the reply under Support.';
+  });
+  if (dest) redirect(dest);
+  return r;
 }

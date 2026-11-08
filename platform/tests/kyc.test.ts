@@ -14,7 +14,7 @@ afterEach(async () => { await f?.close(); });
 const enc = (s: string) => new TextEncoder().encode(s);
 const PDF = { name: 'pan card.pdf', type: 'application/pdf', bytes: enc('%PDF-1.7 sample') };
 const PNG = { name: 'gst.png', type: 'image/png', bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]) };
-const base = { agencyName: 'Mumbai Trips', country: 'India', billingCurrency: 'INR' as const, name: 'Meera', password: 'long enough pw' };
+const base = { agencyName: 'Mumbai Trips', country: 'India', city: 'Mumbai', state: 'Maharashtra', address: '1 Marine Drive', phone: '+91 98200 00000', billingCurrency: 'INR' as const, name: 'Meera', password: 'long enough pw' };
 
 describe('Indian tax identifiers', () => {
   it('checks PAN and GSTIN format, check digit and PAN match', () => {

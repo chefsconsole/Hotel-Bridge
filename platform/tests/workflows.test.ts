@@ -43,11 +43,11 @@ describe('authentication', () => {
   it('registers agencies as pending; pending agencies cannot book', async () => {
     f = await setup();
     const pdf = { name: 'pan.pdf', type: 'application/pdf', bytes: new TextEncoder().encode('%PDF-1.4 test') };
-    const { agency } = await registerAgency(f.db, { agencyName: 'New Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'aaapz1234c' }, { panCard: pdf });
+    const { agency } = await registerAgency(f.db, { agencyName: 'New Co', country: 'India', city: 'Delhi', state: 'Delhi', address: '5 Janpath', phone: '+91 99999 00000', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'aaapz1234c' }, { panCard: pdf });
     expect(agency.pan).toBe('AAAPZ1234C');
     expect(agency.status).toBe('pending');
     expect(agency.creditEnabled).toBe(false);
-    await expect(registerAgency(f.db, { agencyName: 'Other Co', country: 'India', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'AAAPZ1234C' }, { panCard: pdf })).rejects.toThrow(/already exists/);
+    await expect(registerAgency(f.db, { agencyName: 'Other Co', country: 'India', city: 'Delhi', state: 'Delhi', address: '5 Janpath', phone: '+91 99999 00000', billingCurrency: 'EUR', name: 'Nadia', email: 'n@new.test', password: 'long enough pw', pan: 'AAAPZ1234C' }, { panCard: pdf })).rejects.toThrow(/already exists/);
     const s = stay(f.today);
     const { results } = await searchHotels(f.db, f.P, { city: 'Paris', ...s, rooms: [{ adults: 2, childAges: [] }] });
     const o = results[0].offers.find((x) => x.supplier === 'contracted')!;
