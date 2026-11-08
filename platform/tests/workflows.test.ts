@@ -34,7 +34,7 @@ describe('authentication', () => {
     f = await setup();
     const ok = await login(f.db, 'A@Alpha.test ', 'correct horse battery');
     expect(ok.token.length).toBeGreaterThan(30);
-    for (let i = 0; i < 5; i++) await expect(login(f.db, 'a@alpha.test', 'wrong')).rejects.toThrow(/incorrect/);
+    for (let i = 0; i < 5; i++) await expect(login(f.db, 'a@alpha.test', 'wrong')).rejects.toThrow(/don’t match/);
     await expect(login(f.db, 'a@alpha.test', 'correct horse battery')).rejects.toThrow(/Too many/);
     // Sessions store only a hash of the token
     const rows = await f.db.select().from(schema.sessions);

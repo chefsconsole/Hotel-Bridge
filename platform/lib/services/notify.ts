@@ -12,7 +12,7 @@ import { schema, type DB } from '@/lib/db';
 import { NOTIFY_EMAIL, SUPPORT_EMAIL } from '@/lib/config';
 import { appUrl, sendEmail } from './email';
 
-const SIGN_OFF = ['', 'Warm regards,', 'HotelBridge', `${SUPPORT_EMAIL} · +91 70216 20577`];
+const SIGN_OFF = ['', 'Warm regards,', 'Team HotelBridge'];
 
 async function safe(fn: () => Promise<unknown>) {
   try { await fn(); } catch (e) { console.error('[notify]', e); }
