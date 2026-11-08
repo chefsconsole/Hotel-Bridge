@@ -221,3 +221,37 @@ export async function changePassword(db: DB, actor: Actor, current: string, next
   await db.delete(sessions).where(eq(sessions.userId, u.id));
   await audit(db, actor, 'user.password_changed', 'user', u.id);
 }
+
+/* --------------------------- password links --------------------------- */
+
+/** A one-time link to set a new password (forgotten password, first login). */
+export async function createPasswordLink(db: DB, emailRaw: string, hours = 1): Promise<{ token: string; expiresAt: Date }> {
+  const email = emailSchema.parse(emailRaw);
+  const [u] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+  if (!u) throw new AppError(`No account for ${email}`, 'not_found');
+  const token = randomBytes(32).toString('base64url');
+  const expiresAt = new Date(Date.now() + hours * 3_600_000);
+  await db.insert(schema.passwordLinks).values({ id: sha256(token), userId: u.id, expiresAt });
+  return { token, expiresAt };
+}
+
+export async function passwordLinkUser(db: DB, token: string) {
+  const [row] = await db.select({ l: schema.passwordLinks, email: users.email }).from(schema.passwordLinks)
+    .innerJoin(users, eq(users.id, schema.passwordLinks.userId)).where(eq(schema.passwordLinks.id, sha256(token)));
+  if (!row || row.l.usedAt || row.l.expiresAt < new Date()) return null;
+  return { userId: row.l.userId, email: row.email };
+}
+
+export async function usePasswordLink(db: DB, token: string, password: string, confirm: string) {
+  const pw = passwordSchema.parse(password);
+  if (pw !== confirm) throw new AppError('The two passwords don’t match.');
+  const who = await passwordLinkUser(db, token);
+  if (!who) throw new AppError('This link has expired or was already used. Ask HotelBridge for a new one.', 'expired');
+  await db.transaction(async (tx) => {
+    await tx.update(schema.passwordLinks).set({ usedAt: new Date() }).where(eq(schema.passwordLinks.id, sha256(token)));
+    await tx.update(users).set({ passwordHash: await hashPassword(pw) }).where(eq(users.id, who.userId));
+    await tx.delete(sessions).where(eq(sessions.userId, who.userId));
+    await tx.delete(loginAttempts).where(eq(loginAttempts.key, who.email));
+  });
+  return who.email;
+}

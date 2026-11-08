@@ -86,3 +86,17 @@ describe('agency verification', () => {
     await expect(uploadAgencyDocument(f.db, f.A, agency.id, 'other', PDF)).rejects.toThrow(/access/);
   });
 });
+
+describe('one-time password links', () => {
+  it('sets a new password once, then the link stops working', async () => {
+    const { createPasswordLink, usePasswordLink, passwordLinkUser, login } = await import('@/lib/services/auth');
+    f = await setup();
+    const { token } = await createPasswordLink(f.db, 'a@alpha.test');
+    expect((await passwordLinkUser(f.db, token))?.email).toBe('a@alpha.test');
+    await expect(usePasswordLink(f.db, token, 'brand new password', 'different one!')).rejects.toThrow(/don’t match/);
+    await usePasswordLink(f.db, token, 'brand new password', 'brand new password');
+    expect((await login(f.db, 'a@alpha.test', 'brand new password')).user.email).toBe('a@alpha.test');
+    expect(await passwordLinkUser(f.db, token)).toBeNull();
+    await expect(usePasswordLink(f.db, token, 'another password!', 'another password!')).rejects.toThrow(/expired or was already used/);
+  });
+});

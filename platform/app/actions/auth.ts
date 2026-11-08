@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { attempt, file, int, optStr, str, type ActionResult } from '@/lib/action';
-import { destroySession, login, registerAgency, createSession } from '@/lib/services/auth';
+import { destroySession, login, registerAgency, createSession, usePasswordLink } from '@/lib/services/auth';
 import { submitPartnerApplication } from '@/lib/services/catalog';
 import { AppError } from '@/lib/services/errors';
 import { SESSION_COOKIE, clearSessionCookie, homeFor, setSessionCookie } from '@/lib/session';
@@ -64,4 +64,15 @@ export async function partnerApplyAction(_: ActionResult | null, fd: FormData): 
     });
     return 'Thank you. Your application is with our partnerships team — we reply personally, usually within two working days.';
   });
+}
+
+export async function setPasswordAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  let done = false;
+  const r = await attempt(async () => {
+    await usePasswordLink(await getDb(), str(fd, 'token'), str(fd, 'password'), str(fd, 'confirm'));
+    done = true;
+    return { ok: true };
+  });
+  if (done) redirect('/login?password=1');
+  return r;
 }

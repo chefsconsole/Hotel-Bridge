@@ -102,6 +102,15 @@ export const sessions = pgTable('sessions', {
   createdAt: createdAt(),
 }, (t) => [index('sessions_user_idx').on(t.userId)]);
 
+/** One-time "set your password" links. Only the sha256 of the token is stored. */
+export const passwordLinks = pgTable('password_links', {
+  id: text('id').primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
 export const loginAttempts = pgTable('login_attempts', {
   id: id(),
   key: text('key').notNull(), // lower(email) — per-account throttling
