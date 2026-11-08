@@ -90,7 +90,7 @@ export async function login(db: DB, emailRaw: string, password: string): Promise
   // Hash even when the user doesn't exist, so timing doesn't reveal accounts.
   const ok = user ? await verifyPassword(password, user.passwordHash) : (await hashPassword(password), false);
   await db.insert(loginAttempts).values({ key: email, succeeded: ok });
-  if (!ok || !user) throw new AppError('Email or password is incorrect.', 'bad_credentials');
+  if (!ok || !user) throw new AppError(`That email and password don’t match. You typed “${email}” — check it for typos, or use “Forgot your password?”.`, 'bad_credentials');
   if (user.status !== 'active') throw new AppError('This account is disabled. Contact HotelBridge.', 'disabled');
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
   const s = await createSession(db, user.id);
