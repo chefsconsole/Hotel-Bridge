@@ -124,3 +124,16 @@ describe('best-rate safeguards', () => {
     await expect(ask(f.db, pend, body)).rejects.toThrow(/While we verify your agency/);
   });
 });
+
+describe('abuse limits', () => {
+  it('locks out one network after 20 failed logins across emails, and caps registrations per network', async () => {
+    const { login, assertCanRegister } = await import('@/lib/services/auth');
+    f = await setup();
+    for (let i = 0; i < 20; i++) await expect(login(f.db, `x${i}@spray.test`, 'wrong password', '203.0.113.9')).rejects.toThrow(/don’t match/);
+    await expect(login(f.db, 'a@alpha.test', 'wrong password', '203.0.113.9')).rejects.toThrow(/from your network/);
+    await expect(login(f.db, 'a@alpha.test', 'wrong password', '198.51.100.7')).rejects.toThrow(/don’t match/);
+    for (let i = 0; i < 5; i++) await assertCanRegister(f.db, '203.0.113.50');
+    await expect(assertCanRegister(f.db, '203.0.113.50')).rejects.toThrow(/Too many registrations/);
+    await assertCanRegister(f.db, '198.51.100.8');
+  });
+});

@@ -77,19 +77,27 @@ export function actorFor(u: Pick<SessionUser, 'id' | 'name' | 'email' | 'platfor
 }
 
 const MAX_FAILURES = 5;
+/** Per network address, across all emails: stops password-spraying many accounts. */
+const MAX_IP_FAILURES = 20;
 const WINDOW_MS = 15 * 60_000;
 
-export async function login(db: DB, emailRaw: string, password: string): Promise<{ token: string; expiresAt: Date; user: typeof users.$inferSelect }> {
+async function failuresSince(db: DB, key: string, since: Date) {
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(loginAttempts)
+    .where(and(eq(loginAttempts.key, key), eq(loginAttempts.succeeded, false), gt(loginAttempts.createdAt, since)));
+  return n;
+}
+
+export async function login(db: DB, emailRaw: string, password: string, ip?: string | null): Promise<{ token: string; expiresAt: Date; user: typeof users.$inferSelect }> {
   const email = emailRaw.trim().toLowerCase();
   const since = new Date(Date.now() - WINDOW_MS);
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(loginAttempts)
-    .where(and(eq(loginAttempts.key, email), eq(loginAttempts.succeeded, false), gt(loginAttempts.createdAt, since)));
-  if (n >= MAX_FAILURES) throw new AppError('Too many attempts. Try again in 15 minutes.', 'rate_limited');
+  if (await failuresSince(db, email, since) >= MAX_FAILURES) throw new AppError('Too many attempts. Try again in 15 minutes.', 'rate_limited');
+  if (ip && await failuresSince(db, `ip:${ip}`, since) >= MAX_IP_FAILURES) throw new AppError('Too many attempts from your network. Try again in 15 minutes.', 'rate_limited');
 
   const [user] = await db.select().from(users).where(eq(users.email, email));
   // Hash even when the user doesn't exist, so timing doesn't reveal accounts.
   const ok = user ? await verifyPassword(password, user.passwordHash) : (await hashPassword(password), false);
   await db.insert(loginAttempts).values({ key: email, succeeded: ok });
+  if (ip && !ok) await db.insert(loginAttempts).values({ key: `ip:${ip}`, succeeded: false });
   if (!ok || !user) throw new AppError(`That email and password don’t match. You typed “${email}” — check it for typos, or use “Forgot your password?”.`, 'bad_credentials');
   if (user.status !== 'active') throw new AppError('This account is disabled. Contact HotelBridge.', 'disabled');
   await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
@@ -256,4 +264,16 @@ export async function usePasswordLink(db: DB, token: string, password: string, c
     await tx.delete(loginAttempts).where(eq(loginAttempts.key, who.email));
   });
   return who.email;
+}
+
+/* ----------------------------- sign-up abuse ----------------------------- */
+
+/** At most 5 registrations a day from one network address. Recorded in login_attempts with a 'reg:' key. */
+export async function assertCanRegister(db: DB, ip: string | null) {
+  if (!ip) return;
+  const key = `reg:${ip}`;
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(loginAttempts)
+    .where(and(eq(loginAttempts.key, key), gt(loginAttempts.createdAt, new Date(Date.now() - 86_400_000))));
+  if (n >= 5) throw new AppError('Too many registrations from your network today. Please write to info@hotelbridge.co and we will set you up.', 'rate_limited');
+  await db.insert(loginAttempts).values({ key, succeeded: true });
 }

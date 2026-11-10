@@ -1,9 +1,15 @@
 'use server';
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { attempt, file, int, optStr, str, type ActionResult } from '@/lib/action';
-import { destroySession, login, registerAgency, createSession, usePasswordLink } from '@/lib/services/auth';
+import { assertCanRegister, destroySession, login, registerAgency, createSession, usePasswordLink } from '@/lib/services/auth';
+import { cookies, headers } from 'next/headers';
+
+/** The visitor's address as seen by Vercel's edge (first entry of x-forwarded-for). */
+async function clientIp(): Promise<string | null> {
+  const h = await headers();
+  return (h.get('x-forwarded-for') ?? '').split(',')[0].trim() || h.get('x-real-ip') || null;
+}
 import { submitPartnerApplication } from '@/lib/services/catalog';
 import { AppError } from '@/lib/services/errors';
 import { SESSION_COOKIE, clearSessionCookie, homeFor, setSessionCookie } from '@/lib/session';
@@ -16,7 +22,7 @@ export async function loginAction(_: ActionResult | null, fd: FormData): Promise
   let dest = '/';
   const r = await attempt(async () => {
     const db = await getDb();
-    const { token, expiresAt, user } = await login(db, str(fd, 'email'), str(fd, 'password'));
+    const { token, expiresAt, user } = await login(db, str(fd, 'email'), str(fd, 'password'), await clientIp());
     await setSessionCookie(token, expiresAt);
     dest = safeNext(str(fd, 'next'), homeFor(user));
     return { ok: true };
@@ -35,7 +41,10 @@ export async function logoutAction() {
 export async function registerAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const r = await attempt(async () => {
     if (!fd.get('terms')) throw new AppError('Please accept the terms of business to continue.');
+    // Hidden field only bots fill in.
+    if (str(fd, 'company_url')) throw new AppError('Please try again.');
     const db = await getDb();
+    await assertCanRegister(db, await clientIp());
     const { user } = await registerAgency(db, {
       agencyName: str(fd, 'agencyName'), legalName: optStr(fd, 'legalName'), country: str(fd, 'country'), city: str(fd, 'city'),
       website: optStr(fd, 'website'), taxId: optStr(fd, 'taxId'), phone: str(fd, 'phone'),

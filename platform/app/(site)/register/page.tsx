@@ -20,6 +20,7 @@ export default function RegisterPage() {
         </div>
       </div>
       <ActionForm action={registerAction} className="rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)] md:p-8">
+        <input type="text" name="company_url" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 opacity-0" />
         <h2 className="font-semibold">Agency</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Trading name" className="sm:col-span-2"><input name="agencyName" required className="field" autoComplete="organization" /></Field>
