@@ -60,6 +60,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const nav = all.filter((n) => !ROLES[n.href] || ROLES[n.href].includes(role));
   return (
     <AppShell nav={nav} banner={<EnvBanner />}
+      actions={[
+        { label: 'Agencies waiting for approval', href: '/admin/agencies?tab=pending', hint: 'approve verify kyc' },
+        { label: 'Open Group Desk', href: '/admin/groups', hint: 'rfq enquiries' },
+        { label: 'Hotels & contracts', href: '/admin/hotels', hint: 'add hotel rates' },
+      ].filter((a) => nav.some((n) => n.href !== '/admin' && a.href.startsWith(n.href)))}
       context={<><p className="font-medium text-paper">HotelBridge</p><p className="mt-0.5">{ROLE_LABEL[role] ?? role}</p></>}
       user={<><p className="truncate text-paper/80">{user.name}</p><p className="truncate">{user.email}</p></>}
       signOut={<SignOut />}>

@@ -45,6 +45,11 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   return (
     <AppShell
       nav={nav}
+      actions={[
+        { label: 'Search hotels', href: '/agent/search', hint: 'book find rates' },
+        { label: 'Paste a group enquiry', href: '/agent/groups/new', hint: 'new group request mice wedding' },
+        { label: 'New client trip', href: '/agent/trips/new', hint: 'quote proposal' },
+      ]}
       banner={<>
         <EnvBanner />
         {agency.status !== 'verified' && (

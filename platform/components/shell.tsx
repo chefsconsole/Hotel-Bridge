@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { Logo, cx } from './ui';
+import { CommandPalette, PaletteButton, type PaletteLink } from './command-palette';
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS; badge?: number; section?: string };
 
@@ -36,8 +37,8 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
   );
 }
 
-export function AppShell({ nav, context, user, signOut, banner, children }: {
-  nav: NavItem[]; context: ReactNode; user: ReactNode; signOut: ReactNode; banner?: ReactNode; children: ReactNode;
+export function AppShell({ nav, context, user, signOut, banner, children, actions = [] }: {
+  nav: NavItem[]; context: ReactNode; user: ReactNode; signOut: ReactNode; banner?: ReactNode; children: ReactNode; actions?: PaletteLink[];
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -78,11 +79,13 @@ export function AppShell({ nav, context, user, signOut, banner, children }: {
   );
   return (
     <div className="flex min-h-dvh flex-col">
+      <CommandPalette pages={nav.map((n) => ({ label: n.label, href: n.href }))} actions={actions} />
       {banner}
       <div className="flex flex-1">
         <aside className="sticky top-0 hidden h-dvh w-[268px] shrink-0 flex-col overflow-y-auto bg-ink px-5 py-7 lg:flex">
           <Link href="/" className="px-2"><Logo inverse /></Link>
-          <div className="mt-8 mb-8 border-y border-paper/10 px-3 py-4 text-[0.8rem] text-paper/60">{context}</div>
+          <div className="mt-8 mb-5 border-y border-paper/10 px-3 py-4 text-[0.8rem] text-paper/60">{context}</div>
+          <PaletteButton className="mb-6" />
           {links}
           <div className="mt-auto border-t border-paper/10 pt-4 text-[0.8rem] text-paper/60">
             <div className="px-2">{user}</div>
@@ -92,9 +95,12 @@ export function AppShell({ nav, context, user, signOut, banner, children }: {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-ink px-4 lg:hidden">
             <Link href="/"><Logo inverse /></Link>
-            <button onClick={() => setOpen((v) => !v)} className="rounded-[var(--radius-sm)] px-3 py-1.5 text-[0.85rem] text-paper ring-1 ring-paper/20" aria-expanded={open}>
-              {open ? 'Close' : 'Menu'}
-            </button>
+            <div className="flex items-center gap-2">
+              <PaletteButton compact />
+              <button onClick={() => setOpen((v) => !v)} className="rounded-[var(--radius-sm)] px-3 py-1.5 text-[0.85rem] text-paper ring-1 ring-paper/20" aria-expanded={open}>
+                {open ? 'Close' : 'Menu'}
+              </button>
+            </div>
           </header>
           {open && (
             <div className="border-b border-paper/10 bg-ink px-4 pt-3 pb-5 lg:hidden animate-[var(--animate-fade)]">
