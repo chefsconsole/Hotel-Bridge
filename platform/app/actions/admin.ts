@@ -484,3 +484,16 @@ export async function testEmailAction(): Promise<ActionResult> {
     return `Sent to ${NOTIFY_EMAIL} — check the inbox.`;
   });
 }
+
+/** Group Desk board: move a card between open stages (drag and drop, or the card's "Move to" menu). */
+export async function moveGroupStageAction(enquiryId: string, status: string): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const { BOARD_STAGES } = await import('@/lib/services/group-board');
+    if (!(BOARD_STAGES as readonly string[]).includes(status)) throw new AppError('Close a group as won, lost or cancelled from its page, with a note.');
+    await setStage(await getDb(), actor, enquiryId, status as GroupStage);
+    revalidatePath('/admin/groups');
+    revalidatePath(`/admin/groups/${enquiryId}`);
+    return 'Moved.';
+  });
+}

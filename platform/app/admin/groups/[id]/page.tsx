@@ -12,6 +12,8 @@ import { requireStaff } from '@/lib/session';
 import { getEnquiry, GROUP_STAGES, STAGE_LABEL, suggestedRespondBy } from '@/lib/services/groups';
 import { NotFoundError } from '@/lib/services/errors';
 import { emailConfigured } from '@/lib/services/email';
+import { compareOffers } from '@/lib/domain/offer-compare';
+import { OfferComparison } from '@/components/offer-comparison';
 
 const Hidden = ({ id, op }: { id: string; op: string }) => <><input type="hidden" name="enquiryId" value={id} /><input type="hidden" name="op" value={op} /></>;
 
@@ -29,7 +31,7 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
     <>
       <Link href="/admin/groups" className="text-[0.85rem] text-muted hover:text-ink">← Pipeline</Link>
       <PageHeader eyebrow={`${e.reference} · ${d.agency.name}`} title={e.groupName}
-        actions={<ActionForm action={groupOpsAction} className="flex items-center gap-2"><Hidden id={e.id} op="stage" /><StagePill status={e.status} />
+        actions={<ActionForm action={groupOpsAction} className="flex flex-wrap items-center gap-2"><Hidden id={e.id} op="stage" /><StagePill status={e.status} />
           <select name="status" defaultValue={e.status} className="field !w-auto !py-1.5 text-[0.85rem]">{GROUP_STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}</select>
           <SubmitButton size="sm" variant="secondary">Set stage</SubmitButton></ActionForm>} />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr] [&>*]:min-w-0">
@@ -70,15 +72,9 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
             )}
           </Panel>
 
-          <Panel title="2 · Offers received" padded={false}>
+          <Panel title="2 · Offers received" description={d.offers.length > 1 ? 'Side by side, city by city. The lowest live offer per room-night is marked; missing terms are flagged so you can ask before proposing.' : undefined} padded={false}>
             {d.offers.length === 0 ? <Empty title="No offers recorded" /> : (
-              <table className="table"><thead><tr><th>Hotel</th><th>Lines</th><th>Terms</th><th>Valid until</th><th className="text-right">Cost total</th></tr></thead>
-                <tbody>{d.offers.map((o) => (
-                  <tr key={o.id}><td className="font-medium">{o.hotelName}<p className="text-[0.75rem] text-faint">{o.city} · {o.mealPlan ?? '—'}</p></td>
-                    <td className="text-[0.82rem]">{o.lines.map((l, i) => <p key={i}>{l.rooms}× {l.roomType} × {l.nights}n @ {formatMoney(l.rateMinor, o.currency)}</p>)}</td>
-                    <td className="max-w-56 text-[0.78rem] text-muted">{o.taxesNote}{o.cityTaxMinor ? ` · city tax ${formatMoney(o.cityTaxMinor, o.currency)} pppn` : ''}<br />{o.cancellationTerms}</td>
-                    <td className="num">{o.validUntil ? formatDate(o.validUntil) : '—'}</td><td className="text-right"><Money minor={o.costTotalMinor} currency={o.currency} /></td></tr>
-                ))}</tbody></table>
+              <div className="pb-4"><OfferComparison groupCurrency={e.currency} cities={compareOffers(d.offers, e, todayIso())} /></div>
             )}
             {!closed && (
               <details className="border-t border-line p-5"><summary className="cursor-pointer text-[0.9rem] font-semibold">Record a hotel offer</summary>

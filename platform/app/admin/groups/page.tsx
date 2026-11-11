@@ -5,12 +5,35 @@ import { getDb } from '@/lib/db';
 import { formatDate, formatDateTime, todayIso } from '@/lib/domain/dates';
 import { requireStaff } from '@/lib/session';
 import { listEnquiries, GROUP_STAGES, STAGE_LABEL } from '@/lib/services/groups';
+import { BOARD_STAGES, CLOSED_STAGES, groupBoard } from '@/lib/services/group-board';
+import { GroupBoard } from '@/components/group-board';
 
 export const metadata = { title: 'Group Desk' };
 
-export default async function AdminGroups({ searchParams }: { searchParams: Promise<{ stage?: string }> }) {
+const ViewToggle = ({ view }: { view: 'board' | 'list' }) => (
+  <div role="group" aria-label="View" className="inline-flex rounded-full bg-surface p-0.5 ring-1 ring-line">
+    {(['board', 'list'] as const).map((v) => (
+      <Link key={v} href={v === 'board' ? '/admin/groups' : '/admin/groups?view=list'} aria-current={view === v ? 'page' : undefined}
+        className={`rounded-full px-3 py-1 text-[0.8rem] capitalize transition-colors ${view === v ? 'bg-ink text-paper' : 'text-muted hover:text-ink'}`}>{v}</Link>
+    ))}
+  </div>
+);
+
+export default async function AdminGroups({ searchParams }: { searchParams: Promise<{ stage?: string; view?: string }> }) {
   const { actor } = await requireStaff();
-  const { stage } = await searchParams;
+  const { stage, view } = await searchParams;
+  if (view !== 'list' && !stage) {
+    const cards = await groupBoard(await getDb(), actor);
+    return (
+      <>
+        <PageHeader eyebrow="Group Desk" title="Pipeline" description="Drag a group to its next stage. Each card shows what has to happen next." actions={<ViewToggle view="board" />} />
+        {cards.length === 0 ? <Empty title="No group enquiries yet">They appear here the moment an agent sends one.</Empty> : (
+          <GroupBoard cards={cards} stages={BOARD_STAGES.map((key) => ({ key, label: STAGE_LABEL[key] }))}
+            closedLabels={Object.fromEntries(CLOSED_STAGES.map((k) => [k, STAGE_LABEL[k]]))} />
+        )}
+      </>
+    );
+  }
   let rows = await listEnquiries(await getDb(), actor);
   const counts = Object.fromEntries(GROUP_STAGES.map((s) => [s, rows.filter((r) => r.e.status === s).length]));
   if (stage) rows = rows.filter((r) => r.e.status === stage);
@@ -18,9 +41,9 @@ export default async function AdminGroups({ searchParams }: { searchParams: Prom
   const today = todayIso();
   return (
     <>
-      <PageHeader eyebrow="Group Desk" title="Pipeline" />
+      <PageHeader eyebrow="Group Desk" title="Pipeline" actions={<ViewToggle view="list" />} />
       <div className="mb-4 flex flex-wrap gap-1.5">
-        <Link href="/admin/groups" className={`rounded-full px-3 py-1.5 text-[0.8rem] ${!stage ? 'bg-ink text-paper' : 'bg-surface ring-1 ring-line text-muted'}`}>All</Link>
+        <Link href="/admin/groups?view=list" className={`rounded-full px-3 py-1.5 text-[0.8rem] ${!stage ? 'bg-ink text-paper' : 'bg-surface ring-1 ring-line text-muted'}`}>All</Link>
         {GROUP_STAGES.map((s) => <Link key={s} href={`/admin/groups?stage=${s}`} className={`rounded-full px-3 py-1.5 text-[0.8rem] ${stage === s ? 'bg-ink text-paper' : 'bg-surface ring-1 ring-line text-muted'}`}>{STAGE_LABEL[s]} <span className="num opacity-60">{counts[s]}</span></Link>)}
       </div>
       <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-line bg-surface">
