@@ -37,7 +37,7 @@ This plan answers the "next-generation hospitality platform" brief (11 Nov 2026)
   - Tested: agency isolation, search text can't act as a wildcard, and hotel partners see nothing.
 - **Next:** tables with sticky headers on long lists (bookings, agencies, outreach); one button and input style everywhere; `prefers-reduced-motion` respected throughout.
 
-### Phase 2: main experience
+### Phase 2: main experience (built 11 Nov, branch `design-phase-2`)
 - **Hotel dossier (admin):** a header with the hotel's own photo when licensed, plus tabs for Overview, Rates, Contracts, Bookings, Contacts and Activity, all from existing tables.
 - **Side-by-side comparison for agents:** pick 2–4 hotels and compare room price per night, breakfast, taxes, cancellation, payment deadline and contract type. Real offers only.
 - **Executive overview:** KPI cards counted from the database (active hotels, verified agencies, confirmed bookings, room nights, pending confirmations), with an activity feed from the audit log. No trends until there is enough history to be honest about.

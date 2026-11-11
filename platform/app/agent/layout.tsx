@@ -49,6 +49,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
         { label: 'Search hotels', href: '/agent/search', hint: 'book find rates' },
         { label: 'Paste a group enquiry', href: '/agent/groups/new', hint: 'new group request mice wedding' },
         { label: 'New client trip', href: '/agent/trips/new', hint: 'quote proposal' },
+        { label: 'Compare saved hotels', href: '/agent/saved', hint: 'side by side shortlist' },
       ]}
       banner={<>
         <EnvBanner />

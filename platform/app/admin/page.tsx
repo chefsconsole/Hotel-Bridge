@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { Empty, Money, Notice, PageHeader, Panel, Pill, Stat } from '@/components/ui';
 import { expireHoldsAction } from '@/app/actions/admin';
-import { getDb } from '@/lib/db';
+import { getDb, schema } from '@/lib/db';
+import { formatDateTime } from '@/lib/domain/dates';
 import { demoMode } from '@/lib/config';
 import { founderMetrics, operationalIssues } from '@/lib/services/metrics';
 import { requireStaff } from '@/lib/session';
@@ -9,25 +11,57 @@ import { requireStaff } from '@/lib/session';
 export const metadata = { title: 'Operations overview' };
 
 const pct = (bps: number | null) => (bps == null ? '—' : `${(bps / 100).toFixed(1)}%`);
+/** Where an activity entry links to, by the kind of record it changed. */
+const ENTITY_HREF: Record<string, (id: string) => string> = {
+  agency: (id) => `/admin/agencies/${id}`, hotel: (id) => `/admin/hotels/${id}`, group_enquiry: (id) => `/admin/groups/${id}`,
+  booking: (id) => `/admin/bookings/${id}`, contract: (id) => `/admin/contracts/${id}`, rate_request: () => '/admin/rate-requests',
+};
+const ACTION_LABEL: Record<string, string> = {
+  'agency.registered': 'Agency registered', 'agency.verified': 'Agency approved', 'agency.rejected': 'Agency declined', 'agency.suspended': 'Agency suspended',
+  'group.created': 'Group enquiry received', 'rate_request.created': 'Best-rate request sent', 'rate_request.quoted': 'Hotel quoted a best rate', 'rate_request.accepted': 'Best rate accepted',
+};
+
 const ACCOUNT_LABEL: Record<string, string> = { agent: 'Receivable from agents (net)', supplier: 'Payable to hotels & suppliers', commission: 'Commission receivable from hotels' };
 
 export default async function AdminHome({ searchParams }: { searchParams: Promise<{ days?: string; sample?: string }> }) {
-  await requireStaff();
   const sp = await searchParams;
   const days = [7, 30, 90, 365].includes(Number(sp.days)) ? Number(sp.days) : 30;
   const includeSample = demoMode && sp.sample !== '0';
   const db = await getDb();
-  const [m, issues] = await Promise.all([founderMetrics(db, { days, includeSample }), operationalIssues(db)]);
+  const { user } = await requireStaff();
+  const [m, issues, [{ hotels }], [{ awaiting }], activity] = await Promise.all([
+    founderMetrics(db, { days, includeSample }), operationalIssues(db),
+    db.select({ hotels: sql<number>`count(*)::int` }).from(schema.hotels).where(and(eq(schema.hotels.status, 'active'), includeSample ? undefined : eq(schema.hotels.isSample, false))),
+    db.select({ awaiting: sql<number>`count(*)::int` }).from(schema.bookings).where(and(eq(schema.bookings.status, 'pending_confirmation'), includeSample ? undefined : eq(schema.bookings.isSample, false))),
+    db.select().from(schema.auditLog).orderBy(desc(schema.auditLog.createdAt)).limit(10),
+  ]);
+  const roomNights = m.perCurrency.reduce((n, r) => n + r.roomNights, 0);
+  const commission = m.obligations.filter((o) => o.account === 'commission' && o.balance !== 0);
+  const now = new Date();
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }).format(now));
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const today = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(now);
   const noVolume = m.bookings.created === 0 && m.activity.searches === 0;
   return (
     <>
-      <PageHeader eyebrow="Founder view" title="How the business is doing" description="Every number below is counted from real records. Money is shown per currency and never added across currencies."
-        actions={<div className="flex gap-1.5">{[7, 30, 90, 365].map((d) => <Link key={d} href={`/admin?days=${d}${sp.sample ? `&sample=${sp.sample}` : ''}`} className={`rounded-full px-3 py-1.5 text-[0.8rem] ${d === days ? 'bg-ink text-paper' : 'bg-surface ring-1 ring-line text-muted'}`}>{d === 365 ? '12 mo' : `${d} days`}</Link>)}</div>} />
+      <PageHeader eyebrow={today} title={`${greeting}, ${user.name.split(' ')[0]}.`} description="Here's your hotel network. Every number is counted from real records; money is shown per currency and never added across currencies."
+        actions={<div className="flex gap-1.5">{[7, 30, 90, 365].map((d) => <Link key={d} href={`/admin?days=${d}${sp.sample ? `&sample=${sp.sample}` : ''}`} className={`rounded-full px-3 py-1.5 text-[0.8rem] whitespace-nowrap ${d === days ? 'bg-ink text-paper' : 'bg-surface ring-1 ring-line text-muted'}`}>{d === 365 ? '12 mo' : `${d} days`}</Link>)}</div>} />
       {demoMode && (
         <div className="mb-6"><Notice tone="warning" title={includeSample ? 'Including sample data' : 'Sample data excluded'}>
           This is a demo environment. {includeSample ? <Link href={`/admin?days=${days}&sample=0`} className="underline">Exclude sample records</Link> : <Link href={`/admin?days=${days}`} className="underline">Include sample records</Link>}
         </Notice></div>
       )}
+
+      <div className="mb-6 grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-line bg-line sm:grid-cols-3 lg:grid-cols-6">
+        {[
+          ['Published hotels', hotels, <Link key="h" href="/admin/hotels" className="underline-offset-2 hover:underline">open portfolio</Link>],
+          ['Verified agencies', m.agencies.verified, m.agencies.pending ? <Link key="a" href="/admin/agencies?tab=pending" className="text-attention underline-offset-2 hover:underline">{m.agencies.pending} waiting</Link> : 'none waiting'],
+          ['Confirmed bookings', m.bookings.realised, `last ${days === 365 ? '12 months' : `${days} days`}`],
+          ['Room nights', roomNights, `confirmed, last ${days === 365 ? '12 months' : `${days} days`}`],
+          ['Awaiting hotel', awaiting, awaiting ? 'confirmation needed' : 'nothing pending'],
+          ['Commission due', commission.length ? commission.map((c) => <Money key={c.currency} minor={c.balance} currency={c.currency} className="mr-2" />) : '—', 'receivable from hotels'],
+        ].map(([l, v, h]) => <div key={String(l)} className="bg-surface p-5"><Stat label={String(l)} value={v as React.ReactNode} hint={h as React.ReactNode} /></div>)}
+      </div>
 
       <Panel title={`Needs attention (${issues.length})`} className="mb-6" padded={false}
         actions={<form action={expireHoldsAction}><button className="text-[0.8rem] text-muted underline">Release expired holds</button></form>}>
@@ -76,6 +110,16 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
               <ul className="divide-y divide-line">{m.obligations.map((o) => (
                 <li key={o.account + o.currency} className="flex justify-between px-5 py-3 text-[0.88rem]"><span className="text-muted">{ACCOUNT_LABEL[o.account] ?? o.account}</span><Money minor={o.balance} currency={o.currency} className="font-medium" /></li>
               ))}</ul>
+            )}
+          </Panel>
+          <Panel title="Recent activity" padded={false} actions={<Link href="/admin/audit" className="text-[0.8rem] text-muted hover:text-ink">Full log</Link>}>
+            {activity.length === 0 ? <Empty title="No activity yet" /> : (
+              <ul className="divide-y divide-line">{activity.map((a) => {
+                const href = a.entityId && ENTITY_HREF[a.entity]?.(a.entityId);
+                const label = ACTION_LABEL[a.action] ?? a.action.replace(/[._]/g, ' ');
+                const body = <><span className="font-medium">{label}</span><span className="block text-[0.76rem] text-faint">{a.actorLabel} · {formatDateTime(a.createdAt)}</span></>;
+                return <li key={a.id}>{href ? <Link href={href} className="block px-5 py-3 text-[0.86rem] hover:bg-mist/50">{body}</Link> : <div className="px-5 py-3 text-[0.86rem]">{body}</div>}</li>;
+              })}</ul>
             )}
           </Panel>
           <Panel title="Hotel concentration" description="Top hotels by confirmed GBV" padded={false}>
