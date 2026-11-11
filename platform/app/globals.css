@@ -110,6 +110,8 @@
 @keyframes hb-float { 50% { transform: translateY(-10px); } }
 @keyframes hb-ring { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0.02; } }
 @keyframes hb-caret { 50% { opacity: 0; } }
+@keyframes hb-bar { from { transform: scaleY(0); } }
+.hb-bar { transform-origin: bottom; animation: hb-bar .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0ms); }
 
 .hb-word { display: inline-block; animation: hb-word .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0ms); }
 .hb-rise { animation: hb-word .9s cubic-bezier(.2,.7,.2,1) both; animation-delay: var(--d, 0ms); }
@@ -139,7 +141,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   [data-reveal="hidden"] { opacity: 1; transform: none; }
-  .hb-word, .hb-rise, .hb-gold-shimmer, .hb-aurora, .hb-plane, .hb-ping, .hb-marquee, .hb-dot-slide, .hb-float, .hb-step, .hb-ring { animation: none !important; }
+  .hb-word, .hb-rise, .hb-bar, .hb-gold-shimmer, .hb-aurora, .hb-plane, .hb-ping, .hb-marquee, .hb-dot-slide, .hb-float, .hb-step, .hb-ring { animation: none !important; }
   .hb-arc { stroke-dashoffset: 0; animation: none !important; }
   .hb-plane, .hb-ping { display: none; }
   .hb-grow { transform: none; }

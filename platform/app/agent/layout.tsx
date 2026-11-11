@@ -28,7 +28,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
   ]);
   const wallet = balances.filter((w) => w.minor > 0);
   const nav: NavItem[] = [
-    { href: '/agent', label: 'Overview', icon: 'overview', section: 'Book' },
+    { href: '/agent', label: 'Today', icon: 'overview', section: 'Book' },
     { href: '/agent/search', label: 'Search hotels', icon: 'search', section: 'Book' },
     { href: '/agent/rate-requests', label: 'Best-rate requests', icon: 'spark', badge: rates, section: 'Book' },
     { href: '/agent/groups', label: 'Group Desk', icon: 'groups', section: 'Book' },
@@ -42,9 +42,17 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     { href: '/agent/profile', label: 'Agency profile', icon: 'profile', section: 'Account' },
     { href: '/agent/support', label: 'Support', icon: 'support', section: 'Account' },
   ];
+  const tabs: NavItem[] = [
+    { href: '/agent', label: 'Today', icon: 'overview' },
+    { href: '/agent/search', label: 'Search', icon: 'search' },
+    { href: '/agent/rate-requests', label: 'Best rates', icon: 'spark', badge: rates },
+    { href: '/agent/trips', label: 'Clients', icon: 'trips', badge: followUps },
+    { href: '/agent/bookings', label: 'Bookings', icon: 'bookings', badge: pending },
+  ];
   return (
     <AppShell
       nav={nav}
+      tabs={tabs}
       actions={[
         { label: 'Search hotels', href: '/agent/search', hint: 'book find rates' },
         { label: 'Paste a group enquiry', href: '/agent/groups/new', hint: 'new group request mice wedding' },

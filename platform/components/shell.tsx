@@ -37,8 +37,10 @@ function Icon({ name }: { name: keyof typeof ICONS }) {
   );
 }
 
-export function AppShell({ nav, context, user, signOut, banner, children, actions = [] }: {
+export function AppShell({ nav, context, user, signOut, banner, children, actions = [], tabs }: {
   nav: NavItem[]; context: ReactNode; user: ReactNode; signOut: ReactNode; banner?: ReactNode; children: ReactNode; actions?: PaletteLink[];
+  /** Up to five destinations for the phone tab bar. Omit for no tab bar. */
+  tabs?: NavItem[];
 }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
@@ -109,9 +111,30 @@ export function AppShell({ nav, context, user, signOut, banner, children, action
               <div className="mt-4 border-t border-paper/10 pt-3 text-[0.8rem] text-paper/60">{user}<div className="mt-2">{signOut}</div></div>
             </div>
           )}
-          <main className="mx-auto w-full max-w-[1200px] flex-1 px-4 py-10 md:px-10 md:py-14">{children}</main>
+          <main className={cx('mx-auto w-full max-w-[1200px] flex-1 px-4 md:px-10', tabs ? 'pt-10 pb-28 md:pt-14 lg:pb-14' : 'py-10 md:py-14')}>{children}</main>
         </div>
       </div>
+      {tabs && (
+        <nav aria-label="Quick" className="fixed inset-x-0 bottom-0 z-40 border-t border-paper/10 bg-[#060a14]/92 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
+          <ul className="mx-auto grid max-w-md grid-cols-5">
+            {tabs.slice(0, 5).map((t) => {
+              const active = isActive(t.href);
+              return (
+                <li key={t.href}>
+                  <Link href={t.href} aria-current={active ? 'page' : undefined}
+                    className={cx('relative flex flex-col items-center gap-1 py-2.5 text-[0.66rem] transition-colors active:scale-95', active ? 'text-[#e8c88a]' : 'text-paper/55')}>
+                    {active && <span aria-hidden className="absolute top-0 h-0.5 w-8 rounded-full bg-[#e8c88a]" />}
+                    <span className="relative"><Icon name={t.icon} />
+                      {t.badge ? <span className="num absolute -top-1.5 -right-2.5 min-w-4 rounded-full bg-[#c79a4a] px-1 text-center text-[0.6rem] leading-4 font-semibold text-ink">{t.badge}</span> : null}
+                    </span>
+                    <span className="max-w-full truncate px-1">{t.label}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }
