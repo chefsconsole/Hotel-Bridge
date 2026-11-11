@@ -1,9 +1,11 @@
 /* npm run load:partners
  * Loads the REAL partner hotels in data/partners.ts. Safe to re-run: hotels are
  * matched by slug and updated; Muong Thanh's contract is created once.
- * Stop the dev server first — the embedded database allows one process. */
+ * Stop the dev server first — the embedded database allows one process.
+ * --new-only: add on-request hotels that are not loaded yet and touch nothing
+ * else (no updates to existing hotels, contracts or extras). Safe for production. */
 import './env';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { closeDb, getDb, schema } from '@/lib/db';
 import { addDays, todayIso } from '@/lib/domain/dates';
 import { SYSTEM } from '@/lib/services/actor';
@@ -39,6 +41,46 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
 (async () => {
   const db = await getDb();
   let created = 0, updated = 0;
+
+  if (process.argv.includes('--new-only')) {
+    const dryRun = process.argv.includes('--dry-run');
+    for (const p of ON_REQUEST) {
+      const slug = slugify(`${p.name}-${p.city}`);
+      const [existing] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
+      if (existing) continue;
+      console.log(`${dryRun ? 'Would add' : 'Adding'}: ${p.name} (${p.city}) → rate requests to ${p.email}`);
+      if (dryRun) { created++; continue; }
+      const h = await upsertHotel(db, {
+        name: p.name, city: p.city, country: p.country, address: p.address ?? null,
+        starRating: p.starRating ?? null, starRatingVerified: false,
+        summary: 'Best rate on request — FIT and groups.', description: onRequestDescription,
+        bestRateOnRequest: true, rateRequestEmail: p.email,
+        acceptsGroups: true, groupsEmail: p.email,
+        contactName: p.contactName ?? null, contactEmail: p.email, reservationsEmail: p.reservationsEmail ?? p.email,
+        collectionHotels: p.collectionHotels ?? [], status: 'active', isSample: false,
+      });
+      created++;
+      // Keep every contact on the outreach record linked to the hotel (Admin → hotel → Outreach).
+      const [name, ...role] = (p.contactName ?? '').split(', ');
+      const record = {
+        contactName: name || null, contactRole: role.join(', ') || null, contactEmail: p.email, contactPhone: p.phone ?? null,
+        contactSource: 'Their email reply', stage: 'signed', hotelId: h.id, lastContactOn: todayIso(),
+        notes: [`Agreed terms: ${p.terms}`, p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`].filter(Boolean).join('\n'),
+        updatedAt: new Date(),
+      };
+      const [prospect] = await db.select({ id: schema.hotelProspects.id, notes: schema.hotelProspects.notes }).from(schema.hotelProspects)
+        .where(sql`lower(${schema.hotelProspects.name}) = lower(${p.outreachName ?? p.name})`).limit(1);
+      if (prospect) {
+        await db.update(schema.hotelProspects).set({ ...record, notes: [prospect.notes, record.notes].filter(Boolean).join('\n\n') }).where(eq(schema.hotelProspects.id, prospect.id));
+      } else {
+        await db.insert(schema.hotelProspects).values({ name: p.name, destination: p.city, priority: 'P2', ...record });
+      }
+      console.log(`  outreach record ${prospect ? 'updated' : 'created'} and linked`);
+    }
+    console.log(`${dryRun ? 'Dry run: would add' : 'Added'} ${created} new on-request hotel(s); existing hotels untouched.`);
+    await closeDb();
+    return;
+  }
 
   for (const p of ON_REQUEST) {
     const r = await upsertHotel(db, {
