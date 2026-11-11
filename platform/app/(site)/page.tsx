@@ -1,32 +1,43 @@
 import Link from 'next/link';
 import { and, eq, sql } from 'drizzle-orm';
 import { LinkButton } from '@/components/ui';
+import { HomeMotion } from '@/components/home/home-motion';
+import { NetworkMap } from '@/components/home/network-map';
 import { getDb, schema } from '@/lib/db';
 
-/* Homepage. Every number shown is read from the database — never a marketing
- * figure. Product previews are labelled "Example". */
+/* Homepage. Every number and every city shown is read from the database — never
+ * a marketing figure. Product previews are labelled "Example". Motion is CSS
+ * plus one small script (HomeMotion) and stops for reduced-motion users. */
 
 /** Served from the CDN; the live counts refresh every 5 minutes. */
 export const revalidate = 300;
 
-async function liveCounts() {
+type Live = { hotels: number; countries: number; cities: number; rows: { city: string; country: string; n: number }[] };
+
+async function liveNetwork(): Promise<Live | null> {
   try {
     const db = await getDb();
-    const [r] = await db.select({
-      hotels: sql<number>`count(*)::int`,
-      countries: sql<number>`count(distinct ${schema.hotels.country})::int`,
-      cities: sql<number>`count(distinct ${schema.hotels.city})::int`,
-    }).from(schema.hotels).where(and(eq(schema.hotels.isSample, false), sql`${schema.hotels.status} <> 'inactive'`));
-    return r;
+    const live = and(eq(schema.hotels.isSample, false), sql`${schema.hotels.status} <> 'inactive'`);
+    const rows = await db.select({ city: schema.hotels.city, country: schema.hotels.country, n: sql<number>`count(*)::int` })
+      .from(schema.hotels).where(live).groupBy(schema.hotels.city, schema.hotels.country).orderBy(sql`count(*) desc`, schema.hotels.city);
+    return {
+      rows,
+      hotels: rows.reduce((s, r) => s + r.n, 0),
+      cities: rows.length,
+      countries: new Set(rows.map((r) => r.country)).size,
+    };
   } catch { return null; }
 }
 
 export default async function Home() {
-  const counts = await liveCounts();
+  const live = await liveNetwork();
   return (
     <>
+      <HomeMotion />
       <DiwaliStrip />
-      <Hero counts={counts} />
+      <Hero live={live} />
+      {live && live.rows.length > 0 && <CityRibbon rows={live.rows} />}
+      <BestRate />
       <DirectToHotel />
       <Features />
       <Destinations />
@@ -43,6 +54,7 @@ export default async function Home() {
 
 const H2 = 'mt-4 max-w-3xl text-[2.1rem] leading-[1.08] font-semibold tracking-[-0.03em] md:text-[3rem]';
 const GOLD = 'text-[#c79a4a]';
+const delay = (ms: number) => ({ ['--d' as string]: `${ms}ms` });
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return <p className={`flex items-center gap-3 text-[0.72rem] font-medium tracking-[0.22em] uppercase ${light ? 'text-[#d9b56f]' : 'text-champagne'}`}><span className="h-px w-8 bg-current" />{children}</p>;
@@ -50,6 +62,11 @@ function Eyebrow({ children, light = false }: { children: React.ReactNode; light
 
 function Example() {
   return <span className="absolute top-3 right-3 rounded-full bg-ink/5 px-2 py-0.5 text-[0.62rem] tracking-[0.14em] text-faint uppercase">Example</span>;
+}
+
+/** Words that rise in one after another on load. */
+function Words({ text, from = 0, className = '' }: { text: string; from?: number; className?: string }) {
+  return <>{text.split(' ').map((w, i) => <span key={i} className={`hb-word ${className}`} style={delay(from + i * 70)}>{w}{' '}</span>)}</>;
 }
 
 /* ------------------------------- diwali -------------------------------- */
@@ -67,69 +84,127 @@ function DiwaliStrip() {
 
 /* --------------------------------- hero --------------------------------- */
 
-function Hero({ counts }: { counts: Awaited<ReturnType<typeof liveCounts>> }) {
+function Hero({ live }: { live: Live | null }) {
   return (
-    <section className="relative isolate overflow-hidden bg-[#070b16] text-paper">
-      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_70%_60%_at_80%_20%,rgba(199,154,74,0.22),transparent_60%),radial-gradient(ellipse_60%_50%_at_10%_90%,rgba(31,43,85,0.9),transparent_70%)]" />
-      <svg className="absolute inset-0 -z-10 size-full opacity-[0.05]" aria-hidden>
-        <defs><pattern id="g" width="56" height="56" patternUnits="userSpaceOnUse"><path d="M56 0H0V56" fill="none" stroke="#fff" strokeWidth="0.6" /></pattern></defs>
-        <rect width="100%" height="100%" fill="url(#g)" />
-      </svg>
-      <div className="mx-auto grid max-w-6xl items-center gap-14 px-4 pt-16 pb-20 md:grid-cols-[1.1fr_1fr] md:px-6 md:pt-24 md:pb-28">
-        <div className="animate-[var(--animate-rise)]">
+    <section className="relative isolate overflow-hidden bg-[#060a14] text-paper">
+      <div aria-hidden className="hb-aurora absolute -inset-[20%] -z-10 bg-[radial-gradient(ellipse_45%_40%_at_75%_30%,rgba(199,154,74,0.26),transparent_60%),radial-gradient(ellipse_50%_45%_at_15%_85%,rgba(37,52,104,0.85),transparent_70%),radial-gradient(ellipse_35%_30%_at_45%_10%,rgba(80,96,160,0.25),transparent_70%)]" />
+      <div aria-hidden className="absolute inset-x-0 bottom-0 -z-10 h-40 bg-gradient-to-b from-transparent to-[#060a14]" />
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-14 pb-16 md:px-6 lg:grid-cols-[1fr_1.15fr] lg:gap-6 lg:pt-20 lg:pb-24">
+        <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/hotelbridge-mark-inverse.png" alt="HotelBridge" width={140} height={86} className="mb-6 h-20 w-auto md:h-24" />
-          <Eyebrow light>B2B hotels for Indian travel agents</Eyebrow>
-          <h1 className="mt-5 text-[2.7rem] leading-[1.02] font-semibold tracking-[-0.04em] md:text-[4.4rem]">
-            Hotels direct.<br /><span className={GOLD}>No middleman.</span>
+          <div className="hb-rise mb-6"><img src="/hotelbridge-mark-inverse.png" alt="HotelBridge" width={140} height={86} className="h-16 w-auto md:h-20" /></div>
+          <div className="hb-rise" style={delay(80)}><Eyebrow light>B2B hotels for Indian travel agents</Eyebrow></div>
+          <h1 className="mt-5 text-[2.9rem] leading-[1] font-semibold tracking-[-0.045em] md:text-[4.6rem]">
+            <Words text="Hotels direct." from={150} /><br />
+            <span className="hb-word hb-gold-shimmer" style={delay(330)}>No middleman.</span>
           </h1>
-          <p className="mt-6 max-w-xl text-[1.08rem] leading-relaxed text-paper/70">
-            Hand-picked 4★ and 5★ hotels in the destinations your clients book — with every rate coming straight from the hotel.
+          <p className="hb-rise mt-6 max-w-xl text-[1.08rem] leading-relaxed text-paper/70" style={delay(480)}>
+            Hand-picked 4★ and 5★ hotels in the destinations your clients book — every rate straight from the hotel.
             Ask for a best rate and get the hotel&apos;s offer within an hour, right in the portal.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-3">
-            <LinkButton href="/register" variant="inverse" size="lg">Register your agency</LinkButton>
+          <div className="hb-rise mt-9 flex flex-wrap items-center gap-3" style={delay(600)}>
+            <LinkButton href="/register" variant="inverse" size="lg" className="shadow-[0_10px_40px_-10px_rgba(199,154,74,0.6)] transition-transform hover:-translate-y-0.5">Register your agency</LinkButton>
             <LinkButton href="/login" size="lg" className="border border-paper/25 bg-transparent hover:bg-paper/10">Agent login</LinkButton>
           </div>
-          {counts && counts.hotels > 0 && (
-            <div className="mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-paper/10 pt-6">
-              {([[counts.hotels, 'partner hotels'], [counts.cities, 'destinations'], [counts.countries, 'countries']] as const).map(([n, l]) => (
-                <div key={l}><p className="num text-[1.9rem] font-semibold tracking-tight">{n}</p><p className="text-[0.8rem] text-paper/50">{l}</p></div>
+          {live && live.hotels > 0 && (
+            <dl className="hb-rise mt-12 grid max-w-md grid-cols-3 gap-6 border-t border-paper/10 pt-6" style={delay(720)}>
+              {([[live.hotels, 'partner hotels'], [live.cities, 'destinations'], [live.countries, 'countries']] as const).map(([n, l]) => (
+                <div key={l}><dt className="sr-only">{l}</dt><dd><span className="num block text-[2rem] font-semibold tracking-tight" data-count={n}>{n}</span><span className="text-[0.8rem] text-paper/50">{l}</span></dd></div>
               ))}
-            </div>
+            </dl>
           )}
         </div>
-        <HeroPreview />
+        {live && live.rows.length > 0 && (
+          <figure className="hb-rise relative" style={delay(250)}>
+            <div aria-hidden className="absolute -inset-10 -z-10 rounded-full bg-[#c79a4a]/[0.07] blur-3xl" />
+            <NetworkMap cities={live.rows} />
+            <figcaption className="mt-2 flex items-center justify-center gap-2 text-[0.75rem] tracking-[0.14em] text-paper/45 uppercase">
+              <span className="relative flex size-2"><span className="hb-ping absolute inline-flex size-full rounded-full bg-[#e0bd78]" /><span className="relative inline-flex size-2 rounded-full bg-[#e0bd78]" /></span>
+              Live network · {live.cities} destinations
+            </figcaption>
+          </figure>
+        )}
       </div>
     </section>
   );
 }
 
-/** How a best-rate request looks — an illustration, labelled as one. */
-function HeroPreview() {
+/* ------------------------------ city ribbon ------------------------------ */
+
+/** Every city we have hotels in, scrolling. Doubled so the loop is seamless; the copy is hidden from screen readers. */
+function CityRibbon({ rows }: { rows: Live['rows'] }) {
+  const list = (hidden: boolean) => (
+    <ul aria-hidden={hidden || undefined} className="flex shrink-0 items-center gap-10 pr-10">
+      {rows.map((r) => (
+        <li key={`${r.city}-${r.country}`} className="flex items-baseline gap-2 whitespace-nowrap">
+          <span className="text-[1.05rem] font-medium text-paper/85">{r.city.replace(/ \(.*\)/, '')}</span>
+          <span className="text-[0.7rem] tracking-[0.16em] text-paper/35 uppercase">{r.country}</span>
+          <span aria-hidden className="ml-8 text-[#c79a4a]/60">✦</span>
+        </li>
+      ))}
+    </ul>
+  );
   return (
-    <div className="relative animate-[var(--animate-rise)] [animation-delay:120ms]">
-      <div className="absolute -inset-6 -z-10 rounded-[2rem] bg-[#c79a4a]/10 blur-2xl" />
-      <div className="relative rounded-[var(--radius-lg)] border border-paper/12 bg-[#0e1426]/90 p-6 shadow-[0_40px_80px_-40px_rgb(0_0_0/0.7)] backdrop-blur">
+    <section aria-label="Destinations with partner hotels" className="hb-marquee-wrap border-y border-paper/10 bg-[#060a14] py-5">
+      <div className="overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
+        <div className="hb-marquee flex w-max" style={{ ['--t' as string]: `${Math.max(40, rows.length * 2.4)}s` }}>{list(false)}{list(true)}</div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------- best rate ------------------------------- */
+
+function BestRate() {
+  return (
+    <section className="relative overflow-hidden bg-paper">
+      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 md:grid-cols-2 md:px-6 md:py-28">
+        <div data-reveal="">
+          <Eyebrow>Best rate on request</Eyebrow>
+          <h2 className={H2}>Ask the hotel. <span className="text-champagne">Get its offer within the hour.</span></h2>
+          <p className="mt-5 max-w-lg text-[1rem] leading-relaxed text-muted">Pick any partner hotel and add your client&apos;s dates and rooms. The request goes to the hotel&apos;s own sales team — not a feed — and their best rate comes back into your portal, ready to quote.</p>
+          <ul className="mt-8 space-y-3 text-[0.95rem]">
+            {['Straight to the hotel’s sales team', 'Usually below the public price', 'Accept it, or ask another hotel in one click'].map((x) => <li key={x} className="flex gap-3"><span className="text-champagne">✓</span>{x}</li>)}
+          </ul>
+        </div>
+        <RequestCard />
+      </div>
+    </section>
+  );
+}
+
+/** How a best-rate request looks — an illustration, labelled as one. Steps light up in turn when it scrolls into view. */
+function RequestCard() {
+  const steps: [string, string, boolean][] = [
+    ['Sent to the hotel’s own sales team', 'Not a booking feed, not a wholesaler', false],
+    ['Hotel replies with its best rate', 'Usually below its public price', false],
+    ['Offer in your portal', 'Accept it, or ask another hotel in one click', true],
+  ];
+  return (
+    <div data-reveal="" style={delay(120)} className="relative">
+      <div aria-hidden className="absolute -inset-8 -z-10 rounded-[2rem] bg-[radial-gradient(closest-side,rgba(199,154,74,0.22),transparent)] blur-xl" />
+      <div className="hb-float relative rounded-[1.1rem] border border-paper/10 bg-[#0b1122] p-6 text-paper shadow-[0_50px_100px_-40px_rgb(6_10_20/0.75)] md:p-7">
         <span className="absolute top-4 right-4 rounded-full bg-paper/10 px-2 py-0.5 text-[0.62rem] tracking-[0.14em] text-paper/60 uppercase">Example</span>
         <p className="text-[0.72rem] tracking-[0.16em] text-paper/45 uppercase">Best rate request</p>
-        <p className="mt-2 text-[1.1rem] font-medium">4★ beach resort · Phuket</p>
+        <p className="mt-2 text-[1.15rem] font-medium">4★ beach resort · Phuket</p>
         <p className="text-[0.85rem] text-paper/55">3 nights · 2 rooms · 4 adults, 1 child (6)</p>
         <ol className="mt-6 space-y-4 text-[0.88rem]">
-          {[
-            ['Sent to the hotel’s own sales team', 'Not a booking feed, not a wholesaler', 'done'],
-            ['Hotel replies with its best rate', 'Usually below its public price', 'done'],
-            ['Offer in your portal', 'Accept it, or ask another hotel in one click', 'now'],
-          ].map(([t, d, s]) => (
-            <li key={t} className="grid grid-cols-[22px_1fr] gap-3">
-              <span className={`mt-0.5 flex size-[22px] items-center justify-center rounded-full text-[0.7rem] ${s === 'now' ? 'bg-[#c79a4a] text-ink' : 'border border-paper/25 text-paper/70'}`}>{s === 'now' ? '★' : '✓'}</span>
+          {steps.map(([t, d, now], i) => (
+            <li key={t} className="hb-step grid grid-cols-[22px_1fr] gap-3" style={delay(300 + i * 450)}>
+              <span className={`mt-0.5 flex size-[22px] items-center justify-center rounded-full text-[0.7rem] ${now ? 'bg-[#c79a4a] text-ink shadow-[0_0_0_4px_rgba(199,154,74,0.18)]' : 'border border-paper/25 text-paper/70'}`}>{now ? '★' : '✓'}</span>
               <div><p className="font-medium text-paper">{t}</p><p className="text-[0.8rem] text-paper/50">{d}</p></div>
             </li>
           ))}
         </ol>
         <div className="mt-6 flex items-center justify-between rounded-[var(--radius-md)] bg-paper/[0.06] px-4 py-3">
           <span className="text-[0.82rem] text-paper/60">Offer within</span>
-          <span className="text-[1.05rem] font-semibold text-[#e0bd78]">≈ 1 hour</span>
+          <span className="flex items-center gap-3">
+            <svg viewBox="0 0 36 36" className="size-8 -rotate-90" aria-hidden>
+              <circle cx="18" cy="18" r="15" fill="none" stroke="rgb(255 255 255 / 0.1)" strokeWidth="3" />
+              <circle cx="18" cy="18" r="15" fill="none" stroke="#e0bd78" strokeWidth="3" strokeLinecap="round" pathLength={1} strokeDasharray="1" strokeDashoffset="0.02" className="hb-ring" />
+            </svg>
+            <span className="text-[1.05rem] font-semibold text-[#e0bd78]">≈ 1 hour</span>
+          </span>
         </div>
       </div>
     </div>
@@ -142,8 +217,8 @@ function DirectToHotel() {
   return (
     <section id="network" className="scroll-mt-20 border-b border-line bg-paper">
       <div className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-28">
-        <Eyebrow>Why HotelBridge</Eyebrow>
-        <h2 className={H2}>Most portals sell you hotels through a chain of APIs. <span className="text-champagne">We go to the hotel.</span></h2>
+        <div data-reveal=""><Eyebrow>Why HotelBridge</Eyebrow>
+        <h2 className={H2}>Most portals sell you hotels through a chain of APIs. <span className="text-champagne">We go to the hotel.</span></h2></div>
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           <Chain title="Typical B2B portal" tone="muted" steps={['You', 'Portal', 'Supplier API', 'Wholesaler', 'Hotel']} note="Each step adds a margin — and a chance the room isn’t really there." />
           <Chain title="HotelBridge" tone="gold" steps={['You', 'HotelBridge', 'Hotel']} note="Every rate is a direct contract or a direct quote. The hotel confirms your booking itself." />
@@ -154,8 +229,8 @@ function DirectToHotel() {
             ['Confirmed by the hotel', 'Your client’s room is confirmed by the hotel, not by a system steps away from it.'],
             ['Best offer within 1 hour', 'Ask for a best rate on any partner hotel; we aim to have the offer in your portal within the hour.'],
             ['Only hotels worth selling', '5–10 hand-picked hotels per destination, focused on the 4★ and 5★ your clients book.'],
-          ].map(([t, d]) => (
-            <div key={t} className="rounded-[var(--radius-lg)] border border-line bg-surface p-5">
+          ].map(([t, d], i) => (
+            <div key={t} data-reveal="" style={delay(i * 90)} className="hb-lift hb-spot rounded-[var(--radius-lg)] border border-line bg-surface p-5">
               <p className="font-semibold">{t}</p>
               <p className="mt-2 text-[0.9rem] leading-relaxed text-muted">{d}</p>
             </div>
@@ -169,7 +244,7 @@ function DirectToHotel() {
 function Chain({ title, steps, note, tone }: { title: string; steps: string[]; note: string; tone: 'muted' | 'gold' }) {
   const gold = tone === 'gold';
   return (
-    <div className={`rounded-[var(--radius-lg)] border p-6 ${gold ? 'border-[#c79a4a]/50 bg-[#fbf6ec]' : 'border-line bg-surface'}`}>
+    <div data-reveal="" style={delay(gold ? 140 : 0)} className={`rounded-[var(--radius-lg)] border p-6 ${gold ? 'border-[#c79a4a]/50 bg-[#fbf6ec] shadow-[0_30px_60px_-40px_rgba(160,127,74,0.55)]' : 'border-line bg-surface'}`}>
       <p className={`text-[0.78rem] font-medium tracking-[0.14em] uppercase ${gold ? 'text-champagne' : 'text-faint'}`}>{title}</p>
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {steps.map((s, i) => (
@@ -179,7 +254,12 @@ function Chain({ title, steps, note, tone }: { title: string; steps: string[]; n
           </span>
         ))}
       </div>
-      <p className="mt-5 text-[0.9rem] text-muted">{note}</p>
+      <div aria-hidden className="relative mt-6 h-[3px] rounded-full bg-ink/[0.07]">
+        {steps.slice(1, -1).map((s, i) => <span key={s} className={`absolute top-1/2 size-2 -translate-y-1/2 rounded-full ${gold ? 'bg-[#c79a4a]' : 'bg-faint/60'}`} style={{ left: `${((i + 1) / (steps.length - 1)) * 100}%` }} />)}
+        <span className={`hb-dot-slide absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full ${gold ? 'bg-[#c79a4a] shadow-[0_0_14px_3px_rgba(199,154,74,0.55)]' : 'bg-muted/60'}`} style={{ ['--t' as string]: gold ? '1.8s' : '6s' }} />
+      </div>
+      <p className="mt-2 flex justify-between text-[0.72rem] tracking-[0.12em] text-faint uppercase"><span>Your rate request</span><span>{gold ? 'Straight to the hotel' : `${steps.length - 2} hands on the way`}</span></p>
+      <p className="mt-4 text-[0.9rem] text-muted">{note}</p>
     </div>
   );
 }
@@ -190,27 +270,27 @@ function Features() {
   return (
     <section id="agents" className="scroll-mt-20 bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-28">
-        <Eyebrow>For travel agents</Eyebrow>
+        <div data-reveal=""><Eyebrow>For travel agents</Eyebrow>
         <h2 className={H2}>Everything you need to sell hotels — in one place.</h2>
-        <p className="mt-4 max-w-2xl text-[1rem] leading-relaxed text-muted">From the first WhatsApp enquiry to the client&apos;s check-in.</p>
+        <p className="mt-4 max-w-2xl text-[1rem] leading-relaxed text-muted">From the first WhatsApp enquiry to the client&apos;s check-in.</p></div>
         <div className="mt-14 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Feature title="Best rate on request" text="Pick a partner hotel, add your client’s dates and rooms. The hotel’s best offer lands in your portal — we aim for within the hour.">
+          <Feature d={0} title="Best rate on request" text="Pick a partner hotel, add your client’s dates and rooms. The hotel’s best offer lands in your portal — we aim for within the hour.">
             <MiniRow l="Request" r="Sent to hotel" /><MiniRow l="Offer" r={<span className="font-medium text-positive">Received</span>} /><MiniRow l="Time" r="≈ 1 hour" />
           </Feature>
-          <Feature title="Paste any group enquiry" text="Copy the WhatsApp or email as it is. Our AI sorts it into a group request and sends it to our Group Desk.">
+          <Feature d={80} title="Paste any group enquiry" text="Copy the WhatsApp or email as it is. Our AI sorts it into a group request and sends it to our Group Desk.">
             <p className="rounded-[var(--radius-sm)] bg-[#e7f6e7] px-3 py-2 text-[0.78rem] text-[#24502a]">“40 pax wedding, Phuket 12–15 Feb, 18 DBL + 2 TPL, 5★, BB…”</p>
             <div className="mt-2 flex flex-wrap gap-1.5">{['Phuket', '12–15 Feb', '40 pax', '18 DBL · 2 TPL', '5★', 'Breakfast'].map((c) => <span key={c} className="rounded-full bg-[#fbf6ec] px-2 py-0.5 text-[0.72rem] text-champagne ring-1 ring-[#c79a4a]/30">{c}</span>)}</div>
           </Feature>
-          <Feature title="Your price, your profit" text="Build a quote for your client, set what they pay, and see your profit on every line before you send it.">
+          <Feature d={160} title="Your price, your profit" text="Build a quote for your client, set what they pay, and see your profit on every line before you send it.">
             <MiniRow l="Our price to you" r="₹ 41,800" /><MiniRow l="Client pays" r="₹ 46,500" /><MiniRow l="Your profit" r={<span className="font-semibold text-positive">₹ 4,700</span>} />
           </Feature>
-          <Feature title="Clients & follow-ups" text="Every lead, trip and follow-up in one list — so no enquiry goes cold and nobody has to ask what happened.">
+          <Feature d={240} title="Clients & follow-ups" text="Every lead, trip and follow-up in one list — so no enquiry goes cold and nobody has to ask what happened.">
             <MiniRow l="Mehta family · Dubai" r={<span className="text-attention">Follow up today</span>} /><MiniRow l="Shah honeymoon · Bali" r="Quote sent" /><MiniRow l="Iyer group · Vietnam" r="Booked" />
           </Feature>
-          <Feature title="Your brand on documents" text="Your agency’s name and logo on the proposals and messages your clients see — HotelBridge stays in the background.">
+          <Feature d={320} title="Your brand on documents" text="Your agency’s name and logo on the proposals and messages your clients see — HotelBridge stays in the background.">
             <div className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-line px-3 py-2"><span className="flex size-8 items-center justify-center rounded-full bg-ink text-[0.7rem] font-semibold text-paper">YA</span><div><p className="text-[0.82rem] font-medium">Your Agency</p><p className="text-[0.72rem] text-faint">Proposal for Mr &amp; Mrs Shah</p></div></div>
           </Feature>
-          <Feature title="AI client messages & team logins" text="One click writes the client’s WhatsApp or email for a booking, in their language. Add your staff with their own logins.">
+          <Feature d={400} title="AI client messages & team logins" text="One click writes the client’s WhatsApp or email for a booking, in their language. Add your staff with their own logins.">
             <p className="ml-auto max-w-[85%] rounded-[var(--radius-sm)] bg-[#dcf8c6] px-3 py-2 text-[0.78rem] text-[#1f3b1f]">Namaste Mr Shah 🙏 Your stay in Bali is confirmed: 4 nights, Deluxe Pool Villa, breakfast included…</p>
           </Feature>
         </div>
@@ -219,9 +299,9 @@ function Features() {
   );
 }
 
-function Feature({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
+function Feature({ title, text, children, d = 0 }: { title: string; text: string; children: React.ReactNode; d?: number }) {
   return (
-    <div className="flex flex-col rounded-[var(--radius-lg)] border border-line bg-paper p-6 transition-shadow hover:shadow-[var(--shadow-soft)]">
+    <div data-reveal="" style={delay(d)} className="hb-lift hb-spot flex flex-col rounded-[var(--radius-lg)] border border-line bg-paper p-6">
       <div className="relative rounded-[var(--radius-md)] border border-line bg-surface p-4 pt-8"><Example />{children}</div>
       <p className="mt-6 text-[1.05rem] font-semibold">{title}</p>
       <p className="mt-2 text-[0.9rem] leading-relaxed text-muted">{text}</p>
@@ -248,11 +328,11 @@ function Destinations() {
   return (
     <section className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-24">
-        <Eyebrow>Where you can book</Eyebrow>
-        <h2 className={H2}>The destinations your clients ask for.</h2>
+        <div data-reveal=""><Eyebrow>Where you can book</Eyebrow>
+        <h2 className={H2}>The destinations your clients ask for.</h2></div>
         <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {DESTINATIONS.map(([t, d]) => (
-            <li key={t} className="rounded-[var(--radius-lg)] border border-line bg-surface p-6 transition-colors hover:border-[#c79a4a]/60">
+          {DESTINATIONS.map(([t, d], i) => (
+            <li key={t} data-reveal="" style={delay(i * 70)} className="hb-lift hb-spot rounded-[var(--radius-lg)] border border-line bg-surface p-6 hover:border-[#c79a4a]/60">
               <p className="text-[1.15rem] font-semibold">{t}</p>
               <p className="mt-1 text-[0.88rem] text-muted">{d}</p>
             </li>
@@ -276,11 +356,12 @@ function Steps() {
   return (
     <section id="how" className="scroll-mt-20 border-y border-line bg-surface">
       <div className="mx-auto max-w-6xl px-4 py-20 md:px-6 md:py-24">
-        <Eyebrow>How it works</Eyebrow>
-        <h2 className={H2}>From enquiry to check-in, in four steps.</h2>
-        <ol className="mt-12 grid gap-5 md:grid-cols-4">
+        <div data-reveal=""><Eyebrow>How it works</Eyebrow>
+        <h2 className={H2}>From enquiry to check-in, in four steps.</h2></div>
+        <ol data-reveal="" className="relative mt-12 grid gap-5 md:grid-cols-4">
+          <span aria-hidden className="hb-grow absolute top-[2.65rem] right-[12%] left-[12%] hidden h-px bg-gradient-to-r from-[#c79a4a] via-[#c79a4a]/70 to-[#c79a4a]/20 md:block" />
           {steps.map(([t, d], i) => (
-            <li key={t} className="rounded-[var(--radius-lg)] border border-line bg-paper p-6">
+            <li key={t} className="hb-step hb-lift relative rounded-[var(--radius-lg)] border border-line bg-paper p-6" style={delay(200 + i * 220)}>
               <span className="num flex size-9 items-center justify-center rounded-full bg-ink text-[0.85rem] font-semibold text-paper">{i + 1}</span>
               <p className="mt-5 font-semibold">{t}</p>
               <p className="mt-2 text-[0.88rem] leading-relaxed text-muted">{d}</p>
@@ -298,7 +379,7 @@ function GroupDesk() {
   return (
     <section id="groups" className="scroll-mt-20 bg-[#070b16] text-paper">
       <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 md:grid-cols-2 md:px-6 md:py-28">
-        <div>
+        <div data-reveal="">
           <Eyebrow light>Group Desk</Eyebrow>
           <h2 className="mt-4 text-[2.1rem] leading-[1.08] font-semibold tracking-[-0.03em] md:text-[2.8rem]">Groups, MICE and weddings — <span className={GOLD}>just paste the enquiry.</span></h2>
           <p className="mt-5 max-w-lg text-paper/70">Forward it the way your client sent it. We read it, go to the right hotels with full details, and come back with written offers you can accept online.</p>
@@ -307,14 +388,14 @@ function GroupDesk() {
           </ul>
           <div className="mt-9"><LinkButton href="/register" variant="inverse" size="lg">Register to send a group</LinkButton></div>
         </div>
-        <div className="relative rounded-[var(--radius-lg)] border border-paper/12 bg-[#0e1426] p-6">
+        <div data-typing="" className="relative rounded-[var(--radius-lg)] border border-paper/12 bg-[#0e1426] p-6 shadow-[0_50px_100px_-50px_rgba(0,0,0,0.8)]">
           <span className="absolute top-4 right-4 rounded-full bg-paper/10 px-2 py-0.5 text-[0.62rem] tracking-[0.14em] text-paper/60 uppercase">Example</span>
           <p className="text-[0.72rem] tracking-[0.16em] text-paper/45 uppercase">Pasted from WhatsApp</p>
-          <p className="mt-3 rounded-[var(--radius-md)] bg-[#dcf8c6] p-4 text-[0.88rem] text-[#1f3b1f]">Hi! Need hotel for 42 people, Bangkok 3N + Pattaya 2N, 14 Feb onwards. 19 doubles 1 triple. 4 star, breakfast, coach parking needed. Pls send quote by Monday 🙏</p>
-          <p className="mt-5 text-[0.72rem] tracking-[0.16em] text-paper/45 uppercase">Sorted by AI</p>
+          <p data-type="" className="mt-3 min-h-[6.5rem] rounded-[var(--radius-md)] bg-[#dcf8c6] p-4 text-[0.88rem] text-[#1f3b1f]">Hi! Need hotel for 42 people, Bangkok 3N + Pattaya 2N, 14 Feb onwards. 19 doubles 1 triple. 4 star, breakfast, coach parking needed. Pls send quote by Monday 🙏</p>
+          <p data-chip="" className="mt-5 text-[0.72rem] tracking-[0.16em] text-paper/45 uppercase">Sorted by AI</p>
           <div className="mt-3 grid grid-cols-2 gap-2 text-[0.84rem]">
-            {[['Group', '42 travellers'], ['Rooms', '19 DBL · 1 TPL'], ['Bangkok', '3 nights from 14 Feb'], ['Pattaya', '2 nights'], ['Hotels', '4★ · breakfast'], ['Needs', 'Coach parking']].map(([k, v]) => (
-              <div key={k} className="rounded-[var(--radius-sm)] bg-paper/[0.06] px-3 py-2"><p className="text-[0.7rem] text-paper/45">{k}</p><p className="font-medium">{v}</p></div>
+            {[['Group', '42 travellers'], ['Rooms', '19 DBL · 1 TPL'], ['Bangkok', '3 nights from 14 Feb'], ['Pattaya', '2 nights'], ['Hotels', '4★ · breakfast'], ['Needs', 'Coach parking']].map(([k, v], i) => (
+              <div key={k} data-chip="" style={delay(120 + i * 110)} className="rounded-[var(--radius-sm)] bg-paper/[0.06] px-3 py-2 ring-1 ring-[#c79a4a]/0 transition-[box-shadow] hover:ring-[#c79a4a]/40"><p className="text-[0.7rem] text-paper/45">{k}</p><p className="font-medium">{v}</p></div>
             ))}
           </div>
         </div>
@@ -329,12 +410,12 @@ function HotelPartners() {
   return (
     <section id="hotels" className="scroll-mt-20 bg-paper">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-20 md:grid-cols-[1.2fr_1fr] md:px-6 md:py-24">
-        <div>
+        <div data-reveal="">
           <Eyebrow>For hotels</Eyebrow>
           <h2 className="mt-4 text-[2rem] leading-tight font-semibold tracking-[-0.03em] md:text-[2.5rem]">Your sales partner for Indian travel agents.</h2>
           <p className="mt-5 max-w-xl text-muted">We feature only a few hotels per destination and send them real enquiries from verified Indian agencies. No reselling — bookings, payment and guests stay between your hotel and the agency.</p>
         </div>
-        <div className="flex flex-col justify-center gap-3 rounded-[var(--radius-lg)] border border-line bg-surface p-6">
+        <div data-reveal="" style={delay(120)} className="hb-spot flex flex-col justify-center gap-3 rounded-[var(--radius-lg)] border border-line bg-surface p-6">
           {['Fixed FIT contract rates or best rate on request', 'Group, MICE and wedding enquiries with full details', 'Answer each request in one click — no extranet'].map((x) => <p key={x} className="flex gap-3 text-[0.92rem]"><span className="text-champagne">✓</span>{x}</p>)}
           <div className="mt-3"><LinkButton href="/partners?kind=hotel" variant="secondary">Become a partner hotel</LinkButton></div>
         </div>
@@ -361,11 +442,11 @@ function Faq() {
           <Eyebrow>FAQ</Eyebrow>
           <h2 className="mt-4 text-[2.1rem] leading-tight font-semibold tracking-[-0.03em]">Questions, answered plainly.</h2>
         </div>
-        <div className="divide-y divide-line border-y border-line">
+        <div data-reveal="" className="divide-y divide-line border-y border-line">
           {items.map(([q, a]) => (
             <details key={q} className="group py-5 [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium">
-                {q}<span className="text-faint transition-transform group-open:rotate-45" aria-hidden>+</span>
+                {q}<span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-line text-faint transition-[transform,background-color,color] duration-300 group-open:rotate-45 group-open:bg-ink group-open:text-paper" aria-hidden>+</span>
               </summary>
               <p className="mt-3 max-w-2xl text-[0.94rem] leading-relaxed text-muted">{a}</p>
             </details>
@@ -382,12 +463,12 @@ function FinalCta() {
   return (
     <section className="bg-paper">
       <div className="mx-auto max-w-6xl px-4 pb-24 md:px-6">
-        <div className="relative overflow-hidden rounded-[1.5rem] bg-[#070b16] px-6 py-14 text-center text-paper md:px-16 md:py-20">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_80%_at_50%_0%,rgba(199,154,74,0.25),transparent_70%)]" />
+        <div data-reveal="" className="relative overflow-hidden rounded-[1.5rem] bg-[#060a14] px-6 py-14 text-center text-paper md:px-16 md:py-20">
+          <div aria-hidden className="hb-aurora absolute -inset-[30%] bg-[radial-gradient(ellipse_40%_50%_at_50%_20%,rgba(199,154,74,0.3),transparent_70%),radial-gradient(ellipse_40%_40%_at_20%_90%,rgba(37,52,104,0.8),transparent_70%)]" />
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/hotelbridge-mark-inverse.png" alt="" width={110} height={68} className="mx-auto h-16 w-auto" />
-            <h2 className="mt-6 text-[2rem] leading-tight font-semibold tracking-[-0.03em] md:text-[2.8rem]">Book hotels direct — <span className={GOLD}>starting today.</span></h2>
+            <img src="/hotelbridge-mark-inverse.png" alt="" width={110} height={68} className="hb-float mx-auto h-16 w-auto" />
+            <h2 className="mt-6 text-[2rem] leading-tight font-semibold tracking-[-0.03em] md:text-[2.8rem]">Book hotels direct — <span className="hb-gold-shimmer">starting today.</span></h2>
             <p className="mx-auto mt-4 max-w-xl text-paper/65">Register your agency in a few minutes. We verify you, and you can start asking hotels for their best rates.</p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <LinkButton href="/register" variant="inverse" size="lg">Register your agency</LinkButton>
