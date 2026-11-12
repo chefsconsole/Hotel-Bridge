@@ -310,10 +310,11 @@ export function budgetFit(r: Pick<RateRequest, 'budgetMinor' | 'budgetCurrency' 
 }
 
 /** What the agent sees for a whole request — never the hotel side of it. */
-export type AgentState = 'working' | 'offers' | 'accepted' | 'expired' | 'no_offer' | 'cancelled';
+export type AgentState = 'working' | 'offers' | 'accepted' | 'booked' | 'expired' | 'no_offer' | 'cancelled';
 /** Hotels declining or not replying is our problem, not the agent's: the request stays "working"
  *  until we send an offer or the team closes it with a note ('closed'). */
 export function agentState(rows: Pick<RateRequest, 'status'>[]): AgentState {
+  if (rows.some((x) => x.status === 'booked')) return 'booked';
   if (rows.some((x) => x.status === 'accepted')) return 'accepted';
   if (rows.some((x) => x.status === 'quoted')) return 'offers';
   if (rows.some((x) => x.status === 'closed')) return 'no_offer';
@@ -324,7 +325,8 @@ export function agentState(rows: Pick<RateRequest, 'status'>[]): AgentState {
 export const AGENT_STATE: Record<AgentState, { label: string; tone: 'pending' | 'positive' | 'attention' | 'neutral' }> = {
   working: { label: 'Getting your best rate', tone: 'pending' },
   offers: { label: 'Offer ready', tone: 'positive' },
-  accepted: { label: 'Accepted', tone: 'positive' },
+  accepted: { label: 'Accepted — confirming with the hotel', tone: 'positive' },
+  booked: { label: 'Booked', tone: 'positive' },
   expired: { label: 'Offer expired', tone: 'neutral' },
   no_offer: { label: 'No offer this time', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
@@ -355,7 +357,7 @@ export async function askHotels(db: DB, actor: Actor, rootId: string, hotelIds: 
   if (!ids.length) throw new AppError('Tick at least one hotel to ask');
   const root = await load(db, actor, rootId);
   if (root.parentId) throw new AppError('Open the main request to ask hotels');
-  if (['accepted', 'cancelled', 'no_offer'].includes(agentState(await family(db, root.id)))) throw new AppError('This request is closed — the agent accepted an offer or cancelled');
+  if (['accepted', 'booked', 'cancelled', 'no_offer'].includes(agentState(await family(db, root.id)))) throw new AppError('This request is closed — the agent accepted an offer or cancelled');
   const [ag] = await db.select({ isSample: schema.agencies.isSample }).from(schema.agencies).where(eq(schema.agencies.id, root.agencyId));
   const result = { emailed: [] as string[], failed: [] as string[], skipped: [] as string[], inHouse: [] as string[], demo: !!ag?.isSample };
   for (const hotelId of ids) {
@@ -498,8 +500,8 @@ export async function getRateRequest(db: DB, actor: Actor, id: string) {
   const root = await rootOf(db, r);
   const rows = await family(db, root.id);
   const state = agentState(rows);
-  const offers = rows.filter((x) => x.status === 'quoted' || x.status === 'accepted')
-    .sort((a, b) => (a.status === 'accepted' ? -1 : 0) - (b.status === 'accepted' ? -1 : 0) || (a.sellMinor ?? 0) - (b.sellMinor ?? 0));
+  const offers = rows.filter((x) => ['quoted', 'accepted', 'booked'].includes(x.status))
+    .sort((a, b) => (a.status !== 'quoted' ? -1 : 0) - (b.status !== 'quoted' ? -1 : 0) || (a.sellMinor ?? 0) - (b.sellMinor ?? 0));
   const fit = offers.length ? budgetFit(offers[0]) : 'unknown';
   const wantsMore = state === 'no_offer' || state === 'expired' || (state === 'offers' && offers.every((o) => budgetFit(o) === 'over'));
   const alt = wantsMore && !isStaff(actor) ? await alternatives(db, actor, root) : { onRequest: [], priced: [] };
@@ -507,17 +509,17 @@ export async function getRateRequest(db: DB, actor: Actor, id: string) {
 }
 
 export async function listRateRequests(db: DB, actor: Actor) {
-  const rows = await db.select({ r: rateRequests, agencyName: schema.agencies.name }).from(rateRequests)
+  const rows = await db.select({ r: rateRequests, agencyName: schema.agencies.name, sample: schema.agencies.isSample }).from(rateRequests)
     .innerJoin(schema.agencies, eq(schema.agencies.id, rateRequests.agencyId))
     .where(isStaff(actor) ? undefined : eq(rateRequests.agencyId, agencyOf(actor)))
     .orderBy(desc(rateRequests.createdAt)).limit(400);
   const all = rows.map(({ r }) => r);
-  return rows.filter(({ r }) => !r.parentId).map(({ r, agencyName }) => {
+  return rows.filter(({ r }) => !r.parentId).map(({ r, agencyName, sample }) => {
     const fam = [r, ...all.filter((x) => x.parentId === r.id)];
-    const offers = fam.filter((x) => x.status === 'quoted' || x.status === 'accepted');
+    const offers = fam.filter((x) => ['quoted', 'accepted', 'booked'].includes(x.status));
     const best = offers.sort((a, b) => (a.sellMinor ?? 0) - (b.sellMinor ?? 0))[0];
     return {
-      ...r, agencyName, fit: best ? budgetFit(best) : 'unknown' as BudgetFit, state: agentState(fam), offers: offers.length, best: best ?? null,
+      ...r, agencyName, sample, fit: best ? budgetFit(best) : 'unknown' as BudgetFit, state: agentState(fam), offers: offers.length, best: best ?? null,
       hotels: fam.length, asked: fam.filter((x) => !['review', 'cancelled'].includes(x.status)).length,
       toReview: fam.filter((x) => x.status === 'hotel_quoted').length,
       needsAsking: fam.some((x) => x.status === 'review' && !quotesInHouse(x.hotelEmail)),
@@ -566,6 +568,43 @@ export async function acceptRateQuote(db: DB, actor: Actor, id: string) {
   ]);
 }
 
+/** The team has confirmed the accepted offer with the hotel: the request is done, and the agent is told. */
+export async function markBooked(db: DB, actor: Actor, id: string, confirmation?: string | null) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  const r = await load(db, actor, id);
+  if (r.status !== 'accepted') throw new AppError('Only an accepted offer can be marked as booked');
+  const conf = confirmation?.trim().slice(0, 80) || null;
+  const now = new Date();
+  await db.update(rateRequests).set({ status: 'booked', updatedAt: now, quoteNotes: conf ? [r.quoteNotes, `Hotel confirmation: ${conf}`].filter(Boolean).join(' · ') : r.quoteNotes })
+    .where(eq(rateRequests.id, r.id));
+  await audit(db, actor, 'rate_request.booked', 'rate_request', r.id, { confirmation: conf }, r.agencyId);
+  const root = await rootOf(db, r);
+  await notifyAgent(db, root, `Booked · ${r.hotelName} · ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)}`, [
+    `Your stay at ${r.hotelName} is confirmed: ${describeRooms(r.rooms)}, ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)}, ${formatMoney(r.sellMinor!, r.quoteCurrency!)}.`,
+    ...(conf ? [`Hotel confirmation number: ${conf}`] : []),
+    '',
+    'Details:',
+  ]);
+}
+
+/** What the desk must do next on each open request — for the admin overview. */
+export async function deskTodo(db: DB) {
+  const rows = await listRateRequests(db, SYSTEM);
+  const out: { severity: 'urgent' | 'attention'; title: string; detail: string; href: string; demo: boolean }[] = [];
+  const ageMin = (d: Date) => (Date.now() - d.getTime()) / 60_000;
+  for (const r of rows) {
+    const href = `/admin/rate-requests/${r.id}`;
+    const who = `${r.agencyName} · ${r.city} · ${formatDate(r.checkIn)}`;
+    const demo = r.sample;
+    if (r.state === 'accepted') out.push({ severity: 'urgent', title: `${r.reference}: agent accepted ${r.best?.hotelName ?? 'an offer'} — confirm with the hotel`, detail: who, href, demo });
+    else if (r.toReview) out.push({ severity: 'urgent', title: `${r.reference}: ${r.toReview} hotel repl${r.toReview === 1 ? 'y' : 'ies'} to check & send`, detail: who, href, demo });
+    else if (r.toQuoteInHouse) out.push({ severity: ageMin(r.createdAt) > 30 ? 'urgent' : 'attention', title: `${r.reference}: enter our contract rate for ${r.hotelName}`, detail: who, href, demo });
+    else if (r.needsAsking) out.push({ severity: ageMin(r.createdAt) > 30 ? 'urgent' : 'attention', title: `${r.reference}: new best-rate enquiry — ask hotels`, detail: `${r.hotelName} · ${who}`, href, demo });
+    else if (r.state === 'working' && r.waiting === 0) out.push({ severity: 'attention', title: `${r.reference}: no hotel replies left — ask more or close`, detail: who, href, demo });
+  }
+  return out;
+}
+
 /** The agent cancels the whole request. */
 export async function cancelRateRequest(db: DB, actor: Actor, id: string) {
   const r = await load(db, actor, id);
@@ -599,6 +638,7 @@ export const RATE_STATUS: Record<string, { label: string; tone: 'pending' | 'pos
   not_emailed: { label: 'Email failed — call the hotel', tone: 'attention' },
   hotel_quoted: { label: 'Hotel replied — check & send', tone: 'attention' },
   quoted: { label: 'Sent to agent', tone: 'positive' },
+  booked: { label: 'Booked with the hotel', tone: 'positive' },
   closed: { label: 'Closed — agent told', tone: 'neutral' },
   accepted: { label: 'Accepted', tone: 'positive' },
   declined: { label: 'Not available', tone: 'neutral' },

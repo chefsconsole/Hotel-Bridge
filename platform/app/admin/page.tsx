@@ -6,6 +6,7 @@ import { getDb, schema } from '@/lib/db';
 import { formatDateTime } from '@/lib/domain/dates';
 import { demoMode } from '@/lib/config';
 import { founderMetrics, operationalIssues } from '@/lib/services/metrics';
+import { livePipeline, type Stage } from '@/lib/services/pipeline';
 import { requireStaff } from '@/lib/session';
 
 export const metadata = { title: 'Operations overview' };
@@ -29,11 +30,12 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
   const includeSample = demoMode && sp.sample !== '0';
   const db = await getDb();
   const { user } = await requireStaff();
-  const [m, issues, [{ hotels }], [{ awaiting }], activity] = await Promise.all([
+  const [m, issues, [{ hotels }], [{ awaiting }], activity, pipe] = await Promise.all([
     founderMetrics(db, { days, includeSample }), operationalIssues(db),
     db.select({ hotels: sql<number>`count(*)::int` }).from(schema.hotels).where(and(eq(schema.hotels.status, 'active'), includeSample ? undefined : eq(schema.hotels.isSample, false))),
     db.select({ awaiting: sql<number>`count(*)::int` }).from(schema.bookings).where(and(eq(schema.bookings.status, 'pending_confirmation'), includeSample ? undefined : eq(schema.bookings.isSample, false))),
     db.select().from(schema.auditLog).orderBy(desc(schema.auditLog.createdAt)).limit(10),
+    livePipeline(db),
   ]);
   const roomNights = m.perCurrency.reduce((n, r) => n + r.roomNights, 0);
   const commission = m.obligations.filter((o) => o.account === 'commission' && o.balance !== 0);
@@ -62,6 +64,14 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
           ['Commission due', commission.length ? commission.map((c) => <Money key={c.currency} minor={c.balance} currency={c.currency} className="mr-2" />) : '—', 'receivable from hotels'],
         ].map(([l, v, h]) => <div key={String(l)} className="bg-surface p-5"><Stat label={String(l)} value={v as React.ReactNode} hint={h as React.ReactNode} /></div>)}
       </div>
+
+      <Panel title="Live pipeline" description="Every open enquiry and booking, by stage. Click a number to work on it." className="mb-6">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-3">
+          <PipeColumn title="Best rate on request" href="/admin/rate-requests" stages={pipe.bestRate} />
+          <PipeColumn title="Group Desk" href="/admin/groups" stages={pipe.groups} />
+          <PipeColumn title="Bookings" href="/admin/bookings" stages={pipe.bookings} />
+        </div>
+      </Panel>
 
       <Panel title={`Needs attention (${issues.length})`} className="mb-6" padded={false}
         actions={<form action={expireHoldsAction}><button className="text-[0.8rem] text-muted underline">Release expired holds</button></form>}>
@@ -132,5 +142,31 @@ export default async function AdminHome({ searchParams }: { searchParams: Promis
         </div>
       </div>
     </>
+  );
+}
+
+function PipeColumn({ title, href, stages }: { title: string; href: string; stages: Stage[] }) {
+  const open = stages.reduce((a, x) => a + x.n, 0);
+  const dot = { attention: 'bg-attention', pending: 'bg-champagne', positive: 'bg-positive', neutral: 'bg-faint' } as const;
+  return (
+    <div>
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <Link href={href} className="min-w-0 truncate font-medium hover:underline">{title}</Link>
+        <span className="shrink-0 text-[0.78rem] whitespace-nowrap text-muted">{open} open</span>
+      </div>
+      <ul className="divide-y divide-line rounded-[var(--radius-md)] border border-line">
+        {stages.map((st) => (
+          <li key={st.label}>
+            <Link href={st.href} className={`flex items-center justify-between gap-3 px-3 py-2 text-[0.88rem] hover:bg-mist/50 ${st.n === 0 ? 'text-muted' : ''}`}>
+              <span className="flex min-w-0 items-center gap-2"><span className={`size-1.5 shrink-0 rounded-full ${st.n ? dot[st.tone] : 'bg-line-strong'}`} /><span className="truncate">{st.label}</span></span>
+              <span className="num shrink-0">
+                <span className={st.n ? 'font-semibold text-ink' : ''}>{st.n}</span>
+                {st.demo > 0 && <span className="ml-1.5 text-[0.72rem] text-faint">+{st.demo} demo</span>}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

@@ -26,7 +26,8 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
   const { root: r, rows, agency, agent, state, candidates, staff, markupPct } = data;
   const nights = daysBetween(r.checkIn, r.checkOut);
   const meal = (k: string | null) => (k ? MEAL_PLANS[k as keyof typeof MEAL_PLANS] ?? k : null);
-  const closed = state === 'accepted' || state === 'cancelled';
+  const closed = state === 'accepted' || state === 'booked' || state === 'cancelled';
+  const acceptedRow = rows.find((x) => x.status === 'accepted');
   const toReview = rows.filter((x) => x.status === 'hotel_quoted');
   const others = rows.filter((x) => x.status !== 'hotel_quoted' && x.status !== 'review');
   const askable = candidates.filter((c) => c.askable && c.email);
@@ -43,6 +44,16 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
+          {acceptedRow && (
+            <Panel title={`Agent accepted ${acceptedRow.hotelName} — confirm with the hotel`} description={`Agent pays ${formatMoney(acceptedRow.sellMinor!, acceptedRow.quoteCurrency!)} · hotel net ${formatMoney(acceptedRow.quoteNetMinor!, acceptedRow.quoteCurrency!)}. The hotel was asked to hold the rooms. Confirm with them, then mark it booked — the agent gets an email.`}>
+              <ActionForm action={deskAction} className="flex flex-wrap items-end gap-3">
+                <input type="hidden" name="id" value={acceptedRow.id} /><input type="hidden" name="rootId" value={r.id} /><input type="hidden" name="intent" value="booked" />
+                <Field label="Hotel confirmation number (optional)" className="min-w-0 flex-1"><input name="confirmation" className="field" maxLength={80} placeholder="e.g. 48213977" /></Field>
+                <SubmitButton pendingLabel="Saving…" confirm="Mark this as booked and tell the agent?">Mark as booked</SubmitButton>
+              </ActionForm>
+            </Panel>
+          )}
+
           {toReview.length > 0 && (
             <Panel title={`Hotel replies to check · ${toReview.length}`} description="The agent sees nothing until you send it. Adjust the markup if needed — the agent price updates when you send.">
               <ul className="space-y-4">
@@ -115,7 +126,7 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                   <tr key={x.id}>
                     <td className="font-medium">{x.hotelName}<p className="text-[0.72rem] font-normal text-faint">{x.reference}{x.hotelEmail ? ` · ${x.hotelEmail}` : ''}</p></td>
                     <td><Pill tone={RATE_STATUS[x.status]?.tone ?? 'neutral'}>{x.status === 'review' && quotesInHouse(x.hotelEmail) ? 'Our contract — enter rate' : x.status === 'not_emailed' && agency?.isSample ? 'Demo — recorded, not sent' : RATE_STATUS[x.status]?.label ?? x.status}</Pill>{x.status === 'sent' && <p className="mt-1 text-[0.72rem] text-faint">reply by {formatDateTime(x.respondByAt)}</p>}</td>
-                    <td className="text-[0.85rem]">{x.quoteNetMinor != null && x.quoteCurrency ? <>net {formatMoney(x.quoteNetMinor, x.quoteCurrency)}{x.sellMinor != null && ['quoted', 'accepted'].includes(x.status) ? <> → agent {formatMoney(x.sellMinor, x.quoteCurrency)}</> : null}</> : x.declineReason ?? '—'}</td>
+                    <td className="text-[0.85rem]">{x.quoteNetMinor != null && x.quoteCurrency ? <>net {formatMoney(x.quoteNetMinor, x.quoteCurrency)}{x.sellMinor != null && ['quoted', 'accepted', 'booked'].includes(x.status) ? <> → agent {formatMoney(x.sellMinor, x.quoteCurrency)}</> : null}</> : x.declineReason ?? '—'}</td>
                     <td>{['review', 'sent', 'not_emailed'].includes(x.status) && <a href={appUrl(`/r/${x.token}`)} target="_blank" rel="noreferrer" className="text-[0.78rem] font-medium underline" title={quotesInHouse(x.hotelEmail) ? 'We hold the contract: enter the rate from it' : 'Open to enter a reply the hotel gave by phone or email'}>{quotesInHouse(x.hotelEmail) ? 'Enter our rate' : 'Hotel reply link'}</a>}</td>
                   </tr>
                 ))}</tbody>

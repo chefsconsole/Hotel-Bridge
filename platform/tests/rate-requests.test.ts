@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm';
 import { schema } from '@/lib/db';
 import { addDays } from '@/lib/domain/dates';
 import {
-  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskRequest, getRateRequest, holdBackOffer,
-  hotelQuote, lapseRateRequests, listRateRequests, rateRequestByToken, releaseOffer,
+  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskRequest, deskTodo, getRateRequest, holdBackOffer,
+  hotelQuote, lapseRateRequests, listRateRequests, markBooked, rateRequestByToken, releaseOffer,
 } from '@/lib/services/rate-requests';
 import { setup, type Fixture } from './helpers';
 
@@ -49,6 +49,8 @@ describe('best rate on request — run by the HotelBridge desk', () => {
     // The agent just sees "we're on it" — no hotel side.
     let view = await getRateRequest(f.db, f.A, r.id);
     expect(view).toMatchObject({ state: 'working', offers: [] });
+    // The admin overview lists it as work to do.
+    expect((await deskTodo(f.db)).map((t) => t.title)).toEqual([`${r.reference}: new best-rate enquiry — ask hotels`]);
 
     // Agents can't run the desk.
     await expect(askHotels(f.db, f.A, r.id, [h.id])).rejects.toThrow();
@@ -114,6 +116,17 @@ describe('best rate on request — run by the HotelBridge desk', () => {
     expect((await mails(f)).filter((m) => m.toEmail === 'sales@maraisboutique.test').map((m) => m.kind)).toEqual(['rate_request', 'rate_request_accepted']);
     expect((await mails(f)).filter((m) => m.toEmail === 'sales@seineview.test').map((m) => m.kind)).not.toContain('rate_request_accepted');
     await expect(askHotels(f.db, f.ADMIN, r.id, [h.id])).rejects.toThrow(/closed/);
+
+    // The team confirms with the hotel and closes the loop; the agent is told.
+    expect((await deskTodo(f.db))[0].title).toContain('agent accepted Marais Boutique — confirm with the hotel');
+    await expect(markBooked(f.db, f.A, child.id, 'X1')).rejects.toThrow();
+    await expect(markBooked(f.db, f.ADMIN, r.id, 'X1')).rejects.toThrow(/Only an accepted offer/);
+    await markBooked(f.db, f.ADMIN, child.id, 'HTL-48213977');
+    view = await getRateRequest(f.db, f.A, r.id);
+    expect(view.state).toBe('booked');
+    expect(view.offers[0].quoteNotes).toContain('HTL-48213977');
+    expect(await deskTodo(f.db)).toEqual([]);
+    expect((await mails(f)).some((m) => m.kind === 'rate_request_agent' && m.subject.startsWith('Booked'))).toBe(true);
   });
 
   it('over budget: the agent can ask for more hotels, which go to the team; a reply can be set aside', async () => {
@@ -167,5 +180,22 @@ describe('best rate on request — run by the HotelBridge desk', () => {
     expect(view.state).toBe('no_offer');
     expect(view.request.declineReason).toContain('sold out');
     expect((await mails(f)).filter((m) => m.kind === 'rate_request_agent')).toHaveLength(1);
+  });
+});
+
+describe('admin live pipeline', () => {
+  it('counts open requests by stage from real records, demo agencies separately', async () => {
+    const { livePipeline } = await import('@/lib/services/pipeline');
+    f = await setup();
+    const h = await onRequestHotel(f, 'Seine View');
+    await ask(f, h.id);
+    const r2 = await ask(f, h.id);
+    await askHotels(f.db, f.ADMIN, r2.id, [h.id]);
+    const p = await livePipeline(f.db);
+    const n = (label: string) => p.bestRate.find((x) => x.label === label);
+    expect(n('New — ask hotels')).toMatchObject({ n: 1 });
+    expect(n('Waiting on hotels')).toMatchObject({ n: 1 });
+    expect(p.groups.map((x) => x.label)).toContain('Won this month');
+    expect(p.bookings.find((x) => x.label === 'Awaiting payment')?.n).toBe(0);
   });
 });

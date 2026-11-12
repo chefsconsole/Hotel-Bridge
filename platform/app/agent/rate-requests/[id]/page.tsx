@@ -50,12 +50,12 @@ export default async function RateRequestPage({ params }: { params: Promise<{ id
           )}
 
           {offers.length > 0 && (
-            <Panel title={state === 'accepted' ? 'Your accepted offer' : offers.length > 1 ? `Your offers · choose one` : 'Your offer'}
+            <Panel title={state === 'booked' ? 'Your booking' : state === 'accepted' ? 'Your accepted offer' : offers.length > 1 ? `Your offers · choose one` : 'Your offer'}
               description={state === 'offers' && stillWorking ? 'More options may follow — we’ll email you if they do.' : undefined}>
               <ul className="space-y-4">
                 {offers.map((o) => {
                   const fit = budgetFit(o);
-                  const accepted = o.status === 'accepted';
+                  const accepted = o.status === 'accepted' || o.status === 'booked';
                   return (
                     <li key={o.id} className={`rounded-[var(--radius-md)] border p-5 ${accepted ? 'border-positive/40 bg-positive-bg/40' : 'border-line bg-paper/40'}`}>
                       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -92,6 +92,7 @@ export default async function RateRequestPage({ params }: { params: Promise<{ id
                 })}
               </ul>
               {state === 'accepted' && <div className="mt-5"><Notice tone="success">Done — our reservations team will contact you for the guest names and payment to confirm the booking.</Notice></div>}
+              {state === 'booked' && <div className="mt-5"><Notice tone="success" title="Booked">Confirmed with the hotel. You have the details by email.</Notice></div>}
             </Panel>
           )}
 

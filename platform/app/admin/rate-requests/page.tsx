@@ -14,7 +14,8 @@ type Row = Awaited<ReturnType<typeof listRateRequests>>[number];
 
 /** What the desk has to do next — the list is sorted by it. */
 function next(r: Row): { label: string; tone: 'attention' | 'pending' | 'positive' | 'neutral'; rank: number } {
-  if (r.state === 'accepted') return { label: 'Accepted — confirm the booking', tone: 'positive', rank: 2 };
+  if (r.state === 'accepted') return { label: 'Accepted — confirm with the hotel', tone: 'attention', rank: 0 };
+  if (r.state === 'booked') return { label: 'Booked', tone: 'positive', rank: 4 };
   if (r.toReview) return { label: `${r.toReview} hotel repl${r.toReview === 1 ? 'y' : 'ies'} to check & send`, tone: 'attention', rank: 0 };
   if (r.toQuoteInHouse) return { label: 'Our contract — enter the rate', tone: 'attention', rank: 0 };
   if (r.needsAsking) return { label: r.asked === 0 ? 'New — ask hotels' : 'Agent added a hotel — ask it', tone: 'attention', rank: 0 };

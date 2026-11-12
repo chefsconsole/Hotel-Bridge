@@ -193,7 +193,7 @@ export async function agentActivity(db: DB, actor: Actor, limit = 8): Promise<Ac
   // Only what the agent did and what we sent them — never the hotel side.
   const rateText: Record<string, [string, Activity['tone']]> = {
     review: ['best rate requested', 'neutral'], sent: ['best rate requested', 'neutral'], not_emailed: ['best rate requested', 'neutral'], hotel_quoted: ['best rate requested', 'neutral'],
-    quoted: ['offer ready', 'positive'], accepted: ['offer accepted', 'positive'], declined: ['no offer this time', 'neutral'], no_response: ['best rate requested', 'neutral'],
+    quoted: ['offer ready', 'positive'], accepted: ['offer accepted', 'positive'], booked: ['booked', 'positive'], declined: ['no offer this time', 'neutral'], no_response: ['best rate requested', 'neutral'],
     expired: ['offer expired', 'neutral'], cancelled: ['request cancelled', 'neutral'],
   };
   const bookText: Record<string, [string, Activity['tone']]> = {

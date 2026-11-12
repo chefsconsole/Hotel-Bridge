@@ -175,6 +175,12 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
   const apps = await db.select({ n: sql<number>`count(*)::int` }).from(partnerApplications).where(eq(partnerApplications.status, 'new'));
   if (apps[0].n) issues.push({ severity: 'attention', kind: 'partner', title: `${apps[0].n} new partner application${apps[0].n === 1 ? '' : 's'}`, detail: 'Hotels or distributors asking to join.', href: '/admin/partners' });
 
+  // Best-rate desk: new enquiries to ask hotels for, replies to check and send, accepted offers to confirm.
+  const { deskTodo } = await import('./rate-requests');
+  for (const t of await deskTodo(db)) {
+    issues.push({ severity: t.demo ? 'attention' : t.severity, kind: 'best_rate', title: `${t.demo ? 'Demo · ' : ''}${t.title}`, detail: t.detail, href: t.href });
+  }
+
   return issues.sort((a, b) => (a.severity === b.severity ? 0 : a.severity === 'urgent' ? -1 : 1));
 }
 
