@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { registerAction } from '@/app/actions/auth';
+import { RegisterSmart } from '@/components/register-smart';
+import { COUNTRY_CURRENCY, INDIAN_CITIES, INDIAN_STATES } from '@/lib/domain/india';
 
 export const metadata = { title: 'Register your agency' };
 
 const DESTINATIONS = ['Thailand', 'Dubai / UAE', 'Vietnam', 'Bali', 'Singapore', 'Malaysia', 'Maldives', 'Sri Lanka', 'Europe', 'UK', 'Switzerland', 'Australia / NZ', 'Domestic India'];
+const NOTE = 'mt-1 block min-h-[1.1rem] text-[0.76rem] data-[tone=ok]:text-positive data-[tone=warn]:text-attention text-faint';
 const SEGMENTS = ['FIT / couples & families', 'Honeymoons', 'Groups', 'MICE', 'Weddings'];
 
 export default function RegisterPage() {
@@ -19,22 +22,27 @@ export default function RegisterPage() {
           <p>New accounts prepay bookings. Credit terms are available after review.</p>
         </div>
       </div>
-      <ActionForm action={registerAction} className="rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)] md:p-8">
+      <ActionForm action={registerAction} id="register-form" className="rounded-[var(--radius-lg)] border border-line bg-surface p-6 shadow-[var(--shadow-soft)] md:p-8">
+        <RegisterSmart />
+        <datalist id="hb-countries">{Object.keys(COUNTRY_CURRENCY).map((c) => <option key={c} value={c} />)}</datalist>
+        <datalist id="hb-cities">{Object.keys(INDIAN_CITIES).sort().map((c) => <option key={c} value={c} />)}</datalist>
+        <datalist id="hb-states">{INDIAN_STATES.map((c) => <option key={c} value={c} />)}</datalist>
+        <p data-smart-note="draft" className={`${NOTE} mb-2`} aria-live="polite" />
         <input type="text" name="company_url" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 opacity-0" />
         <p className="mb-5 text-[0.8rem] text-muted">Fields marked <span className="text-negative">*</span> are required. If something is missing we&apos;ll point to it — nothing you typed is lost.</p>
         <h2 className="font-semibold">Agency</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Trading name" required className="sm:col-span-2"><input name="agencyName" required className="field" autoComplete="organization" /></Field>
           <Field label="Registered legal name" hint="If different"><input name="legalName" className="field" /></Field>
-          <Field label="Country" required><input name="country" required defaultValue="India" className="field" autoComplete="country-name" /></Field>
-          <Field label="PAN" required hint="Required in India · e.g. ABCDE1234F"><input name="pan" className="field uppercase" maxLength={10} autoComplete="off" /></Field>
-          <Field label="GSTIN" hint="If GST-registered · 15 characters"><input name="gstin" className="field uppercase" maxLength={15} autoComplete="off" /></Field>
+          <Field label="Country" required><input name="country" required defaultValue="India" list="hb-countries" className="field" autoComplete="country-name" /><span data-smart-note="country" className={NOTE} aria-live="polite" /></Field>
+          <Field label="PAN" required hint="Required in India · e.g. ABCDE1234F"><input name="pan" className="field uppercase" maxLength={10} autoComplete="off" /><span data-smart-note="pan" className={NOTE} aria-live="polite" /></Field>
+          <Field label="GSTIN" hint="If GST-registered · fills your PAN and state for you"><input name="gstin" className="field uppercase" maxLength={15} autoComplete="off" /><span data-smart-note="gstin" className={NOTE} aria-live="polite" /></Field>
           <Field label="Other registration number" hint="Outside India: VAT / trade licence"><input name="taxId" className="field" /></Field>
-          <Field label="City" required><input name="city" required className="field" autoComplete="address-level2" /></Field>
+          <Field label="City" required><input name="city" required list="hb-cities" className="field" autoComplete="address-level2" /><span data-smart-note="city" className={NOTE} aria-live="polite" /></Field>
           <Field label="Website"><input name="website" className="field" placeholder="https://" /></Field>
-          <Field label="Phone / WhatsApp" required><input name="phone" required className="field" autoComplete="tel" /></Field>
+          <Field label="Phone / WhatsApp" required><input name="phone" required type="tel" inputMode="tel" className="field" autoComplete="tel" placeholder="98765 43210" /></Field>
           <Field label="Office address" required className="sm:col-span-2"><input name="address" required className="field" autoComplete="street-address" /></Field>
-          <Field label="State" required><input name="state" required className="field" autoComplete="address-level1" /></Field>
+          <Field label="State" required><input name="state" required list="hb-states" className="field" autoComplete="address-level1" /></Field>
           <Field label="PIN code" hint="Optional"><input name="pincode" className="field" autoComplete="postal-code" inputMode="numeric" /></Field>
           <Field label="Billing currency" required>
             <select name="billingCurrency" className="field" defaultValue="INR">
@@ -80,8 +88,8 @@ export default function RegisterPage() {
         <h2 className="mt-8 font-semibold">Your login</h2>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Full name" required><input name="name" required className="field" autoComplete="name" /></Field>
-          <Field label="Work email" required><input name="email" type="email" required className="field" autoComplete="email" /></Field>
-          <Field label="Password" required hint="At least 10 characters" className="sm:col-span-2"><input name="password" type="password" required minLength={10} className="field" autoComplete="new-password" /></Field>
+          <Field label="Work email" required><input name="email" type="email" required className="field" autoComplete="email" inputMode="email" /><span data-smart-note="email" className={NOTE} aria-live="polite" /></Field>
+          <Field label="Password" required hint="At least 10 characters" className="sm:col-span-2"><span className="relative block"><input name="password" type="password" required minLength={10} className="field pr-16" autoComplete="new-password" /><button type="button" data-smart-show className="absolute top-1/2 right-2 -translate-y-1/2 rounded px-2 py-1 text-[0.78rem] font-medium text-muted hover:text-ink">Show</button></span><span className="mt-2 block h-1 overflow-hidden rounded-full bg-mist"><span data-smart-meter className="block h-full w-0 rounded-full bg-attention transition-[width,background-color] duration-300 data-[tone=fine]:bg-[#c79a4a] data-[tone=ok]:bg-positive" /></span><span data-smart-note="password" className={NOTE} aria-live="polite" /></Field>
         </div>
         <label className="mt-6 flex items-start gap-3 text-[0.88rem] text-muted">
           <input type="checkbox" name="terms" required data-label="Accept the terms" className="mt-1 size-4 accent-[var(--color-ink)]" />
