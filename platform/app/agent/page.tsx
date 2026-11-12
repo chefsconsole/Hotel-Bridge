@@ -32,8 +32,9 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
   return (
     <>
       <HomeMotion />
-      <section className="relative isolate mb-8 overflow-hidden rounded-[1.25rem] bg-[#060a14] px-5 py-9 text-paper shadow-[var(--shadow-lift)] md:px-12 md:py-12">
-        <div aria-hidden className="hb-aurora absolute -inset-[30%] -z-10 bg-[radial-gradient(ellipse_35%_45%_at_80%_20%,rgba(199,154,74,0.22),transparent_65%),radial-gradient(ellipse_40%_50%_at_10%_100%,rgba(37,52,104,0.85),transparent_70%)]" />
+      <section className="relative isolate z-20 mb-8 rounded-[1.25rem] bg-[#060a14] px-5 py-9 text-paper shadow-[var(--shadow-lift)] md:px-12 md:py-12">
+        {/* Glow is clipped on its own layer, so the search dropdown can hang below the hero. */}
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[1.25rem]"><div className="hb-aurora absolute -inset-[30%] bg-[radial-gradient(ellipse_35%_45%_at_80%_20%,rgba(199,154,74,0.22),transparent_65%),radial-gradient(ellipse_40%_50%_at_10%_100%,rgba(37,52,104,0.85),transparent_70%)]" /></div>
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="hb-rise eyebrow">{agency.name}</p>
@@ -45,7 +46,7 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
           </div>
           <Link href="/agent/groups/new" className="hb-rise rounded-full border border-paper/20 px-4 py-2 text-[0.85rem] text-paper/80 transition-colors hover:border-[#e0bd78]/60 hover:text-paper" style={delay(200)}>10+ rooms? Paste a group enquiry →</Link>
         </div>
-        <div className="hb-rise mt-8 text-ink" style={delay(240)}><SearchForm destinations={dests} hotels={partnerHotels} initial={{ rooms: [{ adults: 2, childAges: [] }] }} /></div>
+        <div className="hb-rise relative z-30 mt-8 text-ink" style={delay(240)}><SearchForm destinations={dests} hotels={partnerHotels} initial={{ rooms: [{ adults: 2, childAges: [] }] }} /></div>
         {aiOn && <div className="hb-rise mt-5 max-w-3xl" style={delay(300)}><p className="mb-2 text-[0.8rem] text-paper/50">Or describe the stay in your own words</p><SmartSearch enabled /></div>}
         {searches.length > 0 && (
           <div className="hb-rise mt-5 flex flex-wrap items-center gap-2 text-[0.8rem]" style={delay(340)}>

@@ -124,7 +124,7 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
 
   return (
     <form onSubmit={submit} noValidate className="@container">
-      <div ref={wrap} className="relative">
+      <div ref={wrap} className="relative scroll-mt-20">
         <div className="grid grid-cols-2 gap-1 rounded-2xl border border-line bg-surface p-2 shadow-[var(--shadow-soft)] @3xl:flex @3xl:items-center @3xl:rounded-full">
           {/* Where to — a real text field */}
           <label className={cx('col-span-2 flex min-w-0 flex-[1.4] cursor-text items-center gap-3 rounded-xl px-4 py-3 transition-colors @3xl:rounded-full @3xl:px-5',
@@ -134,7 +134,11 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
               <span className="block text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">Where to</span>
               <input ref={whereInput} value={query} autoComplete="off" spellCheck={false}
                 onChange={(e) => { setQuery(e.target.value); setCity(''); setHotel(null); setCursor(0); setPanel('where'); }}
-                onFocus={() => { setPanel('where'); setCursor(0); }} onKeyDown={onWhereKey}
+                onFocus={() => {
+                  setPanel('where'); setCursor(0);
+                  // Phones: lift the search box to the top so the suggestions open on screen, not behind the tab bar.
+                  if (window.matchMedia('(max-width: 767px)').matches) window.setTimeout(() => wrap.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 60);
+                }} onKeyDown={onWhereKey}
                 placeholder="City, hotel or region" role="combobox" aria-expanded={panel === 'where'} aria-controls="hb-where"
                 className="block w-full bg-transparent text-[0.95rem] outline-none placeholder:text-faint" />
             </span>
