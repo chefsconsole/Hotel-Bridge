@@ -113,7 +113,7 @@ export async function createRateRequest(db: DB, actor: Actor, input: z.input<typ
   if (!h) throw new NotFoundError('Hotel');
   if (!h.bestRateOnRequest) throw new AppError('This hotel is booked at contracted rates — search your dates to see them');
   // Protect partner hotels from unverified sign-ups: a few requests while we verify, then wait for approval.
-  const [ag] = await db.select({ status: schema.agencies.status }).from(schema.agencies).where(eq(schema.agencies.id, agencyId));
+  const [ag] = await db.select({ status: schema.agencies.status, isSample: schema.agencies.isSample }).from(schema.agencies).where(eq(schema.agencies.id, agencyId));
   if (ag && ag.status !== 'verified') {
     if (ag.status !== 'pending') throw new AppError('Your agency account is not active. Please contact HotelBridge.', 'forbidden');
     const open = await db.select({ id: rateRequests.id }).from(rateRequests).where(eq(rateRequests.agencyId, agencyId));
@@ -140,7 +140,7 @@ export async function createRateRequest(db: DB, actor: Actor, input: z.input<typ
   }).returning();
 
   const { subject, body } = hotelEmail(r, h);
-  const mail = await sendEmail(db, { to, toName: h.name, subject, body, kind: 'rate_request', relatedId: r.id });
+  const mail = await sendEmail(db, { to, toName: h.name, subject, body, kind: 'rate_request', relatedId: r.id, demo: ag?.isSample });
   const status = mail.status === 'sent' ? 'sent' : 'not_emailed';
   if (status !== r.status) await db.update(rateRequests).set({ status }).where(eq(rateRequests.id, r.id));
   await audit(db, actor, 'rate_request.created', 'rate_request', r.id, { hotel: h.name, emailed: status === 'sent' }, agencyId);
@@ -306,8 +306,9 @@ export async function acceptRateQuote(db: DB, actor: Actor, id: string) {
   const now = new Date();
   await db.update(rateRequests).set({ status: 'accepted', acceptedAt: now, updatedAt: now }).where(eq(rateRequests.id, r.id));
   if (r.hotelEmail) {
+    const [ag] = await db.select({ isSample: schema.agencies.isSample }).from(schema.agencies).where(eq(schema.agencies.id, r.agencyId));
     await sendEmail(db, {
-      to: r.hotelEmail, toName: r.hotelName, kind: 'rate_request_accepted', relatedId: r.id,
+      to: r.hotelEmail, toName: r.hotelName, kind: 'rate_request_accepted', relatedId: r.id, demo: ag?.isSample,
       subject: `Accepted · ${r.reference} · ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)}`,
       body: [
         `Dear ${r.hotelName} team,`, '',

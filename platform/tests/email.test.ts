@@ -17,3 +17,22 @@ describe('email HTML version', () => {
     expect(html).toContain('href="https://portal.hotelbridge.co/set-password/abc"');
   });
 });
+
+describe('demo accounts', () => {
+  it('records the email but never sends it, even with a provider configured', async () => {
+    const { sendEmail } = await import('@/lib/services/email');
+    const rows: Record<string, unknown>[] = [];
+    const db = { insert: () => ({ values: (v: Record<string, unknown>) => ({ returning: async () => { rows.push(v); return [{ id: 'x' }]; } }) }) };
+    const env = { ...process.env };
+    Object.assign(process.env, { RESEND_API_KEY: 'test', EMAIL_FROM: 'a@b.test', EMAIL_ALLOW_NONPROD: '1' });
+    const fetchSpy = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = (async () => { called = true; throw new Error('must not send'); }) as typeof fetch;
+    try {
+      const r = await sendEmail(db as never, { to: 'hotel@example.test', subject: 's', body: 'b', kind: 'rate_request', demo: true });
+      expect(r.status).toBe('not_configured');
+      expect(called).toBe(false);
+      expect(rows[0]).toMatchObject({ status: 'not_configured', error: 'Demo account — recorded, not sent' });
+    } finally { globalThis.fetch = fetchSpy; process.env = env; }
+  });
+});

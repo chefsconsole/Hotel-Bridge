@@ -107,7 +107,7 @@ export async function dispatchToHotels(db: DB, actor: Actor, enquiryId: string):
         enquiryId: e.id, hotelId: t.hotelId, prospectId: t.prospectId, hotelName: t.name, hotelEmail: t.email, city: t.city,
         subject, body, respondBy: respondByAt.toISOString().slice(0, 10), respondByAt, token, source: t.source, status: 'generated',
       }).returning();
-      const mail = await sendEmail(db, { to: t.email, toName: t.name, subject, body, kind: 'group_request', relatedId: req.id });
+      const mail = await sendEmail(db, { to: t.email, toName: t.name, subject, body, kind: 'group_request', relatedId: req.id, demo: e.isSample });
       if (mail.status === 'sent') {
         await db.update(groupHotelRequests).set({ status: 'sent', sentAt: new Date() }).where(eq(groupHotelRequests.id, req.id));
         result.emailed++;

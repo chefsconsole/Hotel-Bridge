@@ -13,7 +13,9 @@ import { desc } from 'drizzle-orm';
 import { schema, type Executor } from '@/lib/db';
 import { isProduction } from '@/lib/config';
 
-export type EmailInput = { to: string; toName?: string | null; subject: string; body: string; kind: string; relatedId?: string | null; replyTo?: string | null };
+export type EmailInput = { to: string; toName?: string | null; subject: string; body: string; kind: string; relatedId?: string | null; replyTo?: string | null;
+  /** Demo/sample accounts: record the email but never send it, so a demo never contacts a real hotel. */
+  demo?: boolean };
 export type EmailStatus = 'sent' | 'failed' | 'not_configured';
 
 export function emailConfigured(): { ok: boolean; reason: string | null } {
@@ -23,7 +25,8 @@ export function emailConfigured(): { ok: boolean; reason: string | null } {
 }
 
 export async function sendEmail(db: Executor, e: EmailInput): Promise<{ status: EmailStatus; id: string }> {
-  const cfg = emailConfigured();
+  const real = emailConfigured();
+  const cfg = e.demo ? { ok: false, reason: 'Demo account — recorded, not sent' } : real;
   let status: EmailStatus = 'not_configured';
   let providerId: string | null = null;
   let error: string | null = cfg.reason;
