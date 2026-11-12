@@ -6,7 +6,7 @@
  * ------------------------------------------------------------------ */
 import { lte, and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import { schema, type DB } from '@/lib/db';
-import { addDays, daysBetween, todayIso } from '@/lib/domain/dates';
+import { addDays, daysBetween, todayIso, formatDate } from '@/lib/domain/dates';
 
 const { bookings, agencies, searchLog, supplierCalls, groupEnquiries, groupProposals, groupHotelRequests, ledgerEntries, contracts, hotels, supportTickets, partnerApplications } = schema;
 
@@ -122,7 +122,7 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
     // Chase the hotel before its window closes, and always for near arrivals.
     if (soon || (left != null ? left < 12 : hours > 24)) issues.push({
       severity: soon || (left != null && left < 4) ? 'urgent' : 'attention', kind: 'booking', title: `${b.reference}: hotel has not confirmed`,
-      detail: `${left != null ? (left > 0 ? `Lapses in ${Math.floor(left)}h` : 'Window closed') : `Requested ${Math.round(hours)}h ago`} · arrival ${b.checkIn} — call the hotel`,
+      detail: `${left != null ? (left > 0 ? `Lapses in ${Math.floor(left)}h` : 'Window closed') : `Requested ${Math.round(hours)}h ago`} · arrival ${formatDate(b.checkIn)} — call the hotel`,
       href: `/admin/bookings/${b.id}`,
     });
   }
@@ -150,12 +150,12 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
   for (const g of lateGroups) issues.push({ severity: 'urgent', kind: 'group', title: `${g.reference}: first response overdue`, detail: `${g.groupName} · ${g.totalPax} pax`, href: `/admin/groups/${g.id}` });
 
   const dueGroups = await db.select().from(groupEnquiries).where(and(inArray(groupEnquiries.status, ['under_review', 'sent_to_hotels', 'offers_received', 'proposal_prepared']), lt(groupEnquiries.quoteNeededBy, addDays(today, 2))));
-  for (const g of dueGroups) issues.push({ severity: g.quoteNeededBy < today ? 'urgent' : 'attention', kind: 'group', title: `${g.reference}: quotation due ${g.quoteNeededBy}`, detail: g.groupName, href: `/admin/groups/${g.id}` });
+  for (const g of dueGroups) issues.push({ severity: g.quoteNeededBy < today ? 'urgent' : 'attention', kind: 'group', title: `${g.reference}: quotation due ${formatDate(g.quoteNeededBy)}`, detail: g.groupName, href: `/admin/groups/${g.id}` });
 
   const silentHotels = await db.select({ r: groupHotelRequests, ref: groupEnquiries.reference }).from(groupHotelRequests)
     .innerJoin(groupEnquiries, eq(groupEnquiries.id, groupHotelRequests.enquiryId))
     .where(and(eq(groupHotelRequests.status, 'sent'), lt(groupHotelRequests.respondBy, today)));
-  for (const { r, ref } of silentHotels) issues.push({ severity: 'attention', kind: 'group', title: `${ref}: ${r.hotelName} has not replied`, detail: `Reply was due ${r.respondBy}`, href: `/admin/groups/${r.enquiryId}` });
+  for (const { r, ref } of silentHotels) issues.push({ severity: 'attention', kind: 'group', title: `${ref}: ${r.hotelName} has not replied`, detail: `Reply was due ${r.respondBy ? formatDate(r.respondBy) : "—"}`, href: `/admin/groups/${r.enquiryId}` });
 
   const unsent = await db.select({ n: sql<number>`count(*)::int`, enquiryId: groupHotelRequests.enquiryId, ref: groupEnquiries.reference }).from(groupHotelRequests)
     .innerJoin(groupEnquiries, eq(groupEnquiries.id, groupHotelRequests.enquiryId))

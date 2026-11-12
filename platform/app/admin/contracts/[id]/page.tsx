@@ -82,7 +82,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
             </ActionForm>
             <ActionForm action={importRatesAction}>
               <p className="mb-1 text-[0.9rem] font-semibold">Import a rate sheet</p>
-              <p className="mb-3 text-[0.8rem] text-muted">One period per line: <code className="text-[0.75rem]">room_type,meal_plan,from,to,single,double,triple,child,min_stay,release</code>. Room types must match by name. Nothing imports unless every line is valid.</p>
+              <p className="mb-3 text-[0.8rem] text-muted">One period per line: <code className="text-[0.75rem] break-all">room_type,meal_plan,from,to,single,double,triple,child,min_stay,release</code>. Room types must match by name. Nothing imports unless every line is valid.</p>
               <input type="hidden" name="contractId" value={c.id} />
               <textarea name="csv" rows={7} defaultValue={draftCsv ?? ''} className="field font-mono text-[0.8rem]" placeholder={`Double,BB,${c.validFrom},${c.validTo},110,130,,25,1,7`} />
               {draftCsv && <p className="mt-2 text-[0.8rem] text-attention">Drafted by AI — validate, and check every line against the hotel&apos;s offer before importing.</p>}

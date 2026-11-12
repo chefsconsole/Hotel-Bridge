@@ -273,6 +273,16 @@ export async function buildProposal(db: DB, actor: Actor, enquiryId: string, inp
   if (!isIsoDate(input.validUntil) || input.validUntil < todayIso()) throw new AppError('Proposal validity must be a future date');
   const offers = input.offerIds.length ? await db.select().from(groupOffers).where(and(eq(groupOffers.enquiryId, e.id), inArray(groupOffers.id, input.offerIds))) : [];
   if (!offers.length) throw new AppError('Select the hotel offers to include');
+  // Two hotels for the same stop are alternatives, not extras: adding them together would
+  // charge the group twice. One hotel per stop per proposal; offer options as separate versions.
+  const norm = (c: string) => c.trim().toLowerCase();
+  for (const city of new Set(offers.map((o) => norm(o.city)))) {
+    const inCity = offers.filter((o) => norm(o.city) === city);
+    const stops = e.legs.filter((l) => norm(l.city) === city).length || 1;
+    if (inCity.length > stops) {
+      throw new AppError(`${inCity.map((o) => o.hotelName).join(' and ')} are both for ${inCity[0].city} — a proposal includes one hotel per stop, otherwise the group is charged twice. To give the agent a choice, draft one proposal per hotel.`);
+    }
+  }
   const currencies = new Set(offers.map((o) => o.currency));
   if (currencies.size > 1) throw new AppError('Offers in different currencies need a recorded FX rate — quote them separately for now');
   const latestValidity = offers.map((o) => o.validUntil).filter(Boolean).sort()[0];

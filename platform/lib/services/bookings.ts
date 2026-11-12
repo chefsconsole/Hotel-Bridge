@@ -19,7 +19,7 @@ import type { BookedRoom } from '@/lib/db/schema';
 import { HOTEL_RESPONSE_HOURS, PAYMENT_HOLD_HOURS } from '@/lib/config';
 import { assertTransition, type BookingStatus } from '@/lib/domain/booking-state';
 import { cancellationPenalty, type CancelPolicy } from '@/lib/domain/cancellation';
-import { todayIso } from '@/lib/domain/dates';
+import { formatDateTime, todayIso, formatDate } from '@/lib/domain/dates';
 import { describeRoom } from '@/lib/domain/occupancy';
 import type { PriceBreakdown } from '@/lib/domain/pricing';
 import { callSupplier, getAdapter } from '@/lib/suppliers/registry';
@@ -69,7 +69,7 @@ async function postCharge(db: Executor, actor: Actor, b: Booking, dueAt: Date) {
   await post(db, actor, [{ bookingId: b.id, agencyId: b.agencyId, kind: 'agent_charge', account: 'agent', amountMinor: b.sellMinor, currency: b.currency, reference: b.reference, memo: 'Accommodation' }]);
   await issueInvoice(db, {
     agencyId: b.agencyId, bookingId: b.id, kind: 'invoice', currency: b.currency, totalMinor: b.sellMinor, taxMinor: b.taxMinor, dueAt,
-    lines: [{ label: `Accommodation ${b.checkIn} – ${b.checkOut} · ${b.rooms.length} room(s) · ${b.reference}`, amountMinor: b.sellMinor }],
+    lines: [{ label: `Accommodation ${formatDate(b.checkIn)} – ${formatDate(b.checkOut)} · ${b.rooms.length} room(s) · ${b.reference}`, amountMinor: b.sellMinor }],
   });
 }
 
@@ -123,7 +123,7 @@ async function applySupplierResult(db: DB, actor: Actor, b: Booking, r: BookResu
       return setPayment(tx, c);
     }
     const due = b.paymentDueAt ?? new Date(Date.now() + PAYMENT_HOLD_HOURS * 3_600_000);
-    let c = await transition(tx, actor, b, 'awaiting_payment', note ?? `Held until ${due.toISOString().slice(0, 16).replace('T', ' ')} UTC pending payment`, { ...patch, paymentDueAt: due });
+    let c = await transition(tx, actor, b, 'awaiting_payment', note ?? `Held until ${formatDateTime(due)} pending payment`, { ...patch, paymentDueAt: due });
     await postCharge(tx, actor, c, due);
     c = await setPayment(tx, c);
     return c;

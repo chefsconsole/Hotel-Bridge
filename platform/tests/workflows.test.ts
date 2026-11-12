@@ -417,6 +417,9 @@ describe('group desk', () => {
     const o = await recordOffer(f.db, f.ADMIN, e.id, { requestId: staffView.requests[0].id, hotelName: 'Hotel Test Centre', city: 'Paris', currency: 'EUR', lines: [{ roomType: 'Double', rooms: 20, nights: 3, rateMinor: 11_000 }], validUntil: addDays(f.today, 20) });
     expect(o.costTotalMinor).toBe(660_000);
     await expect(buildProposal(f.db, f.ADMIN, e.id, { offerIds: [o.id], markupBps: 1000, validUntil: addDays(f.today, 30) })).rejects.toThrow(/expires/);
+    // A second Paris hotel is an alternative for the same stop — never added on top.
+    const alt = await recordOffer(f.db, f.ADMIN, e.id, { requestId: staffView.requests[1].id, hotelName: 'Hotel Other', city: 'Paris', currency: 'EUR', lines: [{ roomType: 'Double', rooms: 20, nights: 3, rateMinor: 10_000 }], validUntil: addDays(f.today, 20) });
+    await expect(buildProposal(f.db, f.ADMIN, e.id, { offerIds: [o.id, alt.id], markupBps: 1000, validUntil: addDays(f.today, 15) })).rejects.toThrow(/one hotel per stop/);
     const p = await buildProposal(f.db, f.ADMIN, e.id, { offerIds: [o.id], markupBps: 1000, validUntil: addDays(f.today, 15) });
     expect(p.sellMinor).toBe(726_000);
 

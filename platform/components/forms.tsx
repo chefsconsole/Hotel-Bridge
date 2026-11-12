@@ -26,6 +26,12 @@ export function SubmitButton({ children, pendingLabel, variant = 'primary', size
 
 type Action = (prev: ActionResult | null, fd: FormData) => Promise<ActionResult>;
 
+/** True while the surrounding form (ActionForm or a native action form) is submitting. */
+export function useFormPending() {
+  const { pending } = useFormStatus();
+  return useContext(Pending) || pending;
+}
+
 /** Pending state for SubmitButton when the form is submitted by ActionForm. */
 const Pending = createContext(false);
 
@@ -36,7 +42,11 @@ const labelOf = (el: Element) => ((el as HTMLElement).dataset.label ?? el.closes
 
 /** A form bound to a server action, with inline errors and success messages.
  *  What the user typed is never cleared on an error — only on success when resetOnSuccess is set. */
-export function ActionForm({ action, children, className = '', resetOnSuccess = false, id }: { action: Action; children: ReactNode; className?: string; resetOnSuccess?: boolean; id?: string }) {
+export function ActionForm({ action, children, className = '', resetOnSuccess = false, id, showMessage = true }: {
+  action: Action; children: ReactNode | ((state: ActionResult | null) => ReactNode); className?: string; resetOnSuccess?: boolean; id?: string;
+  /** false when the children render the result themselves (children as a function). */
+  showMessage?: boolean;
+}) {
   const [state, run, pending] = useActionState(action, null);
   const [local, setLocal] = useState<ActionResult | null>(null);
   const ref = useRef<HTMLFormElement>(null);
@@ -47,7 +57,10 @@ export function ActionForm({ action, children, className = '', resetOnSuccess = 
     form.querySelectorAll('[aria-invalid="true"]').forEach((el) => el.removeAttribute('aria-invalid'));
     let first: HTMLElement | null = null;
     for (const n of names) {
-      const el = form.querySelector<HTMLElement>(`[name="${CSS.escape(n)}"]`);
+      // A server field may map to a differently named input (data-field="legs"), and a
+      // hidden input (date pickers) is shown through the button next to it.
+      let el = form.querySelector<HTMLElement>(`[name="${CSS.escape(n)}"]`) ?? form.querySelector<HTMLElement>(`[data-field~="${CSS.escape(n)}"]`);
+      if (el instanceof HTMLInputElement && el.type === 'hidden') el = el.parentElement?.querySelector<HTMLElement>('button') ?? null;
       if (!el) continue;
       el.setAttribute('aria-invalid', 'true');
       first ??= el;
@@ -76,7 +89,7 @@ export function ActionForm({ action, children, className = '', resetOnSuccess = 
     let bytes = 0;
     form.querySelectorAll<HTMLInputElement>('input[type="file"]').forEach((el) => { for (const f of Array.from(el.files ?? [])) bytes += f.size; });
     if (missing.length) {
-      setLocal({ ok: false, message: `Please fill in: ${missing.map(labelOf).join(', ')}` });
+      setLocal({ ok: false, message: `Please fill in: ${[...new Set(missing.map(labelOf))].join(', ')}` });
       mark(missing.map((el) => (el as HTMLInputElement).name));
       return;
     }
@@ -94,8 +107,8 @@ export function ActionForm({ action, children, className = '', resetOnSuccess = 
     <Pending.Provider value={pending}>
       <form ref={ref} onSubmit={onSubmit} className={className} id={id} noValidate
         onInput={(e) => { const t = e.target as HTMLElement; if (t.getAttribute('aria-invalid')) t.removeAttribute('aria-invalid'); }}>
-        {children}
-        <FormMessage state={local ?? (pending ? null : state)} />
+        {typeof children === 'function' ? children(local ?? (pending ? null : state)) : children}
+        {showMessage && <FormMessage state={local ?? (pending ? null : state)} />}
       </form>
     </Pending.Provider>
   );

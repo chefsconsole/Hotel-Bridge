@@ -108,13 +108,13 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
 
           <Panel title="3 · Proposals" padded={false}>
             {d.proposals.length === 0 ? <Empty title="No proposal yet" /> : (
-              <table className="table"><thead><tr><th>Version</th><th>Status</th><th className="text-right">Cost</th><th className="text-right">Sell</th><th className="text-right">Margin</th><th /></tr></thead>
+              <div className="overflow-x-auto"><table className="table"><thead><tr><th>Version</th><th>Status</th><th className="text-right">Cost</th><th className="text-right">Sell</th><th className="text-right">Margin</th><th /></tr></thead>
                 <tbody>{d.proposals.map((p) => (
                   <tr key={p.id}><td>v{p.version}<p className="text-[0.75rem] text-faint">valid until {formatDate(p.validUntil)}</p></td><td><Pill tone={p.status === 'accepted' ? 'positive' : p.status === 'sent' ? 'attention' : 'neutral'}>{p.status}</Pill></td>
                     <td className="text-right"><Money minor={p.costTotalMinor} currency={p.currency} /></td><td className="text-right font-medium"><Money minor={p.sellTotalMinor} currency={p.currency} /></td>
                     <td className="num text-right">{p.sellTotalMinor ? (((p.sellTotalMinor - p.costTotalMinor) / p.sellTotalMinor) * 100).toFixed(1) : 0}%</td>
                     <td>{p.status === 'draft' && <ActionForm action={groupOpsAction}><Hidden id={e.id} op="send_proposal" /><input type="hidden" name="proposalId" value={p.id} /><SubmitButton size="sm" confirm="Send this proposal to the agent?">Send to agent</SubmitButton></ActionForm>}</td></tr>
-                ))}</tbody></table>
+                ))}</tbody></table></div>
             )}
             {!closed && d.offers.length > 0 && (
               <ActionForm action={groupOpsAction} className="space-y-3 border-t border-line p-5">

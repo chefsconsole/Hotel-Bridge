@@ -39,11 +39,13 @@ function usePopover() {
 }
 
 const panelClass = (months: 1 | 2, align: 'left' | 'right') => cx('absolute top-full z-50 mt-2 rounded-2xl', align === 'left' ? 'left-0' : 'right-0', months === 2 ? 'w-[680px]' : 'w-[min(360px,calc(100vw-2rem))]', ' border border-line bg-surface p-5 shadow-[var(--shadow-lift)] animate-[var(--animate-fade)] sm:p-6');
-const Label = ({ children }: { children: string }) => <span className="mb-1.5 block text-[0.82rem] font-medium text-ink">{children}</span>;
+const Label = ({ children, required }: { children: string; required?: boolean }) => (
+  <span className="mb-1.5 block text-[0.82rem] font-medium text-ink">{children}{required && <span className="text-negative" aria-hidden> *</span>}</span>
+);
 
 /** Arrival + departure as one field, e.g. a Group Desk itinerary stop. */
-export function StayDatesField({ label, nameIn, nameOut, defaultIn = '', defaultOut = '', className }: {
-  label: string; nameIn: string; nameOut: string; defaultIn?: string; defaultOut?: string; className?: string;
+export function StayDatesField({ label, nameIn, nameOut, defaultIn = '', defaultOut = '', className, required }: {
+  label: string; nameIn: string; nameOut: string; defaultIn?: string; defaultOut?: string; className?: string; required?: boolean;
 }) {
   const { open, setOpen, wrap, months, align } = usePopover();
   const [checkIn, setIn] = useState(defaultIn);
@@ -52,9 +54,9 @@ export function StayDatesField({ label, nameIn, nameOut, defaultIn = '', default
   const nights = checkIn && checkOut ? daysBetween(checkIn, checkOut) : 0;
   return (
     <div ref={wrap} className={cx('relative', className)}>
-      <Label>{label}</Label>
-      <input type="hidden" name={nameIn} value={checkIn} />
-      <input type="hidden" name={nameOut} value={checkOut} />
+      <Label required={required}>{label}</Label>
+      <input type="hidden" name={nameIn} value={checkIn} required={required} data-label={label} />
+      <input type="hidden" name={nameOut} value={checkOut} required={required} data-label={label} />
       <button type="button" onClick={() => { setPhase(checkIn && !checkOut ? 'out' : 'in'); setOpen(!open); }} aria-expanded={open}
         className={cx('field flex items-center gap-2 text-left', open && 'border-champagne')}>
         {checkIn
@@ -76,15 +78,15 @@ export function StayDatesField({ label, nameIn, nameOut, defaultIn = '', default
 }
 
 /** A single date, e.g. "quotation needed by". */
-export function DateField({ label, name, defaultValue = '', title, className }: {
-  label: string; name: string; defaultValue?: string; title?: string; className?: string;
+export function DateField({ label, name, defaultValue = '', title, className, required }: {
+  label: string; name: string; defaultValue?: string; title?: string; className?: string; required?: boolean;
 }) {
   const { open, setOpen, wrap, months, align } = usePopover();
   const [value, setValue] = useState(defaultValue);
   return (
     <div ref={wrap} className={cx('relative', className)}>
-      <Label>{label}</Label>
-      <input type="hidden" name={name} value={value} />
+      <Label required={required}>{label}</Label>
+      <input type="hidden" name={name} value={value} required={required} data-label={label} />
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open}
         className={cx('field text-left', open && 'border-champagne')}>
         {value ? <span className="num">{shortDate(value)}</span> : <span className="text-faint">Choose a date</span>}

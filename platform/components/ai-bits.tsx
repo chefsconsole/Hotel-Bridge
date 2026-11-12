@@ -1,6 +1,6 @@
 'use client';
-import { useActionState, useState, type ReactNode } from 'react';
-import { SubmitButton } from './forms';
+import { useState, type ReactNode } from 'react';
+import { ActionForm, SubmitButton } from './forms';
 import { buttonClass, cx } from './ui';
 import type { ActionResult } from '@/lib/action';
 
@@ -18,18 +18,17 @@ export function Sparkle({ className = 'size-4' }: { className?: string }) {
 export function AiForm({ action, children, submit, pendingLabel = 'Thinking…', disabled, outputLabel = 'Draft', useHrefBase, useLabel = 'Use this' }: {
   action: Action; children: ReactNode; submit: string; pendingLabel?: string; disabled?: boolean; outputLabel?: string; useHrefBase?: string; useLabel?: string;
 }) {
-  const [state, run] = useActionState(action, null);
   const [copied, setCopied] = useState(false);
-  const output = state?.data?.output as string | undefined;
-  const notes = state?.data?.notes as string | undefined;
+  // ActionForm keeps what was typed if the AI or the server says no.
   return (
-    <div>
-      <form action={run} className="space-y-4" noValidate>
+    <ActionForm action={action} className="space-y-4" showMessage={false}>{(state) => {
+      const output = state?.data?.output as string | undefined;
+      const notes = state?.data?.notes as string | undefined;
+      return (<>
         {children}
         <SubmitButton pendingLabel={pendingLabel} className={cx(disabled && 'pointer-events-none opacity-40')}>
           <Sparkle /> {submit}
         </SubmitButton>
-      </form>
       {state && !state.ok && state.message && (
         <p role="alert" className="mt-4 rounded-[var(--radius-sm)] bg-mist px-4 py-3 text-[0.9rem] whitespace-pre-line text-ink">{state.message}</p>
       )}
@@ -48,7 +47,8 @@ export function AiForm({ action, children, submit, pendingLabel = 'Thinking…',
           {notes && <p className="border-t border-champagne/20 px-4 py-3 text-[0.82rem] whitespace-pre-line text-attention">{notes}</p>}
         </div>
       )}
-    </div>
+      </>);
+    }}</ActionForm>
   );
 }
 

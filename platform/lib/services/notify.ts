@@ -7,6 +7,7 @@
  * A failed email never undoes the action: sendEmail records what really
  * happened (Admin → Emails), and these helpers never throw.
  * ------------------------------------------------------------------ */
+import { formatDate } from '@/lib/domain/dates';
 import { eq } from 'drizzle-orm';
 import { schema, type DB } from '@/lib/db';
 import { NOTIFY_EMAIL, SUPPORT_EMAIL } from '@/lib/config';
@@ -153,7 +154,7 @@ export function rateRequestOpened(db: DB, r: { id: string; reference: string; ag
       to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_rate_request', relatedId: r.id,
       subject: `Best-rate request ${r.reference} · ${r.hotelName} · ${a.name}${r.status === 'sent' ? '' : ' · HOTEL NOT EMAILED'}`,
       body: [
-        `${a.name} asked ${r.hotelName} (${r.city}) for its best rate, ${r.checkIn} → ${r.checkOut}.`,
+        `${a.name} asked ${r.hotelName} (${r.city}) for its best rate, ${formatDate(r.checkIn)} → ${formatDate(r.checkOut)}.`,
         r.status === 'sent' ? `The hotel was emailed at ${r.hotelEmail}.` : `The hotel could NOT be emailed (${r.hotelEmail || 'no address'}) — please contact it directly.`,
         '',
         'We aim to get the agent an offer within 1 hour. If the hotel has not answered in ~45 minutes, call or WhatsApp them.',
@@ -173,8 +174,8 @@ export function groupEnquiryOpened(db: DB, e: { id: string; reference: string; a
       subject: `New group ${e.reference} · ${a.name} · ${e.totalPax} pax · ${e.legs.map((l) => l.city).join(' + ')}`,
       body: [
         `${a.name} sent a group enquiry: ${e.groupName}, ${e.totalPax} travellers.`,
-        ...e.legs.map((l) => `  ${l.city}: ${l.checkIn} → ${l.checkOut}`),
-        `Quote needed by ${e.quoteNeededBy}. We promised a first reply within 24 hours.`,
+        ...e.legs.map((l) => `  ${l.city}: ${formatDate(l.checkIn)} → ${formatDate(l.checkOut)}`),
+        `Quote needed by ${formatDate(e.quoteNeededBy)}. We promised a first reply within 24 hours.`,
         '',
         appUrl(`/admin/groups/${e.id}`),
       ].join('\n'),
@@ -190,7 +191,7 @@ export function bookingCreated(db: DB, b: { id: string; reference: string; agenc
       to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_booking', relatedId: b.id,
       subject: `New booking ${b.reference} · ${a.name} · ${b.status.replace(/_/g, ' ')}`,
       body: [
-        `${a.name} made booking ${b.reference}: ${b.checkIn} → ${b.checkOut}, status ${b.status.replace(/_/g, ' ')}.`,
+        `${a.name} made booking ${b.reference}: ${formatDate(b.checkIn)} → ${formatDate(b.checkOut)}, status ${b.status.replace(/_/g, ' ')}.`,
         `Total ${(b.sellMinor / 100).toFixed(2)} ${b.currency}.`,
         '',
         appUrl(`/admin/bookings/${b.id}`),

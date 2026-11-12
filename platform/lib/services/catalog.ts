@@ -6,7 +6,7 @@
 import { and, asc, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
-import { addDays, daysBetween, isIsoDate, nightsOf } from '@/lib/domain/dates';
+import { addDays, daysBetween, isIsoDate, nightsOf, formatDate } from '@/lib/domain/dates';
 import { CURRENCIES, parseMoney } from '@/lib/domain/money';
 import { validateTerms, PricingError } from '@/lib/domain/pricing';
 import { requireStaff, type Actor } from './actor';
@@ -246,7 +246,7 @@ async function assertNoOverlap(db: DB, contractId: string, r: { roomTypeId: stri
     eq(ratePeriods.contractId, contractId), eq(ratePeriods.roomTypeId, r.roomTypeId), eq(ratePeriods.mealPlan, r.mealPlan), eq(ratePeriods.active, true),
     lte(ratePeriods.dateFrom, r.dateTo), gte(ratePeriods.dateTo, r.dateFrom), exceptId ? ne(ratePeriods.id, exceptId) : undefined,
   ));
-  if (clash.length) throw new AppError(`Rates for this room and meal plan already cover part of ${r.dateFrom} – ${r.dateTo}. Deactivate the old period first.`);
+  if (clash.length) throw new AppError(`Rates for this room and meal plan already cover part of ${formatDate(r.dateFrom)} – ${formatDate(r.dateTo)}. Deactivate the old period first.`);
 }
 
 export async function addRatePeriod(db: DB, actor: Actor, contractId: string, input: z.infer<typeof ratePeriodSchema>) {

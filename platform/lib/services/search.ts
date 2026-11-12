@@ -202,6 +202,14 @@ export async function getQuote(db: DB, actor: Actor, quoteId: string) {
   return { ...q, snapshot: q.snapshot as QuoteSnapshot };
 }
 
+/** The agent's last distinct searches (the same city, dates and rooms appear once). */
 export async function recentSearches(db: DB, actor: Actor, limit = 5) {
-  return db.select().from(searchLog).where(eq(searchLog.userId, actor.userId)).orderBy(desc(searchLog.createdAt)).limit(limit);
+  const rows = await db.select().from(searchLog).where(eq(searchLog.userId, actor.userId)).orderBy(desc(searchLog.createdAt)).limit(limit * 8);
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    const k = `${r.city.trim().toLowerCase()}|${r.checkIn}|${r.checkOut}|${JSON.stringify(r.rooms)}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).slice(0, limit);
 }

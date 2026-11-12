@@ -336,14 +336,14 @@ export async function lapseRateRequests(db: DB, now = new Date()) {
   for (const r of late) {
     try {
       await notifyAgent(db, r, `${r.hotelName} did not reply in time`, [
-        `${r.hotelName} didn't send a rate for ${r.checkIn} → ${r.checkOut} in time. Sorry about that.`,
+        `${r.hotelName} didn't send a rate for ${formatDate(r.checkIn)} → ${formatDate(r.checkOut)} in time. Sorry about that.`,
         '',
         'Open the request to ask another hotel in the same city in one click — or reply to this email and our team will find one for you:',
       ]);
       await sendEmail(db, {
         to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_rate_lapsed', relatedId: r.id,
         subject: `No hotel reply · ${r.reference} · ${r.hotelName}`,
-        body: `${r.hotelName} (${r.hotelEmail ?? 'no email'}) never answered ${r.reference} (${r.checkIn} → ${r.checkOut}). The agent has been told. Consider calling the hotel or offering another one.
+        body: `${r.hotelName} (${r.hotelEmail ?? 'no email'}) never answered ${r.reference} (${formatDate(r.checkIn)} → ${formatDate(r.checkOut)}). The agent has been told. Consider calling the hotel or offering another one.
 
 ${appUrl('/admin/rate-requests')}`,
       });

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MEAL_PLANS } from '@/lib/services/catalog';
 import { notFound } from 'next/navigation';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { StagePill, roomsText } from '@/components/group-bits';
@@ -36,12 +37,12 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr] [&>*]:min-w-0">
         <div className="space-y-6">
           {d.proposals.map((p) => (
-            <Panel key={p.id} title={`Proposal v${p.version}`} description={p.expiresAt ? `Held until ${formatDateTime(p.expiresAt)} — accept before then to secure it` : `Valid until ${formatDate(p.validUntil)}`} actions={<Pill tone={p.status === 'sent' ? 'attention' : p.status === 'accepted' ? 'positive' : 'neutral'}>{p.status === 'sent' ? 'Awaiting your decision' : p.status}</Pill>}>
+            <Panel key={p.id} title={`Proposal v${p.version}`} description={p.expiresAt ? `Held until ${formatDateTime(p.expiresAt)} — accept before then to secure it` : `Valid until ${formatDate(p.validUntil)}`} actions={<Pill tone={p.status === 'sent' ? 'attention' : p.status === 'accepted' ? 'positive' : 'neutral'}>{({ sent: 'Awaiting your decision', accepted: 'Accepted — the Group Desk is confirming with the hotel', declined: 'Declined', expired: 'Expired', superseded: 'Replaced by a newer version', draft: 'Draft' } as Record<string, string>)[p.status] ?? p.status}</Pill>}>
               <ul className="divide-y divide-line">
                 {d.offers.filter((o) => p.offerIds.includes(o.id)).map((o) => (
                   <li key={o.id} className="py-3 text-[0.88rem]">
                     <p className="font-medium">{o.hotelName} · {o.city}</p>
-                    <p className="text-muted">{o.mealPlan ? `${o.mealPlan} · ` : ''}{o.taxesNote}</p>
+                    <p className="text-muted">{[o.mealPlan ? (MEAL_PLANS[o.mealPlan as keyof typeof MEAL_PLANS] ?? o.mealPlan) : null, o.taxesNote ? `Taxes: ${o.taxesNote}` : null].filter(Boolean).join(' · ')}</p>
                     {o.cityTaxMinor ? <p className="text-muted">City tax {formatMoney(o.cityTaxMinor, o.currency)} per person per night, payable locally</p> : null}
                     {o.cancellationTerms && <p className="mt-1 text-muted"><span className="text-ink">Cancellation:</span> {o.cancellationTerms}</p>}
                     {o.paymentTerms && <p className="text-muted"><span className="text-ink">Payment:</span> {o.paymentTerms}</p>}
@@ -85,7 +86,7 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
             ['Itinerary', <ul key="l">{e.legs.map((l, i) => <li key={i}>{l.city}: {formatDate(l.checkIn)} – {formatDate(l.checkOut)}</li>)}</ul>],
             ['Travellers', `${e.totalPax} · ${e.groupType}`],
             ['Rooms', roomsText(e.rooms)],
-            ['Category / meals', `${e.category ? `${e.category}-star` : 'Any'} · ${e.mealPlan ?? 'to advise'}`],
+            ['Category / meals', `${e.category && e.category !== 'any' ? `${e.category}-star` : 'Any category'} · ${e.mealPlan ? (MEAL_PLANS[e.mealPlan as keyof typeof MEAL_PLANS] ?? e.mealPlan) : 'meals to advise'}`],
             ['Coach parking', e.coachParking ? 'Required' : 'Not needed'],
             ['Accessibility', e.accessibility],
             ['Other', e.specialRequests],

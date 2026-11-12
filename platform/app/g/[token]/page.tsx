@@ -66,7 +66,7 @@ export default async function HotelReplyPage({ params }: { params: Promise<{ tok
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
                 <Field label="Currency"><select name="currency" defaultValue={guessCurrency} className="field">{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
                 <Field label="Meal plan included"><select name="mealPlan" defaultValue={e.mealPlan ?? 'BB'} className="field">{Object.entries(MEAL_PLANS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                <Field label="Offer valid until" hint={`At least ${formatDate(minValid)}`}><input name="validUntil" type="date" min={minValid} defaultValue={addDays(todayIso(), 7)} className="field num" /></Field>
+                <Field label="Offer valid until" hint={`At least ${formatDate(minValid)}`}><input name="validUntil" required type="date" min={minValid} defaultValue={addDays(todayIso(), 7)} className="field num" /></Field>
               </div>
               <div className="mt-5 overflow-x-auto">
                 <table className="w-full min-w-[520px] text-[0.88rem]">
@@ -74,10 +74,10 @@ export default async function HotelReplyPage({ params }: { params: Promise<{ tok
                   <tbody>
                     {[...rooms.map(([k, n]) => ({ type: k, n })), { type: '', n: 0 }, { type: '', n: 0 }].slice(0, 6).map((row, i) => (
                       <tr key={i}>
-                        <td className="py-1 pr-2"><input name={`l${i}_type`} defaultValue={row.type} placeholder={row.type ? '' : 'Another room type'} className="field py-2" /></td>
-                        <td className="w-24 py-1 pr-2"><input name={`l${i}_rooms`} defaultValue={row.n || ''} inputMode="numeric" className="field num py-2" /></td>
-                        <td className="w-24 py-1 pr-2"><input name={`l${i}_nights`} defaultValue={row.type ? nights : ''} inputMode="numeric" className="field num py-2" /></td>
-                        <td className="w-44 py-1"><input name={`l${i}_rate`} inputMode="decimal" placeholder="e.g. 4500" className="field num py-2" /></td>
+                        <td className="py-1 pr-2"><input name={`l${i}_type`} required={i === 0} defaultValue={row.type} placeholder={row.type ? '' : 'Another room type'} className="field py-2" /></td>
+                        <td className="w-24 py-1 pr-2"><input name={`l${i}_rooms`} required={i === 0} defaultValue={row.n || ''} inputMode="numeric" className="field num py-2" /></td>
+                        <td className="w-24 py-1 pr-2"><input name={`l${i}_nights`} required={i === 0} defaultValue={row.type ? nights : ''} inputMode="numeric" className="field num py-2" /></td>
+                        <td className="w-44 py-1"><input name={`l${i}_rate`} required={i === 0} inputMode="decimal" placeholder="e.g. 4500" className="field num py-2" /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -86,7 +86,7 @@ export default async function HotelReplyPage({ params }: { params: Promise<{ tok
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Field label="Taxes" hint="Included or extra, and the rate"><input name="taxesNote" className="field" placeholder="Including service charge and VAT" /></Field>
                 <Field label="City tax per person per night" hint="If payable at the hotel"><input name="cityTax" inputMode="decimal" className="field num" /></Field>
-                <Field label="Cancellation and attrition terms" className="sm:col-span-2"><textarea name="cancellationTerms" rows={3} className="field" placeholder="e.g. Free until 30 days before arrival; 10% attrition allowed until 21 days" /></Field>
+                <Field label="Cancellation and attrition terms" className="sm:col-span-2"><textarea name="cancellationTerms" required rows={3} className="field" placeholder="e.g. Free until 30 days before arrival; 10% attrition allowed until 21 days" /></Field>
                 <Field label="Deposit and payment schedule" className="sm:col-span-2"><textarea name="paymentTerms" rows={2} className="field" /></Field>
               </div>
               <SubmitButton size="lg" className="mt-6" pendingLabel="Sending…">Send offer to HotelBridge</SubmitButton>

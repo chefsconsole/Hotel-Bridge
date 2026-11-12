@@ -56,12 +56,12 @@ export default async function HotelRatePage({ params }: { params: Promise<{ toke
               <h2 className="text-[1.1rem] font-medium">Your best rate</h2>
               <p className="mt-1 text-[0.85rem] text-muted">Your best rate per room per night for these dates. The best rate wins the booking; payment and guest arrangements stay directly between your hotel and the travel agency.</p>
               <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <Field label="Room type" className="sm:col-span-2"><input name="roomType" className="field" placeholder="e.g. Deluxe Sea View" /></Field>
+                <Field label="Room type" className="sm:col-span-2"><input name="roomType" required className="field" placeholder="e.g. Deluxe Sea View" /></Field>
                 <Field label="Currency"><select name="currency" defaultValue="THB" className="field">{CURRENCIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
-                <Field label="Rate / room / night"><input name="rate" inputMode="decimal" placeholder="e.g. 3200" className="field num" /></Field>
+                <Field label="Rate / room / night"><input name="rate" required inputMode="decimal" placeholder="e.g. 3200" className="field num" /></Field>
                 <Field label="Meals included"><select name="mealPlan" defaultValue={r.mealPlan ?? 'BB'} className="field">{Object.entries(MEAL_PLANS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-                <Field label="Rate valid until" hint={`At least ${formatDate(minValid)}`}><input name="validUntil" type="date" min={minValid} defaultValue={addDays(todayIso(), 3)} className="field num" /></Field>
-                <Field label="Cancellation terms" className="sm:col-span-3"><textarea name="cancellation" rows={2} className="field" placeholder="e.g. Free until 7 days before arrival, then first night" /></Field>
+                <Field label="Rate valid until" hint={`At least ${formatDate(minValid)}`}><input name="validUntil" required type="date" min={minValid} defaultValue={addDays(todayIso(), 3)} className="field num" /></Field>
+                <Field label="Cancellation terms" className="sm:col-span-3"><textarea name="cancellation" required rows={2} className="field" placeholder="e.g. Free until 7 days before arrival, then first night" /></Field>
                 <Field label="Anything else" hint="Taxes, upgrades, inclusions" className="sm:col-span-3"><input name="notes" className="field" placeholder="Includes service charge and VAT" /></Field>
               </div>
               <SubmitButton size="lg" className="mt-6" pendingLabel="Sending…">Send best rate</SubmitButton>

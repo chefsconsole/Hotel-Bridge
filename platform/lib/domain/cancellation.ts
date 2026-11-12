@@ -1,4 +1,4 @@
-import { addDays } from './dates';
+import { addDays, formatDate } from './dates';
 import { applyBps, mulDiv } from './money';
 
 export type CancelPolicy = {
@@ -20,7 +20,7 @@ export function describePolicy(policy: CancelPolicy, checkIn: string): string {
     ? 'the first night'
     : policy.latePenaltyType === 'full' ? 'the full stay' : `${policy.latePenaltyBps / 100}% of the stay`;
   if (!until) return `Cancellation charge: ${late}.`;
-  return `Free cancellation until ${until} (23:59 hotel time). After that, ${late} is charged. No-shows are charged in full.`;
+  return `Free cancellation until ${formatDate(until, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} (23:59 hotel time). After that, ${late} is charged. No-shows are charged in full.`;
 }
 
 /**

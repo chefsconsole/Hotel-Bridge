@@ -328,7 +328,7 @@ export async function groupOpsAction(_: ActionResult | null, fd: FormData): Prom
     }
     else if (op === 'proposal') {
       const r = await buildProposal(db, actor, id, { offerIds: fd.getAll('offerIds').map(String), markupBps: bps(fd, 'markupPct'), validUntil: str(fd, 'validUntil'), inclusions: optStr(fd, 'inclusions'), exclusions: optStr(fd, 'exclusions') });
-      msg = `Proposal v${r.proposal.version} drafted: margin ${(r.marginBps / 100).toFixed(2)}%. Review it, then send.`;
+      msg = `Proposal v${r.proposal.version} drafted: ${str(fd, 'markupPct') || '0'}% markup on hotel cost = ${(r.marginBps / 100).toFixed(2)}% of the selling price is ours. Review it, then send to the agent.`;
     }
     else if (op === 'send_proposal') { await sendProposal(db, actor, str(fd, 'proposalId')); msg = 'Proposal sent to the agent.'; }
     else throw new AppError('Unknown operation');

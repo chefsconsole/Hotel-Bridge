@@ -165,3 +165,13 @@
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .break-inside-avoid { break-inside: avoid; }
 }
+
+/* Every required field shows a red star — automatically, in every form.
+ * (Fields that already render their own star are skipped.) */
+label:has([required]) > span:first-child:not(:has(.text-negative))::after {
+  content: ' *';
+  color: var(--color-negative);
+}
+
+/* Long code samples, emails and URLs wrap instead of widening a card. */
+code { overflow-wrap: anywhere; }

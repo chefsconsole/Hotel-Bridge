@@ -77,7 +77,7 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
       setCity(s.city);
       setQuery(s.name);
       // With dates already chosen, open the hotel straight away; otherwise pick dates first.
-      if (checkIn && checkOut) { setPanel(null); go(`/agent/hotels/${s.id}?${stayParams()}`); }
+      if (checkIn && checkOut) { if (agesMissing()) return; setPanel(null); go(`/agent/hotels/${s.id}?${stayParams()}`); }
       else setPanel('in');
       return;
     }
@@ -101,10 +101,19 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
     const chosen = city || (best?.kind === 'city' ? best.city : undefined);
     if (!chosen) { setError(query.trim() ? `No partner hotels match “${query.trim()}” yet — try a city, a hotel or a region, or ask the Group Desk` : 'Where are your clients going?'); setPanel('where'); whereInput.current?.focus(); return; }
     if (!checkIn || !checkOut) { setError('Choose check-in and check-out dates'); setPanel(checkIn ? 'out' : 'in'); return; }
+    if (agesMissing()) return;
     setError('');
     setPanel(null);
     if (hotel) go(`/agent/hotels/${hotel.id}?${stayParams()}`);
     else go(`/agent/search?${stayParams({ city: chosen })}`);
+  }
+
+  /** Hotels price children by age, so never guess one: ask before searching. */
+  function agesMissing() {
+    if (!rooms.some((r) => r.childAges.some((a) => a < 0))) return false;
+    setError('Choose each child’s age — hotels price children by age');
+    setPanel('guests');
+    return true;
   }
 
   const update = (i: number, patch: Partial<RoomRequest>) => setRooms((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -216,14 +225,15 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
                       </div>
                       <Row label="Adults" hint="18+" value={r.adults} min={1} max={4} onChange={(v) => update(i, { adults: v })} />
                       <Row label="Children" hint="0–17" value={r.childAges.length} min={0} max={3}
-                        onChange={(v) => update(i, { childAges: v > r.childAges.length ? [...r.childAges, 8] : r.childAges.slice(0, v) })} />
+                        onChange={(v) => update(i, { childAges: v > r.childAges.length ? [...r.childAges, -1] : r.childAges.slice(0, v) })} />
                       {r.childAges.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {r.childAges.map((age, k) => (
                             <label key={k} className="flex items-center gap-1.5 rounded-full bg-mist px-3 py-1 text-[0.8rem] text-muted">
                               Child {k + 1} age
-                              <select value={age} onChange={(e) => update(i, { childAges: r.childAges.map((a, x) => (x === k ? Number(e.target.value) : a)) })}
-                                className="num bg-transparent font-medium text-ink outline-none">
+                              <select value={age} aria-invalid={age < 0 || undefined} onChange={(e) => update(i, { childAges: r.childAges.map((a, x) => (x === k ? Number(e.target.value) : a)) })}
+                                className={cx('num bg-transparent font-medium outline-none', age < 0 ? 'text-negative' : 'text-ink')}>
+                                {age < 0 && <option value={-1} disabled>?</option>}
                                 {Array.from({ length: 18 }, (_, a) => <option key={a} value={a}>{a}</option>)}
                               </select>
                             </label>

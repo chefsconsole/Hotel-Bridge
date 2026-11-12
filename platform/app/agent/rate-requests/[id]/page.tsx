@@ -15,7 +15,7 @@ import { RATE_STATUS, getRateRequest, tierLabel } from '@/lib/services/rate-requ
 export const metadata = { title: 'Best-rate request' };
 
 export default async function RateRequestPage({ params }: { params: Promise<{ id: string }> }) {
-  const { actor } = await requireAgent();
+  const { actor, agency } = await requireAgent();
   const { id } = await params;
   const db = await getDb();
   const data = await getRateRequest(db, actor, id).catch((e) => { if (e instanceof NotFoundError) return null; throw e; });
@@ -72,7 +72,9 @@ export default async function RateRequestPage({ params }: { params: Promise<{ id
             <Panel title="Waiting for the hotel">
               {r.status === 'sent'
                 ? <p className="text-[0.92rem]">We’ve asked {r.hotelName} for its best rate. The hotel answers by <span className="font-medium">{formatDateTime(r.respondByAt)}</span> ({Math.max(hoursUntil(r.respondByAt), 0)}h left) — you’ll get an email and see the price here.</p>
-                : <Notice tone="warning" title="Not emailed yet">Our email isn’t connected on this environment, so the hotel hasn’t been asked automatically. HotelBridge will send it by hand.</Notice>}
+                : agency.isSample
+                  ? <Notice title="Demo account — the hotel was not emailed">Requests from a demo account are recorded but never sent, so no real hotel is contacted. To see the hotel’s side, open this request’s hotel reply link from Admin → Rate requests.</Notice>
+                  : <Notice tone="warning" title="Not emailed yet">Our email isn’t connected on this environment, so the hotel hasn’t been asked automatically. HotelBridge will send it by hand.</Notice>}
               <ActionForm action={rateRequestDecisionAction} className="mt-5">
                 <input type="hidden" name="id" value={r.id} /><input type="hidden" name="intent" value="cancel" />
                 <SubmitButton variant="secondary" size="sm" pendingLabel="Cancelling…" confirm="Cancel this request?">Cancel request</SubmitButton>

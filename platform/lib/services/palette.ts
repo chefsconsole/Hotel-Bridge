@@ -6,6 +6,7 @@
  *  - hotel partners: nothing beyond navigation.
  * Sample records are hidden in production, like everywhere else.
  * ------------------------------------------------------------------ */
+import { formatDate } from '@/lib/domain/dates';
 import { and, desc, eq, ilike, ne, or } from 'drizzle-orm';
 import { schema, type DB } from '@/lib/db';
 import { demoMode } from '@/lib/config';
@@ -40,7 +41,7 @@ export async function paletteSearch(db: DB, actor: Actor, raw: string): Promise<
     return [
       ...h.map((x) => ({ kind: 'Hotel' as const, title: x.name, detail: `${x.city}, ${x.country}`, href: `/admin/hotels/${x.id}` })),
       ...a.map((x) => ({ kind: 'Agency' as const, title: x.name, detail: [x.city, x.status].filter(Boolean).join(' · '), href: `/admin/agencies/${x.id}` })),
-      ...b.map((x) => ({ kind: 'Booking' as const, title: x.ref, detail: `${x.guest} · ${x.checkIn} · ${x.status.replace(/_/g, ' ')}`, href: `/admin/bookings/${x.id}` })),
+      ...b.map((x) => ({ kind: 'Booking' as const, title: x.ref, detail: `${x.guest} · ${formatDate(x.checkIn)} · ${x.status.replace(/_/g, ' ')}`, href: `/admin/bookings/${x.id}` })),
       ...g.map((x) => ({ kind: 'Group' as const, title: x.ref, detail: `${x.name} · ${x.status.replace(/_/g, ' ')}`, href: `/admin/groups/${x.id}` })),
       ...pr.map((x) => ({ kind: 'Outreach' as const, title: x.name, detail: [x.city, x.stage].filter(Boolean).join(' · '), href: `/admin/prospects/${x.id}` })),
     ];
@@ -62,7 +63,7 @@ export async function paletteSearch(db: DB, actor: Actor, raw: string): Promise<
     ]);
     return [
       ...h.map((x) => ({ kind: 'Hotel' as const, title: x.name, detail: `${x.city}, ${x.country}`, href: `/agent/hotels/${x.id}` })),
-      ...b.map((x) => ({ kind: 'Booking' as const, title: x.ref, detail: `${x.guest} · ${x.checkIn} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/bookings/${x.id}` })),
+      ...b.map((x) => ({ kind: 'Booking' as const, title: x.ref, detail: `${x.guest} · ${formatDate(x.checkIn)} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/bookings/${x.id}` })),
       ...g.map((x) => ({ kind: 'Group' as const, title: x.ref, detail: `${x.name} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/groups/${x.id}` })),
       ...c.map((x) => ({ kind: 'Client' as const, title: x.name, detail: x.city ?? '', href: `/agent/clients/${x.id}` })),
       ...r.map((x) => ({ kind: 'Best rate' as const, title: x.ref, detail: `${x.hotel} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/rate-requests/${x.id}` })),

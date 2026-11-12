@@ -11,7 +11,10 @@ export type ActionResult = { ok: boolean; message?: string; data?: Record<string
 export function messageFor(e: unknown): string {
   if (e instanceof AppError || e instanceof TransitionError || e instanceof PricingError) return e.message;
   if (e instanceof ZodError) {
-    return e.issues.slice(0, 4).map((i) => (i.path.length ? `${humanPath(i.path)}: ${i.message}` : i.message)).join('\n');
+    // Our messages are written as sentences ("Lead guest name is required"); only Zod's
+    // generic ones ("Invalid input", "Too small…") need the field name in front.
+    const generic = /^(invalid|too (small|big)|expected|required$)/i;
+    return [...new Set(e.issues.slice(0, 4).map((i) => (i.path.length && generic.test(i.message) ? `${humanPath(i.path)}: ${i.message}` : i.message)))].join('\n');
   }
   console.error('[action]', e);
   return 'Something went wrong on our side. Nothing was charged. Please try again or contact support.';

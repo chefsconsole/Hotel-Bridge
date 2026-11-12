@@ -71,7 +71,7 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
     <div className="animate-[var(--animate-rise)]">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-[0.92rem] text-muted">
-          <span className="font-medium text-ink">{results.length} {tiers.length ? tiers.map((t) => TIER_INFO[t].short).join(' / ') + ' ' : ''}hotel{results.length === 1 ? '' : 's'}</span> in {input.city} · {formatDate(input.checkIn)} – {formatDate(input.checkOut)} · {nights} night{nights === 1 ? '' : 's'} · {describeRooms(input.rooms)}
+          <span className="font-medium text-ink">{results.length + onRequest.length} {tiers.length ? tiers.map((t) => TIER_INFO[t].short).join(' / ') + ' ' : ''}hotel{results.length + onRequest.length === 1 ? '' : 's'}</span> in {input.city}{results.length > 0 && onRequest.length > 0 ? ` (${results.length} with live prices, ${onRequest.length} best rate on request)` : ''} · {formatDate(input.checkIn)} – {formatDate(input.checkOut)} · {nights} night{nights === 1 ? '' : 's'} · {describeRooms(input.rooms)}
         </p>
       </div>
       {warnings.map((w) => <div key={w} className="mb-3"><Notice tone="warning">{w}</Notice></div>)}

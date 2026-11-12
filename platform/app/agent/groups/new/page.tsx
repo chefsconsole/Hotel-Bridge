@@ -47,11 +47,11 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
         <section className={section}>
           <h2 className="font-semibold">The group</h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <Field label="Group name" className="sm:col-span-2"><input name="groupName" defaultValue={d?.groupName ?? ''} className="field" placeholder="e.g. Mehta family wedding" /></Field>
+            <Field label="Group name" className="sm:col-span-2"><input name="groupName" required defaultValue={d?.groupName ?? ''} className="field" placeholder="e.g. Mehta family wedding" /></Field>
             <Field label="Type"><select name="groupType" defaultValue={d?.groupType ?? 'leisure'} className="field">
               {[['leisure', 'Leisure tour'], ['corporate', 'Corporate'], ['mice', 'Incentive / MICE'], ['wedding', 'Wedding'], ['education', 'Education'], ['sports', 'Sports'], ['other', 'Other']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select></Field>
-            <Field label="Total travellers"><input name="totalPax" type="number" min={2} defaultValue={d?.totalPax ?? ''} className="field num" /></Field>
+            <Field label="Total travellers"><input name="totalPax" required type="number" min={2} defaultValue={d?.totalPax ?? ''} className="field num" /></Field>
           </div>
         </section>
         <section className={section}>
@@ -60,8 +60,8 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
           <div className="mt-4 space-y-3">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="grid gap-3 sm:grid-cols-3">
-                <Field label={`Stop ${i + 1} — city`}><input name={`leg_${i}_city`} defaultValue={leg(i)?.city ?? ''} className="field" /></Field>
-                <StayDatesField label="Dates" nameIn={`leg_${i}_in`} nameOut={`leg_${i}_out`} defaultIn={leg(i)?.checkIn ?? ''} defaultOut={leg(i)?.checkOut ?? ''} className="sm:col-span-2" />
+                <Field label={`Stop ${i + 1} — city`}><input name={`leg_${i}_city`} required={i === 0} data-field={i === 0 ? 'legs' : undefined} defaultValue={leg(i)?.city ?? ''} className="field" /></Field>
+                <StayDatesField label={`Stop ${i + 1} — dates`} nameIn={`leg_${i}_in`} nameOut={`leg_${i}_out`} defaultIn={leg(i)?.checkIn ?? ''} defaultOut={leg(i)?.checkOut ?? ''} className="sm:col-span-2" required={i === 0} />
               </div>
             ))}
           </div>
@@ -95,7 +95,7 @@ export default async function NewGroupPage({ searchParams }: { searchParams: Pro
             <Field label="Currency"><select name="currency" defaultValue={d?.currency ?? agency.billingCurrency} className="field">{['EUR', 'GBP', 'CHF', 'USD', 'INR', 'AED', 'THB', 'SGD'].map((c) => <option key={c}>{c}</option>)}</select></Field>
             <Field label="Target budget" hint="Optional"><input name="budget" defaultValue={d?.budget ?? ''} className="field num" inputMode="decimal" /></Field>
             <Field label="Budget covers"><select name="budgetBasis" defaultValue={d?.budgetBasis ?? ''} className="field"><option value="">—</option><option value="per_room_night">Per room per night</option><option value="per_person_total">Per person, whole trip</option><option value="total">Whole group</option></select></Field>
-            <DateField label="Quotation needed by" name="quoteNeededBy" defaultValue={d?.quoteNeededBy ?? ''} title="When do you need the quotation?" />
+            <DateField required label="Quotation needed by" name="quoteNeededBy" defaultValue={d?.quoteNeededBy ?? ''} title="When do you need the quotation?" />
           </div>
         </section>
         <section className={section}>

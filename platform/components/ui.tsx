@@ -122,11 +122,14 @@ const toneClass: Record<Tone | 'info', string> = {
   info: 'bg-champagne-soft text-ink',
 };
 
+/** "awaiting_payment" → "Awaiting payment"; sentences are left alone. */
+export const humanStatus = (s: string) => (/^[a-z_]+$/.test(s) ? (s.charAt(0).toUpperCase() + s.slice(1)).replace(/_/g, ' ') : s);
+
 export function Pill({ tone = 'neutral', children, dot = true }: { tone?: Tone | 'info'; children: ReactNode; dot?: boolean }) {
   return (
     <span className={cx('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.75rem] font-medium whitespace-nowrap', toneClass[tone])}>
       {dot && <span className="size-1.5 rounded-full bg-current opacity-80" />}
-      {children}
+      {typeof children === 'string' ? humanStatus(children) : children}
     </span>
   );
 }

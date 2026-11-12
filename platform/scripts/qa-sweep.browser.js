@@ -80,3 +80,38 @@ window.qaPhone = async function (urls, width = 375) {
   console.table(issues);
   return issues;
 };
+
+/* Added 12 Nov 2026 after a hands-on pass (Ronak found a clipped dropdown):
+ *   await qaScrollers(urls)  — a card that scrolls sideways must hold only a table, never a form
+ *   await qaRawText(urls)    — no raw ISO dates ("2026-12-15") or snake_case statuses in what users read
+ * Interactive checks still to click by hand each release: Where-to dropdown (desktop + phone),
+ * date picker, guests + child ages, checkout empty submit, best-rate form, hotel reply link (/r/…),
+ * group form empty submit, proposal draft → send → agent accepts. */
+window.qaScrollers = async function (urls, widths = [1280, 375]) {
+  const out = [];
+  for (const width of widths) for (const url of urls) {
+    const f = Object.assign(document.createElement('iframe'), { src: url });
+    f.style.cssText = `position:fixed;left:-6000px;top:0;width:${width}px;height:900px;border:0`;
+    document.body.appendChild(f);
+    await new Promise((r) => { f.onload = r; setTimeout(r, 20000); });
+    await new Promise((r) => setTimeout(r, 800));
+    f.contentDocument?.querySelectorAll('.overflow-x-auto').forEach((el) => {
+      if (el.scrollWidth > el.clientWidth + 2 && [...el.querySelectorAll('form')].some((fm) => !fm.closest('table'))) out.push({ url, width, sw: el.scrollWidth, cw: el.clientWidth });
+    });
+    f.remove();
+  }
+  console.table(out);
+  return out;
+};
+window.qaRawText = async function (urls) {
+  const out = [];
+  for (const url of urls) {
+    const doc = new DOMParser().parseFromString(await (await fetch(url)).text(), 'text/html');
+    doc.querySelectorAll('script,template,input,textarea,select,option,code').forEach((s) => s.remove());
+    const text = doc.body?.textContent ?? '';
+    const dates = text.match(/\b20\d\d-\d\d-\d\d\b/g);
+    if (dates) out.push({ url, sample: [...new Set(dates)].slice(0, 3).join(', ') });
+  }
+  console.table(out);
+  return out;
+};
