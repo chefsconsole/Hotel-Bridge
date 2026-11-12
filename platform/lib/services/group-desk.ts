@@ -126,10 +126,10 @@ export async function dispatchToHotels(db: DB, actor: Actor, enquiryId: string):
   if (result.asked) internal.push(`Automatic request to ${result.asked} hotel${result.asked === 1 ? '' : 's'} (${result.emailed} emailed${result.notEmailed ? `, ${result.notEmailed} not emailed — email is not connected; send them from this page` : ''}).`);
   if (result.noHotels.length) internal.push(`No contracted group hotels or outreach contacts with an email in ${result.noHotels.join(', ')} — add group contacts in Hotels or Hotel outreach.`);
   if (internal.length) await db.insert(groupMessages).values({ enquiryId: e.id, authorLabel: 'HotelBridge automation', visibility: 'internal', body: internal.join(' ') });
-  if (result.emailed > 0) {
+  if (result.emailed > 0 && !e.dispatchedAt) {
     await db.insert(groupMessages).values({
       enquiryId: e.id, authorLabel: 'HotelBridge Group Desk', visibility: 'shared',
-      body: `We've sent your request to ${result.emailed} hotel${result.emailed === 1 ? '' : 's'}. Hotels reply within ${HOTEL_REPLY_HOURS} hours, and your offer will appear here as soon as it is ready.`,
+      body: 'Our Group Desk is preparing your offer — it will appear here as soon as it is ready, and we’ll email you.',
     });
   }
   await audit(db, actor, 'group.dispatched', 'group_enquiry', e.id, result, e.agencyId);

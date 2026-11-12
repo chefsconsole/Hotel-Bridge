@@ -26,6 +26,8 @@ const offer = (validUntil: string, rate = '110') => ({
 describe('group desk automation', () => {
   it('asks contracted group hotels with a 48h link; the hotel answers; the agent gets a 48h offer', async () => {
     f = await setup();
+    // Automation is off by default (the team picks hotels and approves offers); this test switches it on.
+    await f.db.insert(schema.settings).values([{ key: 'groups.autoDispatch', value: '1' }, { key: 'groups.autoProposal', value: '1' }]);
     await f.db.update(schema.hotels).set({ acceptsGroups: true, groupsEmail: 'groups@hotel.test', tier: 'premium', totalRooms: 320 });
     const e = await enquiry(f, { tiers: ['premium'] });
 

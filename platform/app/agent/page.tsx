@@ -184,7 +184,7 @@ function PulseCard({ pulse }: { pulse: Pulse }) {
       </dl>
       {pulse.medianReplyMinutes != null && (
         <p className="mt-5 flex items-center gap-2 rounded-[var(--radius-md)] bg-[#fbf6ec] px-3 py-2.5 text-[0.82rem] text-ink">
-          <span aria-hidden className="text-champagne">✦</span>Hotels answered your requests in a median of&nbsp;<strong className="font-semibold whitespace-nowrap">{replyText(pulse.medianReplyMinutes)}</strong>
+          <span aria-hidden className="text-champagne">✦</span>Your best-rate offers arrived in a median of&nbsp;<strong className="font-semibold whitespace-nowrap">{replyText(pulse.medianReplyMinutes)}</strong>
         </p>
       )}
       <figure className="mt-5">

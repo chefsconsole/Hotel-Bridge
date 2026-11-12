@@ -145,41 +145,27 @@ async function agencyName(db: DB, agencyId: string) {
   return a;
 }
 
-/** A best-rate request: we promise an offer within the hour, so someone must chase the hotel. */
-export function rateRequestOpened(db: DB, r: { id: string; reference: string; agencyId: string; hotelName: string; hotelEmail: string | null; city: string; checkIn: string; checkOut: string; status: string }) {
-  return safe(async () => {
-    const a = await agencyName(db, r.agencyId);
-    if (!a || a.isSample) return;
-    await sendEmail(db, {
-      to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_rate_request', relatedId: r.id,
-      subject: `Best-rate request ${r.reference} · ${r.hotelName} · ${a.name}${r.status === 'sent' ? '' : ' · HOTEL NOT EMAILED'}`,
-      body: [
-        `${a.name} asked ${r.hotelName} (${r.city}) for its best rate, ${formatDate(r.checkIn)} → ${formatDate(r.checkOut)}.`,
-        r.status === 'sent' ? `The hotel was emailed at ${r.hotelEmail}.` : `The hotel could NOT be emailed (${r.hotelEmail || 'no address'}) — please contact it directly.`,
-        '',
-        'We aim to get the agent an offer within 1 hour. If the hotel has not answered in ~45 minutes, call or WhatsApp them.',
-        '',
-        appUrl('/admin/rate-requests'),
-      ].join('\n'),
-    });
-  });
-}
 
-export function groupEnquiryOpened(db: DB, e: { id: string; reference: string; agencyId: string; groupName: string; totalPax: number; legs: { city: string; checkIn: string; checkOut: string }[]; quoteNeededBy: string; isSample?: boolean }) {
+export function groupEnquiryOpened(db: DB, e: { id: string; reference: string; agencyId: string; groupName: string; totalPax: number; legs: { city: string; checkIn: string; checkOut: string }[]; quoteNeededBy: string; isSample?: boolean; assignedTo?: string | null }) {
   return safe(async () => {
     const a = await agencyName(db, e.agencyId);
-    if (!a || a.isSample || e.isSample) return;
-    await sendEmail(db, {
-      to: NOTIFY_EMAIL, toName: 'HotelBridge Group Desk', kind: 'ops_group', relatedId: e.id,
-      subject: `New group ${e.reference} · ${a.name} · ${e.totalPax} pax · ${e.legs.map((l) => l.city).join(' + ')}`,
+    if (!a) return;
+    const [owner] = e.assignedTo ? await db.select({ name: schema.users.name, email: schema.users.email }).from(schema.users).where(eq(schema.users.id, e.assignedTo)) : [];
+    const mail = {
+      kind: 'ops_group', relatedId: e.id,
+      subject: `${a.isSample || e.isSample ? 'DEMO · ' : ''}New group enquiry ${e.reference} · ${a.name} · ${e.totalPax} pax · ${e.legs.map((l) => l.city).join(' + ')}`,
       body: [
         `${a.name} sent a group enquiry: ${e.groupName}, ${e.totalPax} travellers.`,
         ...e.legs.map((l) => `  ${l.city}: ${formatDate(l.checkIn)} → ${formatDate(l.checkOut)}`),
         `Quote needed by ${formatDate(e.quoteNeededBy)}. We promised a first reply within 24 hours.`,
+        `Handled by: ${owner ? owner.name : 'Not assigned yet'}`,
         '',
+        'Open it, tick the suitable hotels and email them in one click; then approve the offer and send it to the agent:',
         appUrl(`/admin/groups/${e.id}`),
       ].join('\n'),
-    });
+    };
+    await sendEmail(db, { to: NOTIFY_EMAIL, toName: 'HotelBridge Group Desk', ...mail });
+    if (owner && owner.email.toLowerCase() !== NOTIFY_EMAIL.toLowerCase()) await sendEmail(db, { to: owner.email, toName: owner.name, ...mail });
   });
 }
 

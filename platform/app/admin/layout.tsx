@@ -5,7 +5,8 @@ import { lapseRateRequests } from '@/lib/services/rate-requests';
 import { AppShell, type NavItem } from '@/components/shell';
 import { EnvBanner } from '@/components/env-banner';
 import { SignOut } from '@/components/sign-out';
-import { getDb } from '@/lib/db';
+import { getDb, schema } from '@/lib/db';
+import { inArray } from 'drizzle-orm';
 import { requireStaff } from '@/lib/session';
 import { ROLE_LABEL, type StaffRole } from '@/lib/services/actor';
 import { operationalIssues } from '@/lib/services/metrics';
@@ -16,6 +17,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const db = await getDb();
   await atMostEvery('lapse-requests', 60_000, () => Promise.all([lapseUnansweredRequests(db), lapseGroupRequests(db), lapseRateRequests(db)]));
   const issues = await memo('admin-issues', 20_000, () => operationalIssues(db));
+  // Best-rate requests waiting on us: new ones to ask hotels for, and hotel replies to check and send.
+  const deskTodo = await memo('desk-todo', 15_000, async () => {
+    const rows = await db.select({ id: schema.rateRequests.id, parentId: schema.rateRequests.parentId }).from(schema.rateRequests)
+      .where(inArray(schema.rateRequests.status, ['review', 'hotel_quoted']));
+    return new Set(rows.map((x) => x.parentId ?? x.id)).size;
+  });
   const role = user.platformRole as StaffRole;
   // Each role sees its own work; admin sees everything.
   const ROLES: Record<string, StaffRole[]> = {
@@ -44,7 +51,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/tracker', label: 'Arrivals & hotels', icon: 'compare', section: 'Operations' },
     { href: '/admin/bookings', label: 'Bookings', icon: 'bookings', section: 'Operations' },
     { href: '/admin/groups', label: 'Group Desk', icon: 'groups', section: 'Operations' },
-    { href: '/admin/rate-requests', label: 'Best-rate requests', icon: 'spark', section: 'Operations' },
+    { href: '/admin/rate-requests', label: 'Best-rate requests', icon: 'spark', badge: deskTodo, section: 'Operations' },
     { href: '/admin/support', label: 'Support', icon: 'support', section: 'Operations' },
     { href: '/admin/prospects', label: 'Hotel outreach', icon: 'inbox', section: 'Portfolio' },
     { href: '/admin/hotels', label: 'Hotels & contracts', icon: 'hotels', section: 'Portfolio' },

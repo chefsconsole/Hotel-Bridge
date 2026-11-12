@@ -105,7 +105,9 @@ export function ActionForm({ action, children, className = '', resetOnSuccess = 
 
   return (
     <Pending.Provider value={pending}>
-      <form ref={ref} onSubmit={onSubmit} className={className} id={id} noValidate
+      {/* action={run} keeps the form working before the page's JavaScript has loaded (a normal POST to the
+          server action). Once it has, onSubmit takes over and preventDefault stops React's auto-reset path. */}
+      <form ref={ref} action={run} onSubmit={onSubmit} className={className} id={id} noValidate
         onInput={(e) => { const t = e.target as HTMLElement; if (t.getAttribute('aria-invalid')) t.removeAttribute('aria-invalid'); }}>
         {typeof children === 'function' ? children(local ?? (pending ? null : state)) : children}
         {showMessage && <FormMessage state={local ?? (pending ? null : state)} />}

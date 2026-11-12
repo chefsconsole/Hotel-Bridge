@@ -12,6 +12,7 @@ import { requireStaff } from '@/lib/session';
 import { getEnquiry, GROUP_STAGES, STAGE_LABEL, suggestedRespondBy } from '@/lib/services/groups';
 import { NotFoundError } from '@/lib/services/errors';
 import { emailConfigured } from '@/lib/services/email';
+import { listStaff } from '@/lib/services/staff';
 import { compareOffers } from '@/lib/domain/offer-compare';
 import { OfferComparison } from '@/components/offer-comparison';
 
@@ -27,6 +28,7 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
   const candidates = await db.select().from(schema.hotels).where(inArray(sql`lower(${schema.hotels.city})`, cities));
   const closed = ['won', 'lost', 'cancelled'].includes(e.status);
   const mail = emailConfigured();
+  const team = (await listStaff(db)).filter((u) => u.status === 'active');
   return (
     <>
       <Link href="/admin/groups" className="text-[0.85rem] text-muted hover:text-ink">← Pipeline</Link>
@@ -132,6 +134,19 @@ export default async function AdminGroup({ params }: { params: Promise<{ id: str
           </Panel>
         </div>
         <div className="space-y-6">
+          <Panel title="Handled by">
+            <ActionForm action={groupOpsAction} className="flex flex-wrap items-end gap-3">
+              <Hidden id={e.id} op="assign" />
+              <Field label="Team member" className="min-w-0 flex-1">
+                <select name="userId" defaultValue={e.assignedTo ?? ''} className="field">
+                  <option value="">Not assigned — team inbox only</option>
+                  {team.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </Field>
+              <SubmitButton variant="secondary" size="sm">Assign</SubmitButton>
+            </ActionForm>
+            <p className="mt-2 text-[0.78rem] text-faint">They get the enquiry by email, and the agent’s decision on every proposal.</p>
+          </Panel>
           <Panel title="Requirements">
             <DL cols={1} items={[
               ['Itinerary', <ul key="l">{e.legs.map((l, i) => <li key={i}>{l.city}: {formatDate(l.checkIn)} – {formatDate(l.checkOut)}</li>)}</ul>],

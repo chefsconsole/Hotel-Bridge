@@ -23,7 +23,7 @@ export default async function HotelRatePage({ params }: { params: Promise<{ toke
   const { request: r, open } = found;
   const nights = daysBetween(r.checkIn, r.checkOut);
   const left = hoursUntil(r.respondByAt);
-  const answered = ['quoted', 'declined', 'accepted'].includes(r.status);
+  const answered = !!r.answeredAt || ['hotel_quoted', 'quoted', 'declined', 'accepted'].includes(r.status);
   const minValid = addDays(todayIso(), 1);
   const meal = r.mealPlan ? MEAL_PLANS[r.mealPlan as keyof typeof MEAL_PLANS] : null;
 

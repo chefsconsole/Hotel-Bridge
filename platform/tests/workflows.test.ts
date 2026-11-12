@@ -423,8 +423,12 @@ describe('group desk', () => {
     const p = await buildProposal(f.db, f.ADMIN, e.id, { offerIds: [o.id], markupBps: 1000, validUntil: addDays(f.today, 15) });
     expect(p.sellMinor).toBe(726_000);
 
+    // Give the agent a choice: a second proposal with the other hotel.
+    const p2 = await buildProposal(f.db, f.ADMIN, e.id, { offerIds: [alt.id], markupBps: 1000, validUntil: addDays(f.today, 15) });
     await sendProposal(f.db, f.ADMIN, p.proposal.id);
+    await sendProposal(f.db, f.ADMIN, p2.proposal.id);
     const agentView = await getEnquiry(f.db, f.A, e.id);
+    expect(agentView.proposals.filter((x) => x.status === 'sent')).toHaveLength(2);
     expect(agentView.requests).toHaveLength(0);
     expect(agentView.proposals[0].costTotalMinor).toBe(0);
     expect(agentView.offers[0].lines).toHaveLength(0);
@@ -433,6 +437,9 @@ describe('group desk', () => {
     await decideProposal(f.db, f.A, p.proposal.id, true);
     const done = await getEnquiry(f.db, f.ADMIN, e.id);
     expect(done.enquiry.status).toBe('won');
+    // Accepting one option withdraws the other.
+    expect(done.proposals.find((x) => x.id === p2.proposal.id)?.status).toBe('superseded');
+    await expect(decideProposal(f.db, f.A, p2.proposal.id, true)).rejects.toThrow(/no longer open/);
   });
 });
 

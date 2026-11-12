@@ -6,7 +6,7 @@ import { schema } from '@/lib/db';
 import { addDays } from '@/lib/domain/dates';
 import { actorFor, registerAgency } from '@/lib/services/auth';
 import { setAgencyStatus, submitPartnerApplication } from '@/lib/services/catalog';
-import { createRateRequest, hotelQuote } from '@/lib/services/rate-requests';
+import { askHotels, createRateRequest, hotelQuote, releaseOffer } from '@/lib/services/rate-requests';
 import { createEnquiry } from '@/lib/services/groups';
 import { supportReplied, supportTicketOpened } from '@/lib/services/notify';
 import { setup, type Fixture } from './helpers';
@@ -50,9 +50,14 @@ describe('agent journey — every step emails the right person', () => {
       bestRateOnRequest: true, rateRequestEmail: 'sales@journeyresort.test',
     }).returning();
     const rr = await createRateRequest(db, actor, { hotelId: h.id, checkIn: addDays(f.today, 30), checkOut: addDays(f.today, 33), rooms: [{ adults: 2, childAges: [] }], mealPlan: 'BB' });
-    expect(await kinds('sales@journeyresort.test')).toEqual(['rate_request']);
+    // HotelBridge hears first; no hotel is contacted until the team picks hotels.
+    expect(await kinds('sales@journeyresort.test')).toEqual([]);
     expect(await kinds(HB)).toContain('ops_rate_request');
+    await askHotels(db, f.ADMIN, rr.id, [h.id]);
+    expect(await kinds('sales@journeyresort.test')).toEqual(['rate_request']);
     await hotelQuote(db, rr.token, { decline: false, currency: 'THB', roomType: 'Deluxe', rate: '4200', mealPlan: 'BB', cancellation: 'Free until 7 days before', validUntil: addDays(f.today, 5) });
+    expect(await kinds('jaya@journey.test')).not.toContain('rate_request_agent'); // waits for the team
+    await releaseOffer(db, f.ADMIN, rr.id, 800);
     expect(await kinds('jaya@journey.test')).toContain('rate_request_agent');
 
     // 4. Group enquiry: HotelBridge's Group Desk is alerted.
@@ -112,11 +117,15 @@ describe('best-rate safeguards', () => {
       bestRateOnRequest: true, rateRequestEmail: 'sales@quiet.test',
     }).returning();
     const body = { hotelId: h.id, checkIn: addDays(f.today, 30), checkOut: addDays(f.today, 32), rooms: [{ adults: 2, childAges: [] }] };
+    const { askHotels: askThem } = await import('@/lib/services/rate-requests');
     const rr = await ask(f.db, f.A, body);
+    await askThem(f.db, f.ADMIN, rr.id, [h.id]);
     await lapseRateRequests(f.db, new Date(Date.now() + 25 * 3_600_000));
+    // The agent is never told a hotel went quiet — HotelBridge is, and finds another.
     const agentMail = await f.db.select().from(schema.outboundEmails).where(and(eq(schema.outboundEmails.relatedId, rr.id), eq(schema.outboundEmails.kind, 'rate_request_agent')));
-    expect(agentMail[0].subject).toContain('did not reply in time');
-    expect((await f.db.select().from(schema.outboundEmails).where(eq(schema.outboundEmails.kind, 'ops_rate_lapsed')))).toHaveLength(1);
+    expect(agentMail).toEqual([]);
+    const team = await f.db.select().from(schema.outboundEmails).where(eq(schema.outboundEmails.kind, 'ops_rate_request'));
+    expect(team.some((m) => m.subject.includes('No reply from Quiet Hotel'))).toBe(true);
 
     // A pending (unverified) agency gets 3 requests, then must wait for approval.
     const pend = actorFor((await f.db.select().from(schema.users).where(eq(schema.users.agencyId, f.pending.id)))[0]);

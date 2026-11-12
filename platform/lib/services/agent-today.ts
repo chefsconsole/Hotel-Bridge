@@ -3,7 +3,8 @@
  * a pulse of their real numbers this month, and a live activity feed.
  * Everything is read from the agency's own records — nothing estimated.
  * ------------------------------------------------------------------ */
-import { and, desc, eq, gte, inArray, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lte, notInArray, sql } from 'drizzle-orm';
+import { WORKING } from './rate-requests';
 import { schema, type DB } from '@/lib/db';
 import { addDays, daysBetween, formatDate, todayIso } from '@/lib/domain/dates';
 import { formatMoney } from '@/lib/domain/money';
@@ -34,7 +35,7 @@ export async function agentInbox(db: DB, actor: Actor, now = new Date()): Promis
   const in3 = addDays(today, 3);
   const [offers, asked, pay, arrivals, proposals, followUps] = await Promise.all([
     db.select().from(rr).where(and(eq(rr.agencyId, agencyId), eq(rr.status, 'quoted'))).orderBy(rr.quoteValidUntil),
-    db.select().from(rr).where(and(eq(rr.agencyId, agencyId), inArray(rr.status, ['sent', 'not_emailed']))).orderBy(rr.respondByAt),
+    db.select().from(rr).where(and(eq(rr.agencyId, agencyId), inArray(rr.status, WORKING))).orderBy(rr.createdAt),
     db.select({ b: bk, hotel: ht.name }).from(bk).innerJoin(ht, eq(ht.id, bk.hotelId))
       .where(and(eq(bk.agencyId, agencyId), inArray(bk.status, ['awaiting_payment', 'pending_confirmation', 'outcome_unknown']))).orderBy(bk.createdAt),
     db.select({ b: bk, hotel: ht.name }).from(bk).innerJoin(ht, eq(ht.id, bk.hotelId))
@@ -45,14 +46,19 @@ export async function agentInbox(db: DB, actor: Actor, now = new Date()): Promis
   ]);
 
   const items: InboxItem[] = [];
-  for (const r of offers) {
-    const valid = r.quoteValidUntil;
+  // One line per request, however many offers we sent for it: cheapest first, soonest expiry decides urgency.
+  const byRequest = new Map<string, typeof offers>();
+  for (const r of offers) byRequest.set(r.parentId ?? r.id, [...(byRequest.get(r.parentId ?? r.id) ?? []), r]);
+  for (const [root, list] of byRequest) {
+    const cheapest = [...list].sort((x, y) => (x.sellMinor ?? 0) - (y.sellMinor ?? 0))[0];
+    const valid = list.map((x) => x.quoteValidUntil).filter(Boolean).sort()[0] ?? null;
     const lastDay = !!valid && valid <= addDays(today, 1);
+    const price = cheapest.sellMinor && cheapest.quoteCurrency ? formatMoney(cheapest.sellMinor, cheapest.quoteCurrency) : null;
     items.push({
-      key: `offer-${r.id}`, kind: 'offer', href: `/agent/rate-requests/${r.id}`, cta: 'Review offer',
-      title: `${r.hotelName} sent its best rate`,
-      detail: [r.sellMinor && r.quoteCurrency ? formatMoney(r.sellMinor, r.quoteCurrency) : null, `${r.city} · ${formatDate(r.checkIn, { day: 'numeric', month: 'short' })}`, nightsAndRooms(r.checkIn, r.checkOut, r.rooms.length), valid ? `valid until ${formatDate(valid, { day: 'numeric', month: 'short' })}` : null].filter(Boolean).join(' · '),
-      urgency: lastDay ? 'now' : 'soon', at: valid ? Date.parse(valid) : (r.answeredAt ?? r.createdAt).getTime(),
+      key: `offer-${root}`, kind: 'offer', href: `/agent/rate-requests/${root}`, cta: list.length > 1 ? 'Compare offers' : 'Review offer',
+      title: list.length > 1 ? `${list.length} offers ready · ${cheapest.city}` : `Best rate ready · ${cheapest.hotelName}`,
+      detail: [list.length > 1 && price ? `from ${price} (${cheapest.hotelName})` : price, `${formatDate(cheapest.checkIn, { day: 'numeric', month: 'short' })}`, nightsAndRooms(cheapest.checkIn, cheapest.checkOut, cheapest.rooms.length), valid ? `valid until ${formatDate(valid, { day: 'numeric', month: 'short' })}` : null].filter(Boolean).join(' · '),
+      urgency: lastDay ? 'now' : 'soon', at: valid ? Date.parse(valid) : (cheapest.offeredAt ?? cheapest.answeredAt ?? cheapest.createdAt).getTime(),
     });
   }
   for (const { b, hotel } of pay) {
@@ -96,11 +102,18 @@ export async function agentInbox(db: DB, actor: Actor, now = new Date()): Promis
       urgency: d <= 1 ? 'now' : 'soon', at: Date.parse(b.checkIn),
     });
   }
+  // One "we're on it" line per request (however many hotels HotelBridge is asking), and none once an offer is out.
+  const withOffer = new Set(offers.map((o) => o.parentId ?? o.id));
+  const seenRoots = new Set<string>();
   for (const r of asked) {
+    const root = r.parentId ?? r.id;
+    if (seenRoots.has(root) || withOffer.has(root)) continue;
+    seenRoots.add(root);
+    const first = asked.find((x) => x.id === root) ?? r;
     items.push({
-      key: `ask-${r.id}`, kind: 'asked', href: `/agent/rate-requests/${r.id}`, cta: 'View',
-      title: `Waiting for ${r.hotelName}`, detail: `${r.reference} · ${r.city} · asked ${formatDate(r.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`,
-      urgency: 'waiting', at: r.respondByAt.getTime(),
+      key: `ask-${root}`, kind: 'asked', href: `/agent/rate-requests/${root}`, cta: 'View',
+      title: `Getting your best rate · ${first.hotelName}`, detail: `${first.reference} · ${first.city} · ${formatDate(first.checkIn, { day: 'numeric', month: 'short' })} · the HotelBridge team will send you an offer soon`,
+      urgency: 'waiting', at: first.createdAt.getTime(),
     });
   }
   return rankInbox(items);
@@ -122,6 +135,21 @@ export function median(xs: number[]): number | null {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 }
 
+/** Minutes from each request to its first offer. */
+function firstOffers(rows: { id: string; parentId: string | null; created: Date; offered: Date | null }[]) {
+  const roots = new Map(rows.filter((r) => !r.parentId).map((r) => [r.id, r.created]));
+  const first = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.offered) continue;
+    const root = r.parentId ?? r.id;
+    const created = roots.get(root);
+    if (!created) continue;
+    const m = Math.round((r.offered.getTime() - created.getTime()) / 60_000);
+    first.set(root, Math.min(first.get(root) ?? Infinity, m));
+  }
+  return [...first.values()];
+}
+
 export async function agentPulse(db: DB, actor: Actor, now = new Date()): Promise<Pulse> {
   const agencyId = agencyOf(actor);
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -130,11 +158,11 @@ export async function agentPulse(db: DB, actor: Actor, now = new Date()): Promis
   const [confirmed, reqs, answered, weekly] = await Promise.all([
     db.select({ checkIn: bk.checkIn, checkOut: bk.checkOut, rooms: bk.rooms }).from(bk)
       .where(and(eq(bk.agencyId, agencyId), inArray(bk.status, ['confirmed', 'completed', 'amendment_requested']), gte(bk.createdAt, monthStart))),
-    db.select({ status: rr.status }).from(rr).where(and(eq(rr.agencyId, agencyId), gte(rr.createdAt, monthStart))),
-    db.select({ created: rr.createdAt, answered: rr.answeredAt }).from(rr)
-      .where(and(eq(rr.agencyId, agencyId), isNotNull(rr.answeredAt), inArray(rr.status, ['quoted', 'accepted', 'expired']), gte(rr.createdAt, ninety))),
+    db.select({ status: rr.status, parentId: rr.parentId }).from(rr).where(and(eq(rr.agencyId, agencyId), gte(rr.createdAt, monthStart))),
+    db.select({ id: rr.id, parentId: rr.parentId, created: rr.createdAt, offered: rr.offeredAt }).from(rr)
+      .where(and(eq(rr.agencyId, agencyId), gte(rr.createdAt, ninety))),
     db.select({ week: sql<string>`to_char(date_trunc('week', ${rr.createdAt}), 'YYYY-MM-DD')`, n: sql<number>`count(*)::int` }).from(rr)
-      .where(and(eq(rr.agencyId, agencyId), gte(rr.createdAt, eightWeeks))).groupBy(sql`1`).orderBy(sql`1`),
+      .where(and(eq(rr.agencyId, agencyId), isNull(rr.parentId), gte(rr.createdAt, eightWeeks))).groupBy(sql`1`).orderBy(sql`1`),
   ]);
   // Fill empty weeks so the chart has 8 even bars.
   const mondays: string[] = [];
@@ -144,9 +172,10 @@ export async function agentPulse(db: DB, actor: Actor, now = new Date()): Promis
     monthLabel: monthStart.toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' }),
     confirmed: confirmed.length,
     roomNights: confirmed.reduce((s, b) => s + b.rooms.length * daysBetween(b.checkIn, b.checkOut), 0),
-    requests: reqs.length,
+    requests: reqs.filter((r) => !r.parentId).length,
     offers: reqs.filter((r) => ['quoted', 'accepted', 'expired'].includes(r.status)).length,
-    medianReplyMinutes: median(answered.map((a) => Math.max(1, Math.round((a.answered!.getTime() - a.created.getTime()) / 60_000)))),
+    // From the agent asking to the first offer reaching them.
+    medianReplyMinutes: median(firstOffers(answered).map((m) => Math.max(1, m))),
     weekly: mondays.map((w) => ({ week: w, n: weekly.find((x) => x.week === w)?.n ?? 0 })),
   };
 }
@@ -161,9 +190,10 @@ export async function agentActivity(db: DB, actor: Actor, limit = 8): Promise<Ac
     db.select({ b: bk, hotel: ht.name }).from(bk).innerJoin(ht, eq(ht.id, bk.hotelId)).where(eq(bk.agencyId, agencyId)).orderBy(desc(bk.updatedAt)).limit(limit),
     db.select().from(ge).where(eq(ge.agencyId, agencyId)).orderBy(desc(ge.updatedAt)).limit(limit),
   ]);
+  // Only what the agent did and what we sent them — never the hotel side.
   const rateText: Record<string, [string, Activity['tone']]> = {
-    sent: ['asked for its best rate', 'neutral'], not_emailed: ['request created', 'neutral'], quoted: ['sent its best rate', 'positive'],
-    accepted: ['offer accepted', 'positive'], declined: ['has no availability', 'attention'], no_response: ['did not reply in time', 'attention'],
+    review: ['best rate requested', 'neutral'], sent: ['best rate requested', 'neutral'], not_emailed: ['best rate requested', 'neutral'], hotel_quoted: ['best rate requested', 'neutral'],
+    quoted: ['offer ready', 'positive'], accepted: ['offer accepted', 'positive'], declined: ['no offer this time', 'neutral'], no_response: ['best rate requested', 'neutral'],
     expired: ['offer expired', 'neutral'], cancelled: ['request cancelled', 'neutral'],
   };
   const bookText: Record<string, [string, Activity['tone']]> = {
@@ -171,9 +201,9 @@ export async function agentActivity(db: DB, actor: Actor, limit = 8): Promise<Ac
     pending_confirmation: ['waiting for the hotel', 'neutral'], cancelled: ['cancelled', 'neutral'], declined: ['declined by the hotel', 'attention'],
   };
   const all: Activity[] = [
-    ...rates.map((r) => {
+    ...rates.filter((r) => !r.parentId || ['quoted', 'accepted'].includes(r.status)).map((r) => {
       const [t, tone] = rateText[r.status] ?? [r.status.replace(/_/g, ' '), 'neutral' as const];
-      return { key: `r-${r.id}`, at: r.updatedAt, text: `${r.hotelName} — ${t}`, href: `/agent/rate-requests/${r.id}`, tone };
+      return { key: `r-${r.id}`, at: r.updatedAt, text: `${r.hotelName} — ${t}`, href: `/agent/rate-requests/${r.parentId ?? r.id}`, tone };
     }),
     ...books.map(({ b, hotel }) => {
       const [t, tone] = bookText[b.status] ?? [b.status.replace(/_/g, ' '), 'neutral' as const];

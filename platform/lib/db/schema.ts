@@ -633,8 +633,12 @@ export const rateRequests = pgTable('rate_requests', {
   // Private to HotelBridge and the agent — never shown or sent to the hotel.
   budgetMinor: money('budget_minor'),
   budgetCurrency: text('budget_currency'),
-  // sent | not_emailed -> quoted | declined | no_response; quoted -> accepted | expired; any open -> cancelled
+  // review (with the HotelBridge team) -> sent | not_emailed (hotel asked) -> hotel_quoted (team reviews)
+  //   -> quoted (offer released to the agent) -> accepted | expired; declined | no_response; any open -> cancelled.
+  // The agent never sees the hotel side: only "we're getting your offer" and released offers.
   status: text('status').notNull(),
+  // The HotelBridge team member handling this enquiry (gets the emails).
+  assignedTo: uuid('assigned_to'),
   token: text('token').notNull(),
   respondByAt: timestamp('respond_by_at', { withTimezone: true }).notNull(),
   answeredAt: timestamp('answered_at', { withTimezone: true }),
@@ -651,6 +655,8 @@ export const rateRequests = pgTable('rate_requests', {
   quoteNotes: text('quote_notes'),
   quoteValidUntil: date('quote_valid_until'),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  // When the team released the offer to the agent.
+  offeredAt: timestamp('offered_at', { withTimezone: true }),
   // Set when the agent asked this hotel as an alternative to an earlier request.
   parentId: uuid('parent_id'),
   createdAt: createdAt(),

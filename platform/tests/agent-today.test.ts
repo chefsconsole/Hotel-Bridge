@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { schema } from '@/lib/db';
 import { addDays } from '@/lib/domain/dates';
 import { agentActivity, agentInbox, agentPulse, ago, greetingFor, median, rankInbox, type InboxItem } from '@/lib/services/agent-today';
-import { createRateRequest, hotelQuote } from '@/lib/services/rate-requests';
+import { askHotels, createRateRequest, hotelQuote, releaseOffer } from '@/lib/services/rate-requests';
 import { setup, type Fixture } from './helpers';
 
 let f: Fixture | undefined;
@@ -48,12 +48,18 @@ describe('agent inbox, pulse and activity', () => {
     const body = { hotelId: h.id, checkIn: addDays(fx.today, 20), checkOut: addDays(fx.today, 23), rooms: [{ adults: 2, childAges: [] }] };
     const quoted = await createRateRequest(fx.db, fx.A, body);
     await createRateRequest(fx.db, fx.A, body);
+    await askHotels(fx.db, fx.ADMIN, quoted.id, [h.id]);
     await hotelQuote(fx.db, quoted.token, { decline: false, currency: 'THB', roomType: 'Deluxe', rate: '4000', mealPlan: 'BB', cancellation: 'Free until 7 days', validUntil: addDays(fx.today, 1) });
+    // Until HotelBridge sends it, the agent sees only "we're getting your best rate".
+    expect((await agentInbox(fx.db, fx.A)).filter((i) => i.kind === 'offer')).toEqual([]);
+    await releaseOffer(fx.db, fx.ADMIN, quoted.id, 800);
 
     const inbox = await agentInbox(fx.db, fx.A);
     expect(inbox[0]).toMatchObject({ kind: 'offer', urgency: 'now', href: `/agent/rate-requests/${quoted.id}` });
     expect(inbox[0].title).toContain('Today Resort');
-    expect(inbox.filter((i) => i.kind === 'asked')).toHaveLength(1);
+    const waiting = inbox.filter((i) => i.kind === 'asked');
+    expect(waiting).toHaveLength(1);
+    expect(waiting[0].title).toContain('Getting your best rate');
     expect(inbox.at(-1)?.urgency).toBe('waiting');
 
     // Agency B sees none of A's work.
@@ -67,7 +73,9 @@ describe('agent inbox, pulse and activity', () => {
     expect(pulse.weekly.at(-1)?.n).toBe(2);
 
     const activity = await agentActivity(fx.db, fx.A);
-    expect(activity.some((a) => a.text.includes('sent its best rate') && a.tone === 'positive')).toBe(true);
+    expect(activity.some((a) => a.text.includes('offer ready') && a.tone === 'positive')).toBe(true);
+    // Nothing about hotels being asked, replying or emails.
+    expect(JSON.stringify([inbox, activity])).not.toMatch(/asked for its|emailed|hotel replied|not emailed/i);
   });
 
   it('is for agents only', async () => {

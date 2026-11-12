@@ -4,21 +4,23 @@
  * margins, history — is the system's job.
  * ------------------------------------------------------------------ */
 import { groupEnquiryOpened } from './notify';
-import { and, asc, desc, eq, inArray, max } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, max, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
 import type { GroupOfferLine } from '@/lib/db/schema';
-import { GROUP_FIRST_RESPONSE_HOURS } from '@/lib/config';
+import { GROUP_FIRST_RESPONSE_HOURS, NOTIFY_EMAIL } from '@/lib/config';
 import { addDays, daysBetween, formatDate, isIsoDate, todayIso } from '@/lib/domain/dates';
 import { formatMoney } from '@/lib/domain/money';
 import { priceGroupProposal } from '@/lib/domain/pricing';
 import { agencyOf, isStaff, requireStaff, type Actor } from './actor';
 import { audit } from './audit';
+import { appUrl, sendEmail } from './email';
+import { getSetting } from './settings';
 import { TIERS } from '@/lib/domain/tiers';
 import { nextNumber } from './counters';
 import { AppError, NotFoundError } from './errors';
 
-const { groupEnquiries, groupHotelRequests, groupOffers, groupProposals, groupMessages, agencies, hotels } = schema;
+const { groupEnquiries, groupHotelRequests, groupOffers, groupProposals, groupMessages, agencies, hotels, users } = schema;
 
 export const GROUP_STAGES = ['new', 'under_review', 'sent_to_hotels', 'offers_received', 'proposal_prepared', 'sent_to_agent', 'negotiation', 'won', 'lost', 'cancelled'] as const;
 export type GroupStage = typeof GROUP_STAGES[number];
@@ -77,7 +79,10 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
   const year = new Date().getUTCFullYear();
   const n = await nextNumber(db, `GRP-${year}`);
   const [agency] = await db.select({ isSample: agencies.isSample }).from(agencies).where(eq(agencies.id, agencyId));
+  const assignee = await getSetting(db, 'desk.assignee');
+  const [owner] = assignee ? await db.select({ id: users.id }).from(users).where(and(eq(users.id, assignee), eq(users.status, 'active'))) : [];
   const [e] = await db.insert(groupEnquiries).values({
+    assignedTo: owner?.id ?? null,
     reference: `GRP-${year}-${String(n).padStart(4, '0')}`,
     agencyId, createdBy: actor.userId, status: 'new',
     groupName: data.groupName, groupType: data.groupType, legs: data.legs, totalPax: data.totalPax, rooms: data.rooms,
@@ -88,7 +93,7 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
   }).returning();
   await db.insert(groupMessages).values({
     enquiryId: e.id, authorLabel: 'HotelBridge', visibility: 'shared',
-    body: `Thank you — we've received ${e.reference}. A Group Desk specialist will review it and reply within ${GROUP_FIRST_RESPONSE_HOURS} hours. We'll approach suitable hotels and send you a written proposal before ${formatDate(e.quoteNeededBy)}.`,
+    body: `Thank you — we've received ${e.reference}. A Group Desk specialist will review it and reply within ${GROUP_FIRST_RESPONSE_HOURS} hours. We'll send you a written proposal before ${formatDate(e.quoteNeededBy)}.`,
   });
   await audit(db, actor, 'group.created', 'group_enquiry', e.id, { reference: e.reference }, agencyId);
   await groupEnquiryOpened(db, e);
@@ -143,6 +148,27 @@ export async function listEnquiries(db: DB, actor: Actor) {
   return db.select({ e: groupEnquiries, agencyName: agencies.name }).from(groupEnquiries)
     .innerJoin(agencies, eq(agencies.id, groupEnquiries.agencyId))
     .where(eq(groupEnquiries.agencyId, agencyId)).orderBy(desc(groupEnquiries.createdAt));
+}
+
+/** Hand the enquiry to a team member — they get it by email. */
+export async function assignEnquiry(db: DB, actor: Actor, id: string, userId: string | null) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  const e = await load(db, actor, id);
+  let who: { name: string; email: string } | undefined;
+  if (userId) {
+    [who] = await db.select({ name: users.name, email: users.email }).from(users).where(and(eq(users.id, userId), eq(users.status, 'active')));
+    if (!who) throw new AppError('Choose an active team member');
+  }
+  await db.update(groupEnquiries).set({ assignedTo: userId, updatedAt: new Date() }).where(eq(groupEnquiries.id, e.id));
+  await db.insert(groupMessages).values({ enquiryId: e.id, authorId: actor.userId, authorLabel: actor.label, visibility: 'internal', body: who ? `Assigned to ${who.name}` : 'Unassigned' });
+  await audit(db, actor, 'group.assigned', 'group_enquiry', e.id, { userId }, e.agencyId);
+  if (who && userId !== actor.userId) {
+    await sendEmail(db, {
+      to: who.email, toName: who.name, kind: 'ops_group', relatedId: e.id,
+      subject: `Assigned to you · ${e.reference} · ${e.groupName} · ${e.totalPax} pax`,
+      body: [`${actor.label.split(' (')[0]} assigned you the group enquiry ${e.reference} (${e.groupName}, ${e.totalPax} travellers).`, ...e.legs.map((l) => `  ${l.city}: ${formatDate(l.checkIn)} → ${formatDate(l.checkOut)}`), `Quote needed by ${formatDate(e.quoteNeededBy)}.`, '', appUrl(`/admin/groups/${e.id}`)].join('\n'),
+    });
+  }
 }
 
 export async function setStage(db: DB, actor: Actor, id: string, status: GroupStage, note?: string) {
@@ -305,12 +331,16 @@ export async function sendProposal(db: DB, actor: Actor, proposalId: string) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
   const [p] = await db.select().from(groupProposals).where(eq(groupProposals.id, proposalId));
   if (!p || p.status !== 'draft') throw new AppError('Only draft proposals can be sent');
-  await db.update(groupProposals).set({ status: 'superseded' }).where(and(eq(groupProposals.enquiryId, p.enquiryId), eq(groupProposals.status, 'sent')));
+  // A revised proposal for the same hotel(s) replaces the old one; a proposal for different hotels is another option for the agent.
+  const out = await db.select().from(groupProposals).where(and(eq(groupProposals.enquiryId, p.enquiryId), eq(groupProposals.status, 'sent')));
+  const revised = out.filter((o) => o.offerIds.some((id) => p.offerIds.includes(id))).map((o) => o.id);
+  if (revised.length) await db.update(groupProposals).set({ status: 'superseded' }).where(inArray(groupProposals.id, revised));
   await db.update(groupProposals).set({ status: 'sent', sentAt: new Date() }).where(eq(groupProposals.id, p.id));
+  const hotelsIn = (await db.select({ name: groupOffers.hotelName }).from(groupOffers).where(inArray(groupOffers.id, p.offerIds))).map((o) => o.name);
   await db.update(groupEnquiries).set({ status: 'sent_to_agent', updatedAt: new Date() }).where(eq(groupEnquiries.id, p.enquiryId));
   await db.insert(groupMessages).values({
     enquiryId: p.enquiryId, authorId: actor.userId, authorLabel: 'HotelBridge Group Desk', visibility: 'shared',
-    body: `Proposal v${p.version} is ready: ${formatMoney(p.sellTotalMinor, p.currency)} in total, valid until ${formatDate(p.validUntil)}. Open it below to review and accept.`,
+    body: `${out.length - revised.length > 0 ? 'Another option' : `Proposal v${p.version}`} is ready${hotelsIn.length ? ` — ${hotelsIn.join(' + ')}` : ''}: ${formatMoney(p.sellTotalMinor, p.currency)} in total, valid until ${formatDate(p.validUntil)}. Open it below to review${out.length - revised.length > 0 ? ', compare' : ''} and accept.`,
   });
 }
 
@@ -322,14 +352,27 @@ export async function decideProposal(db: DB, actor: Actor, proposalId: string, a
   if (p.status !== 'sent') throw new AppError('This proposal is no longer open');
   if (p.validUntil < todayIso() || (p.expiresAt && p.expiresAt < new Date())) throw new AppError('This offer has expired — ask the Group Desk to revalidate it with the hotels');
   await db.update(groupProposals).set({ status: accept ? 'accepted' : 'declined', decidedAt: new Date() }).where(eq(groupProposals.id, p.id));
+  // Several options (one per hotel) may be out: accepting one withdraws the others.
+  if (accept) await db.update(groupProposals).set({ status: 'superseded', decidedAt: new Date() }).where(and(eq(groupProposals.enquiryId, e.id), eq(groupProposals.status, 'sent'), ne(groupProposals.id, p.id)));
   await db.update(groupEnquiries).set({ status: accept ? 'won' : 'negotiation', updatedAt: new Date() }).where(eq(groupEnquiries.id, e.id));
   await db.insert(groupMessages).values({
     enquiryId: e.id, authorId: actor.userId, authorLabel: actor.label.split(' (')[0], visibility: 'shared',
     body: accept
-      ? `Accepted proposal v${p.version}.${note ? ' ' + note : ''} Next: HotelBridge confirms with the hotels and sends the contract and payment schedule.`
+      ? `Accepted proposal v${p.version}.${note ? ' ' + note : ''} Next: HotelBridge confirms everything and sends you the contract and payment schedule.`
       : `Declined proposal v${p.version}.${note ? ' ' + note : ''}`,
   });
   await audit(db, actor, accept ? 'group.proposal_accepted' : 'group.proposal_declined', 'group_enquiry', e.id, { version: p.version }, e.agencyId);
+  // Tell the team (inbox + whoever handles it) — an accepted group needs confirming with the hotels.
+  try {
+    const [owner] = e.assignedTo ? await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, e.assignedTo)) : [];
+    const mail = {
+      kind: 'ops_group', relatedId: e.id,
+      subject: `${accept ? 'Accepted' : 'Declined'} · ${e.reference} · ${e.groupName} · proposal v${p.version}`,
+      body: [`The agent ${accept ? 'ACCEPTED' : 'declined'} proposal v${p.version} (${formatMoney(p.sellTotalMinor, p.currency)}).${note ? ` Their note: ${note}` : ''}`, accept ? 'Confirm with the hotels and send the contract and payment schedule.' : 'Follow up with the agent if there is a better option.', '', appUrl(`/admin/groups/${e.id}`)].join('\n'),
+    };
+    await sendEmail(db, { to: NOTIFY_EMAIL, toName: 'HotelBridge Group Desk', ...mail });
+    if (owner && owner.email.toLowerCase() !== NOTIFY_EMAIL.toLowerCase()) await sendEmail(db, { to: owner.email, toName: owner.name, ...mail });
+  } catch (err) { console.error('[groups] decision notice failed', err); }
 }
 
 export function suggestedRespondBy(quoteNeededBy: string) {

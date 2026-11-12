@@ -7,7 +7,7 @@
  * Sample records are hidden in production, like everywhere else.
  * ------------------------------------------------------------------ */
 import { formatDate } from '@/lib/domain/dates';
-import { and, desc, eq, ilike, ne, or } from 'drizzle-orm';
+import { and, desc, eq, ilike, ne, or, isNull } from 'drizzle-orm';
 import { schema, type DB } from '@/lib/db';
 import { demoMode } from '@/lib/config';
 import type { Actor } from './actor';
@@ -58,15 +58,16 @@ export async function paletteSearch(db: DB, actor: Actor, raw: string): Promise<
         .where(and(eq(groupEnquiries.agencyId, mine), or(ilike(groupEnquiries.reference, p), ilike(groupEnquiries.groupName, p)))).orderBy(desc(groupEnquiries.createdAt)).limit(LIMIT),
       db.select({ id: clients.id, name: clients.name, city: clients.city }).from(clients)
         .where(and(eq(clients.agencyId, mine), ilike(clients.name, p))).orderBy(clients.name).limit(LIMIT),
+      // Only the agent's own requests — never the extra hotels HotelBridge asked behind the scenes.
       db.select({ id: rateRequests.id, ref: rateRequests.reference, hotel: rateRequests.hotelName, status: rateRequests.status }).from(rateRequests)
-        .where(and(eq(rateRequests.agencyId, mine), ne(rateRequests.status, 'cancelled'), or(ilike(rateRequests.reference, p), ilike(rateRequests.hotelName, p)))).orderBy(desc(rateRequests.createdAt)).limit(LIMIT),
+        .where(and(eq(rateRequests.agencyId, mine), isNull(rateRequests.parentId), ne(rateRequests.status, 'cancelled'), or(ilike(rateRequests.reference, p), ilike(rateRequests.hotelName, p)))).orderBy(desc(rateRequests.createdAt)).limit(LIMIT),
     ]);
     return [
       ...h.map((x) => ({ kind: 'Hotel' as const, title: x.name, detail: `${x.city}, ${x.country}`, href: `/agent/hotels/${x.id}` })),
       ...b.map((x) => ({ kind: 'Booking' as const, title: x.ref, detail: `${x.guest} · ${formatDate(x.checkIn)} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/bookings/${x.id}` })),
       ...g.map((x) => ({ kind: 'Group' as const, title: x.ref, detail: `${x.name} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/groups/${x.id}` })),
       ...c.map((x) => ({ kind: 'Client' as const, title: x.name, detail: x.city ?? '', href: `/agent/clients/${x.id}` })),
-      ...r.map((x) => ({ kind: 'Best rate' as const, title: x.ref, detail: `${x.hotel} · ${x.status.replace(/_/g, ' ')}`, href: `/agent/rate-requests/${x.id}` })),
+      ...r.map((x) => ({ kind: 'Best rate' as const, title: x.ref, detail: x.hotel, href: `/agent/rate-requests/${x.id}` })),
     ];
   }
   return [];

@@ -22,8 +22,7 @@ import {
   setContractStatus, setHotelImages, setHotelStatus, updateContract, updateHotel,
 } from '@/lib/services/catalog';
 import {
-  addMessage, buildProposal, generateHotelRequests, markRequestSent, recordOffer, sendProposal, setRequestStatus, setStage, type GroupStage,
-} from '@/lib/services/groups';
+  addMessage, buildProposal, generateHotelRequests, markRequestSent, recordOffer, sendProposal, setRequestStatus, setStage, type GroupStage, assignEnquiry } from '@/lib/services/groups';
 import { setSetting } from '@/lib/services/settings';
 import { AppError } from '@/lib/services/errors';
 import { audit } from '@/lib/services/audit';
@@ -301,6 +300,7 @@ export async function groupOpsAction(_: ActionResult | null, fd: FormData): Prom
     const op = str(fd, 'op');
     let msg = 'Saved.';
     if (op === 'stage') await setStage(db, actor, id, str(fd, 'status') as GroupStage, optStr(fd, 'note'));
+    else if (op === 'assign') { await assignEnquiry(db, actor, id, optStr(fd, 'userId') ?? null); msg = 'Assigned — they have the details by email.'; }
     else if (op === 'message') { await addMessage(db, actor, id, str(fd, 'body'), str(fd, 'visibility') === 'shared' ? 'shared' : 'internal'); msg = 'Message added.'; }
     else if (op === 'requests') {
       const manual = str(fd, 'manual').split('\n').map((l) => l.split(',').map((x) => x.trim())).filter((p) => p[0]).map(([name, city, email]) => ({ name, city: city || '', email }));
