@@ -32,9 +32,12 @@ const AREAS: Record<string, string[]> = {
   // Middle East
   uae: ['Dubai'], emirates: ['Dubai'], 'jumeirah': ['Dubai'],
   // Europe
-  europe: ['London', 'Paris', 'Amsterdam', 'Rome', 'Prague', 'Vienna', 'Interlaken', 'Geneva'],
-  swiss: ['Interlaken', 'Geneva'], switzerland: ['Interlaken', 'Geneva'], jungfrau: ['Interlaken'], uk: ['London'], england: ['London'],
-  holland: ['Amsterdam'], italy: ['Rome'], austria: ['Vienna'], czech: ['Prague'], france: ['Paris'],
+  europe: ['London', 'Paris', 'Amsterdam', 'Rome', 'Prague', 'Vienna', 'Zurich', 'Munich', 'Berlin', 'Salzburg', 'Interlaken', 'Geneva'],
+  swiss: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], switzerland: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], jungfrau: ['Interlaken'], uk: ['London'], england: ['London'],
+  holland: ['Amsterdam'], italy: ['Rome'], czech: ['Prague'], france: ['Paris'],
+  austria: ['Vienna', 'Salzburg', 'Innsbruck', 'Graz', 'Linz', 'Villach', 'Lienz', 'Dornbirn', 'Steyr', 'Bischofshofen'],
+  germany: ['Berlin', 'Munich'], bavaria: ['Munich'], tyrol: ['Innsbruck', 'Lienz'], tirol: ['Innsbruck', 'Lienz'], telfs: ['Innsbruck'], carinthia: ['Villach'],
+  vorarlberg: ['Dornbirn'], wien: ['Vienna'], muenchen: ['Munich'], munchen: ['Munich'], zuerich: ['Zurich'], zurich: ['Zurich'], wallisellen: ['Zurich'], spreitenbach: ['Zurich'], ostermundigen: ['Bern'],
   // Oceania / Africa
   australia: ['Sydney'], 'south africa': ['Johannesburg'], midrand: ['Johannesburg'], joburg: ['Johannesburg'],
 };
@@ -43,7 +46,7 @@ const AREAS: Record<string, string[]> = {
 const CODES: Record<string, string> = {
   bkk: 'Bangkok', dmk: 'Bangkok', hkt: 'Phuket', kbv: 'Krabi', usm: 'Koh Samui', utp: 'Pattaya', dps: 'Bali', sin: 'Singapore', dxb: 'Dubai',
   dad: 'Da Nang', han: 'Hanoi', hkg: 'Hong Kong', mle: 'Maldives', cmb: 'Sri Lanka', lhr: 'London', cdg: 'Paris', ams: 'Amsterdam',
-  fco: 'Rome', prg: 'Prague', vie: 'Vienna', gva: 'Geneva', syd: 'Sydney', jnb: 'Johannesburg', goi: 'Goa', gox: 'Goa', cok: 'Kochi',
+  fco: 'Rome', prg: 'Prague', vie: 'Vienna', gva: 'Geneva', zrh: 'Zurich', muc: 'Munich', ber: 'Berlin', szg: 'Salzburg', inn: 'Innsbruck', grz: 'Graz', lnz: 'Linz', brn: 'Bern', syd: 'Sydney', jnb: 'Johannesburg', goi: 'Goa', gox: 'Goa', cok: 'Kochi',
   sxr: 'Srinagar', vns: 'Varanasi', agr: 'Agra', ded: 'Dehradun', ixj: 'Katra', atq: 'Amritsar', udr: 'Udaipur',
 };
 

@@ -4,7 +4,7 @@
 
 /** [lat, lon] for the cities we work in. A city missing here is still counted, just not drawn. */
 const COORDS: Record<string, [number, number]> = {
-  sydney: [-33.87, 151.21], vienna: [48.21, 16.37], prague: [50.08, 14.44], paris: [48.86, 2.35], 'hong kong': [22.32, 114.17],
+  sydney: [-33.87, 151.21], vienna: [48.21, 16.37], zurich: [47.37, 8.54], munich: [48.14, 11.58], berlin: [52.52, 13.4], salzburg: [47.81, 13.04], prague: [50.08, 14.44], paris: [48.86, 2.35], 'hong kong': [22.32, 114.17],
   agra: [27.18, 78.01], amritsar: [31.63, 74.87], bhimtal: [29.34, 79.56], dehradun: [30.32, 78.03], gangtok: [27.33, 88.61],
   goa: [15.3, 74.12], haridwar: [29.95, 78.16], katra: [32.99, 74.93], kochi: [9.93, 76.27], kollam: [8.89, 76.61], munnar: [10.09, 77.06],
   mussoorie: [30.46, 78.07], mysore: [12.3, 76.64], 'neil island': [11.83, 93.03], ooty: [11.41, 76.7], parwanoo: [30.84, 76.96],
