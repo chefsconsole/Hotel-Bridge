@@ -9,7 +9,7 @@ import { getDb } from '@/lib/db';
 import { formatDate, todayIso } from '@/lib/domain/dates';
 import { decodeRooms, describeRooms, encodeRooms } from '@/lib/domain/occupancy';
 import { requireAgent } from '@/lib/session';
-import { destinations, recentSearches } from '@/lib/services/search';
+import { destinations, recentSearches, whereHotels } from '@/lib/services/search';
 import { agentActivity, agentInbox, agentPulse, ago, greetingFor, type InboxItem, type Pulse, type Urgency } from '@/lib/services/agent-today';
 
 export const metadata = { title: 'Today' };
@@ -22,8 +22,8 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
   const db = await getDb();
   const today = todayIso();
   const aiOn = aiConfigured();
-  const [inbox, pulse, activity, tripRows, searches, dests] = await Promise.all([
-    agentInbox(db, actor), agentPulse(db, actor), agentActivity(db, actor), listTrips(db, actor), recentSearches(db, actor, 3), destinations(db),
+  const [inbox, pulse, activity, tripRows, searches, dests, partnerHotels] = await Promise.all([
+    agentInbox(db, actor), agentPulse(db, actor), agentActivity(db, actor), listTrips(db, actor), recentSearches(db, actor, 3), destinations(db), whereHotels(db),
   ]);
   const owed = receivables(tripRows);
   const actNow = inbox.filter((i) => i.urgency === 'now').length;
@@ -45,7 +45,7 @@ export default async function AgentOverview({ searchParams }: { searchParams: Pr
           </div>
           <Link href="/agent/groups/new" className="hb-rise rounded-full border border-paper/20 px-4 py-2 text-[0.85rem] text-paper/80 transition-colors hover:border-[#e0bd78]/60 hover:text-paper" style={delay(200)}>10+ rooms? Paste a group enquiry →</Link>
         </div>
-        <div className="hb-rise mt-8 text-ink" style={delay(240)}><SearchForm destinations={dests} initial={{ rooms: [{ adults: 2, childAges: [] }] }} /></div>
+        <div className="hb-rise mt-8 text-ink" style={delay(240)}><SearchForm destinations={dests} hotels={partnerHotels} initial={{ rooms: [{ adults: 2, childAges: [] }] }} /></div>
         {aiOn && <div className="hb-rise mt-5 max-w-3xl" style={delay(300)}><p className="mb-2 text-[0.8rem] text-paper/50">Or describe the stay in your own words</p><SmartSearch enabled /></div>}
         {searches.length > 0 && (
           <div className="hb-rise mt-5 flex flex-wrap items-center gap-2 text-[0.8rem]" style={delay(340)}>

@@ -3,6 +3,7 @@
  * agency's pricing rule. A quote freezes the server's own calculation; the
  * client never sends a price that we trust.
  * ------------------------------------------------------------------ */
+import { demoMode } from '@/lib/config';
 import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { schema, type DB } from '@/lib/db';
@@ -162,6 +163,13 @@ export async function searchHotels(db: DB, actor: Actor, input: SearchInput, opt
 export async function destinations(db: DB) {
   return db.select({ city: hotels.city, country: hotels.country, n: sql<number>`count(*)::int` })
     .from(hotels).where(eq(hotels.status, 'active')).groupBy(hotels.city, hotels.country).orderBy(asc(hotels.city));
+}
+
+/** Partner hotels for the smart "Where to" box: name and place only, never prices. */
+export async function whereHotels(db: DB) {
+  const rows = await db.select({ id: hotels.id, name: hotels.name, city: hotels.city, country: hotels.country, onRequest: hotels.bestRateOnRequest, isSample: hotels.isSample })
+    .from(hotels).where(eq(hotels.status, 'active')).orderBy(asc(hotels.name));
+  return rows.filter((h) => demoMode || !h.isSample).map((h) => ({ id: h.id, name: h.name, city: h.city, country: h.country, onRequest: h.onRequest }));
 }
 
 export type QuoteSnapshot = { offer: SupplierOffer; priced: PricedOffer; hotelName: string; city: string };

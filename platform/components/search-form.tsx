@@ -2,6 +2,7 @@
 /* The hotel search bar: Where to · Check-in · Check-out · Guests · Search.
  * One rounded bar; each part opens its own panel underneath. Choosing a
  * destination opens the calendar, choosing check-out closes it. */
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from 'react';
 import { RangeCalendar, shortDate } from './date-range-picker';
@@ -9,6 +10,7 @@ import { cx } from './ui';
 import { encodeRooms, MAX_ROOMS } from '@/lib/domain/occupancy';
 import { daysBetween } from '@/lib/domain/dates';
 import type { RoomRequest } from '@/lib/db/schema';
+import { smartWhere, type Suggestion, type WhereHotel } from '@/lib/domain/smart-where';
 
 type Dest = { city: string; country: string; n: number };
 type Panel = 'where' | 'in' | 'out' | 'guests' | null;
@@ -18,13 +20,17 @@ const I = {
   cal: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9c0-3.9 3.1-6 7-6s7 2.1 7 6',
   search: 'M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Zm5.3-2.2L21 21',
+  hotel: 'M4 21V5l8-2v18M12 7l8 2v12M8 9h.01M8 13h.01M8 17h.01M16 13h.01M16 17h.01M2 21h20',
 };
 const Icon = ({ d, className = 'size-5' }: { d: string; className?: string }) => (
   <svg viewBox="0 0 24 24" className={cx('shrink-0', className)} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>
 );
 
-export function SearchForm({ destinations, initial, keep }: {
-  destinations: Dest[]; initial: { city?: string; checkIn?: string; checkOut?: string; rooms: RoomRequest[] }; compact?: boolean;
+export function SearchForm({ destinations, hotels = [], initial, keep }: {
+  destinations: Dest[];
+  /** Partner hotels, so agents can type a hotel's name and go straight to it. */
+  hotels?: WhereHotel[];
+  initial: { city?: string; checkIn?: string; checkOut?: string; rooms: RoomRequest[] }; compact?: boolean;
   /** Extra URL parameters carried into the results, e.g. the trip being built. */
   keep?: Record<string, string>;
 }) {
@@ -32,6 +38,7 @@ export function SearchForm({ destinations, initial, keep }: {
   const [pending, start] = useTransition();
   const [city, setCity] = useState(initial.city ?? '');
   const [query, setQuery] = useState(initial.city ?? '');
+  const [hotel, setHotel] = useState<{ id: string; name: string } | null>(null);
   const [checkIn, setIn] = useState(initial.checkIn ?? '');
   const [checkOut, setOut] = useState(initial.checkOut ?? '');
   const [rooms, setRooms] = useState<RoomRequest[]>(initial.rooms);
@@ -50,38 +57,54 @@ export function SearchForm({ destinations, initial, keep }: {
     return () => { document.removeEventListener('mousedown', down); document.removeEventListener('keydown', key); };
   }, [panel]);
 
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || q === city.toLowerCase()) return destinations;
-    return destinations.filter((d) => d.city.toLowerCase().includes(q) || d.country.toLowerCase().includes(q));
-  }, [query, city, destinations]);
+  const matches: Suggestion[] = useMemo(() => {
+    const chosen = query.trim().toLowerCase() === city.toLowerCase() || (hotel && query === hotel.name);
+    return smartWhere(chosen ? '' : query, destinations, hotels, chosen ? 50 : 8);
+  }, [query, city, hotel, destinations, hotels]);
 
   const adults = rooms.reduce((s, r) => s + r.adults, 0);
   const kids = rooms.reduce((s, r) => s + r.childAges.length, 0);
   const guestsText = `${adults} adult${adults === 1 ? '' : 's'}${kids ? `, ${kids} child${kids === 1 ? '' : 'ren'}` : ''} · ${rooms.length} room${rooms.length === 1 ? '' : 's'}`;
   const nights = checkIn && checkOut ? daysBetween(checkIn, checkOut) : 0;
 
-  function chooseCity(d: Dest) {
-    setCity(d.city);
-    setQuery(d.city);
+  const go = (path: string) => start(() => router.push(path));
+  const stayParams = (extra: Record<string, string> = {}) => new URLSearchParams({ ...keep, ...extra, ...(checkIn && checkOut ? { in: checkIn, out: checkOut } : {}), rooms: encodeRooms(rooms) });
+
+  function choose(s: Suggestion) {
     setError('');
+    if (s.kind === 'hotel') {
+      setHotel({ id: s.id, name: s.name });
+      setCity(s.city);
+      setQuery(s.name);
+      // With dates already chosen, open the hotel straight away; otherwise pick dates first.
+      if (checkIn && checkOut) { setPanel(null); go(`/agent/hotels/${s.id}?${stayParams()}`); }
+      else setPanel('in');
+      return;
+    }
+    setHotel(null);
+    setCity(s.city);
+    setQuery(s.city);
     setPanel(checkIn && checkOut ? null : 'in');
   }
 
   function onWhereKey(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setPanel('where'); setCursor((c) => Math.min(c + 1, matches.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setCursor((c) => Math.max(c - 1, 0)); }
-    else if (e.key === 'Enter' && panel === 'where' && matches[cursor]) { e.preventDefault(); chooseCity(matches[cursor]); }
+    else if (e.key === 'Enter' && panel === 'where' && matches[cursor]) { e.preventDefault(); choose(matches[cursor]); }
   }
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    const chosen = city || destinations.find((d) => d.city.toLowerCase() === query.trim().toLowerCase())?.city;
-    if (!chosen) { setError('Choose a destination from the list'); setPanel('where'); whereInput.current?.focus(); return; }
+    // Typed without picking? Take the best smart match.
+    const best = !city && query.trim() ? smartWhere(query, destinations, hotels, 1)[0] : undefined;
+    if (best && best.kind === 'hotel' && !hotel) { choose(best); return; }
+    const chosen = city || (best?.kind === 'city' ? best.city : undefined);
+    if (!chosen) { setError(query.trim() ? `No partner hotels match “${query.trim()}” yet — try a city, a hotel or a region, or ask the Group Desk` : 'Where are your clients going?'); setPanel('where'); whereInput.current?.focus(); return; }
     if (!checkIn || !checkOut) { setError('Choose check-in and check-out dates'); setPanel(checkIn ? 'out' : 'in'); return; }
     setError('');
     setPanel(null);
-    start(() => router.push(`/agent/search?${new URLSearchParams({ ...keep, city: chosen, in: checkIn, out: checkOut, rooms: encodeRooms(rooms) })}`));
+    if (hotel) go(`/agent/hotels/${hotel.id}?${stayParams()}`);
+    else go(`/agent/search?${stayParams({ city: chosen })}`);
   }
 
   const update = (i: number, patch: Partial<RoomRequest>) => setRooms((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
@@ -110,9 +133,9 @@ export function SearchForm({ destinations, initial, keep }: {
             <span className="min-w-0 flex-1">
               <span className="block text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">Where to</span>
               <input ref={whereInput} value={query} autoComplete="off" spellCheck={false}
-                onChange={(e) => { setQuery(e.target.value); setCity(''); setCursor(0); setPanel('where'); }}
+                onChange={(e) => { setQuery(e.target.value); setCity(''); setHotel(null); setCursor(0); setPanel('where'); }}
                 onFocus={() => { setPanel('where'); setCursor(0); }} onKeyDown={onWhereKey}
-                placeholder="Search a city" role="combobox" aria-expanded={panel === 'where'} aria-controls="hb-where"
+                placeholder="City, hotel or region" role="combobox" aria-expanded={panel === 'where'} aria-controls="hb-where"
                 className="block w-full bg-transparent text-[0.95rem] outline-none placeholder:text-faint" />
             </span>
           </label>
@@ -139,21 +162,28 @@ export function SearchForm({ destinations, initial, keep }: {
 
             {panel === 'where' && (
               <div id="hb-where" role="listbox">
-                <p className="mb-2 px-2 text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">{query && !city ? 'Matching destinations' : 'Our destinations'}</p>
+                <p className="mb-2 px-2 text-[0.68rem] font-medium tracking-[0.14em] text-faint uppercase">{query && !city ? 'Best matches' : 'Our destinations · busiest first'}</p>
                 {matches.length === 0 ? (
-                  <p className="px-2 py-3 text-[0.9rem] text-muted">We don&apos;t have hotels in “{query}” yet. The Group Desk can still source them for you.</p>
+                  <div className="px-2 py-3 text-[0.9rem] text-muted">
+                    <p>No partner hotels for “{query}” yet.</p>
+                    <p className="mt-1 text-[0.82rem]">Try a city (“Phuket”), a hotel (“Royal Cliff”), a region (“Uttarakhand”) or an airport code (“BKK”). For anywhere else, <Link href="/agent/groups/new" className="font-medium text-ink underline underline-offset-2">the Group Desk sources hotels for you</Link>.</p>
+                  </div>
                 ) : (
                   <ul className="max-h-80 overflow-auto">
                     {matches.map((d, i) => (
-                      <li key={d.city}>
-                        <button type="button" role="option" aria-selected={i === cursor} onMouseEnter={() => setCursor(i)} onClick={() => chooseCity(d)}
-                          className={cx('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left', i === cursor ? 'bg-mist' : '')}>
-                          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-champagne-soft text-champagne"><Icon d={I.pin} className="size-4" /></span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block font-medium">{d.city}</span>
-                            <span className="block text-[0.8rem] text-muted">{d.country}</span>
+                      <li key={d.key}>
+                        <button type="button" role="option" aria-selected={i === cursor} onMouseEnter={() => setCursor(i)} onClick={() => choose(d)}
+                          className={cx('flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors', i === cursor ? 'bg-mist' : '')}>
+                          <span className={cx('flex size-10 shrink-0 items-center justify-center rounded-full', d.kind === 'hotel' ? 'bg-ink text-[#e8c88a]' : 'bg-champagne-soft text-champagne')}>
+                            <Icon d={d.kind === 'hotel' ? I.hotel : I.pin} className="size-4" />
                           </span>
-                          <span className="text-[0.78rem] text-faint">{d.n} hotel{d.n === 1 ? '' : 's'}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-medium">{d.kind === 'hotel' ? d.name : d.city}</span>
+                            <span className="block truncate text-[0.8rem] text-muted">
+                              {d.kind === 'hotel' ? `${d.city}, ${d.country}${d.onRequest ? ' · best rate on request' : ''}` : `${d.country}${d.why && d.why !== d.country ? ` · ${d.why}` : ''}`}
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-[0.75rem] text-faint">{d.kind === 'hotel' ? 'Hotel' : `${d.n} hotel${d.n === 1 ? '' : 's'}`}</span>
                         </button>
                       </li>
                     ))}

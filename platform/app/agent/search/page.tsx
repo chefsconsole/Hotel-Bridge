@@ -8,7 +8,7 @@ import { getDb } from '@/lib/db';
 import { daysBetween, formatDate } from '@/lib/domain/dates';
 import { decodeRooms, describeRooms, encodeRooms } from '@/lib/domain/occupancy';
 import { requireAgent } from '@/lib/session';
-import { destinations, searchHotels, searchSchema } from '@/lib/services/search';
+import { destinations, searchHotels, searchSchema, whereHotels } from '@/lib/services/search';
 import { COLLECTIONS } from '@/lib/services/catalog';
 import { getTrip } from '@/lib/services/trips';
 import { TIERS, TIER_INFO, parseTiers } from '@/lib/domain/tiers';
@@ -23,7 +23,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const { actor } = await requireAgent();
   const sp = await searchParams;
   const db = await getDb();
-  const dests = await destinations(db);
+  const [dests, partnerHotels] = await Promise.all([destinations(db), whereHotels(db)]);
   const rooms = decodeRooms(sp.rooms);
   const trip = sp.trip ? await getTrip(db, actor, sp.trip).then((d) => d, () => null) : null;
   return (
@@ -35,7 +35,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <Link href={`/agent/trips/${trip.trip.id}`} className="font-medium underline underline-offset-4">Back to trip</Link>
         </div>
       )}
-      <SearchForm destinations={dests} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city}
+      <SearchForm destinations={dests} hotels={partnerHotels} initial={{ city: sp.city, checkIn: sp.in, checkOut: sp.out, rooms }} compact={!!sp.city}
         keep={{ ...(trip ? { trip: trip.trip.id } : {}), ...(sp.tier ? { tier: sp.tier } : {}) }} />
       <TierFilter sp={sp} />
       <div className="mt-8">
