@@ -28,7 +28,9 @@ export async function attempt(fn: () => Promise<string | void | ActionResult>): 
     return { ok: true, message: r || 'Saved.' };
   } catch (e) {
     unstable_rethrow(e);
-    return { ok: false, message: messageFor(e) };
+    // Tell the form which fields to highlight, so the user sees exactly what to fix.
+    const fields = e instanceof ZodError ? [...new Set(e.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))] : undefined;
+    return { ok: false, message: messageFor(e), ...(fields?.length ? { data: { fields } } : {}) };
   }
 }
 
