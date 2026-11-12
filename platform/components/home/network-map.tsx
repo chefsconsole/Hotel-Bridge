@@ -12,7 +12,7 @@ const COORDS: Record<string, [number, number]> = {
   varanasi: [25.32, 82.97], vrindavan: [27.58, 77.7], bali: [-8.41, 115.19], rome: [41.9, 12.5], maldives: [4.18, 73.51],
   amsterdam: [52.37, 4.9], singapore: [1.35, 103.82], 'sri lanka': [6.93, 79.86], geneva: [46.2, 6.14], interlaken: [46.69, 7.86],
   bangkok: [13.76, 100.5], 'koh samui': [9.51, 100.01], krabi: [8.09, 98.91], pattaya: [12.93, 100.88], phuket: [7.88, 98.39],
-  dubai: [25.2, 55.27], london: [51.51, -0.13], 'da nang': [16.05, 108.2], hanoi: [21.03, 105.85], mumbai: [19.08, 72.88],
+  dubai: [25.2, 55.27], london: [51.51, -0.13], 'da nang': [16.05, 108.2], hanoi: [21.03, 105.85], mumbai: [19.08, 72.88], johannesburg: [-26.2, 28.05],
 };
 const LABELS = new Set(['london', 'dubai', 'phuket', 'bali', 'sydney', 'singapore', 'hanoi', 'maldives', 'rishikesh']);
 
