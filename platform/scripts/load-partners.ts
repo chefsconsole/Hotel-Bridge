@@ -64,8 +64,8 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
       const [name, ...role] = (p.contactName ?? '').split(', ');
       const record = {
         contactName: name || null, contactRole: role.join(', ') || null, contactEmail: p.email, contactPhone: p.phone ?? null,
-        contactSource: 'Their email reply', stage: 'signed', hotelId: h.id, lastContactOn: todayIso(),
-        notes: [`Agreed terms: ${p.terms}`, p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`].filter(Boolean).join('\n'),
+        contactSource: 'Their email reply', stage: p.agreed ? 'signed' : 'in_talks', hotelId: h.id, lastContactOn: todayIso(),
+        notes: [`${p.agreed ? 'Agreed terms' : 'Live on request — nothing signed yet. What the hotel said'}: ${p.terms}`, p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`].filter(Boolean).join('\n'),
         updatedAt: new Date(),
       };
       const [prospect] = await db.select({ id: schema.hotelProspects.id, notes: schema.hotelProspects.notes }).from(schema.hotelProspects)
