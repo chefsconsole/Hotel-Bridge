@@ -34,7 +34,7 @@ import { nextNumber, randomCode } from './counters';
 import { AppError, NotFoundError } from './errors';
 import { appUrl, sendEmail } from './email';
 import { MEAL_PLANS } from './catalog';
-import { searchHotels } from './search';
+import { collectOffers, searchHotels } from './search';
 import { createDeskBooking } from './bookings';
 import { getSetting } from './settings';
 import { listStaff } from './staff';
@@ -344,11 +344,47 @@ export async function deskCandidates(db: DB, rootId: string) {
   const all = await onRequestHotels(db, root.city);
   all.sort((a, b) => (a.id === root.hotelId ? -1 : b.id === root.hotelId ? 1 : 0)
     || tierDistance(a.tier, self?.tier) - tierDistance(b.tier, self?.tier) || tierIndex(a.tier) - tierIndex(b.tier) || a.name.localeCompare(b.name));
+  // A hotel can be "best rate on request" to agents and still have a rate the
+  // hotel already gave us on file. Where that is true, the desk should quote
+  // from it in minutes instead of emailing the hotel again and waiting 48 hours.
+  const held = await heldRates(db, all.map((h) => h.id), root);
   return all.map((h) => {
     const row = rows.find((x) => x.hotelId === h.id && x.status !== 'cancelled');
     const email = hotelEmailOf(h);
-    return { hotel: h, email, inHouse: quotesInHouse(email), requested: h.id === root.hotelId, row: row ?? null, askable: !row || ['review', 'not_emailed'].includes(row.status) };
+    return {
+      hotel: h, email, inHouse: quotesInHouse(email), requested: h.id === root.hotelId,
+      row: row ?? null, askable: !row || ['review', 'not_emailed'].includes(row.status),
+      held: held.get(h.id) ?? null,
+    };
   });
+}
+
+export type HeldRate = { netMinor: number; currency: string; roomName: string; mealPlan: string; perNightMinor: number; nights: number };
+
+/** The rate we already hold for this stay, per hotel, straight from the contract
+ *  engine — so it respects the dates, meal plan, occupancy and any supplement. */
+async function heldRates(db: DB, hotelIds: string[], root: RateRequest): Promise<Map<string, HeldRate>> {
+  const out = new Map<string, HeldRate>();
+  if (!hotelIds.length) return out;
+  const nights = daysBetween(root.checkIn, root.checkOut);
+  for (const hotelId of hotelIds) {
+    try {
+      const { offers } = await collectOffers(db, {
+        city: root.city, hotelId, checkIn: root.checkIn, checkOut: root.checkOut, rooms: root.rooms,
+      });
+      // Cheapest contracted offer for these exact dates and rooms.
+      const best = offers.filter((o) => o.supplier === 'contracted')
+        .sort((a, b) => a.contractAmountMinor - b.contractAmountMinor)[0];
+      if (!best) continue;
+      out.set(hotelId, {
+        netMinor: best.contractAmountMinor, currency: best.terms.currency,
+        roomName: best.roomName, mealPlan: best.mealPlan,
+        perNightMinor: nights > 0 ? Math.round(best.contractAmountMinor / (nights * best.rooms.length)) : best.contractAmountMinor,
+        nights,
+      });
+    } catch { /* a hotel without a usable contract simply has no held rate */ }
+  }
+  return out;
 }
 
 /** One click: email every ticked hotel its private reply link. Extra hotels become part of the same request. */

@@ -3,9 +3,9 @@ import { eq } from 'drizzle-orm';
 import { schema } from '@/lib/db';
 import { addDays } from '@/lib/domain/dates';
 import {
-  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskRequest, deskTodo, getRateRequest, holdBackOffer,
-  hotelQuote, lapseRateRequests, listRateRequests, markBooked, rateRequestByToken, releaseOffer,
+  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskCandidates, deskRequest, deskTodo, getRateRequest, holdBackOffer, hotelQuote, lapseRateRequests, listRateRequests, markBooked, rateRequestByToken, releaseOffer,
 } from '@/lib/services/rate-requests';
+import { searchHotels } from '@/lib/services/search';
 import { setup, type Fixture } from './helpers';
 
 let f: Fixture;
@@ -223,5 +223,46 @@ describe('admin live pipeline', () => {
     expect(n('Waiting on hotels')).toMatchObject({ n: 1 });
     expect(p.groups.map((x) => x.label)).toContain('Won this month');
     expect(p.bookings.find((x) => x.label === 'Awaiting payment')?.n).toBe(0);
+  });
+});
+
+describe('rates we hold but do not publish', () => {
+  it('keeps a hotel on request for agents while giving the desk the rate it already has', async () => {
+    f = await setup();
+    // The fixture hotel has a real contract. Some hotels give us a rate but ask
+    // to stay "best rate on request" — so the contract stays, and the hotel is
+    // flagged on-request. The agent must never see a price for it.
+    await f.db.update(schema.hotels)
+      .set({ bestRateOnRequest: true, rateRequestEmail: 'sales@fixture.test' })
+      .where(eq(schema.hotels.id, f.hotel.id));
+
+    const checkIn = addDays(f.today, 40);
+    const checkOut = addDays(f.today, 42);
+    const input = { city: f.hotel.city, checkIn, checkOut, rooms: [{ adults: 2, childAges: [] }] };
+
+    // 1. The agent sees no price for it — not in the priced results at all.
+    const { results } = await searchHotels(f.db, f.A, input);
+    expect(results.find((r) => r.hotel.id === f.hotel.id)).toBeUndefined();
+
+    // 2. The desk, handling an enquiry, is shown the rate we already hold —
+    //    so nobody emails the hotel for a number we were given weeks ago.
+    const r = await createRateRequest(f.db, f.A, { hotelId: f.hotel.id, checkIn, checkOut, rooms: input.rooms });
+    const cands = await deskCandidates(f.db, r.id);
+    const mine = cands.find((c) => c.hotel.id === f.hotel.id);
+    expect(mine).toBeDefined();
+    expect(mine!.held).not.toBeNull();
+    // 12,000 per night for a double, two nights.
+    expect(mine!.held!.netMinor).toBe(24_000);
+    expect(mine!.held!.perNightMinor).toBe(12_000);
+    expect(mine!.held!.mealPlan).toBe('BB');
+    expect(mine!.held!.roomName).toBe('Double');
+
+    // 3. A hotel we hold nothing for simply has no held rate — never a guess.
+    const [other] = await f.db.insert(schema.hotels).values({
+      name: 'No Contract Hotel', slug: 'no-contract-hotel', city: f.hotel.city, country: f.hotel.country,
+      status: 'active', bestRateOnRequest: true, rateRequestEmail: 'sales@nocontract.test',
+    }).returning();
+    const cands2 = await deskCandidates(f.db, r.id);
+    expect(cands2.find((c) => c.hotel.id === other.id)?.held ?? null).toBeNull();
   });
 });

@@ -120,6 +120,14 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                             <span className="font-medium">{c.hotel.name}</span>
                             {c.requested && <span className="ml-2 rounded-full bg-champagne-soft px-2 py-0.5 text-[0.7rem] font-medium text-ink">Agent asked for this</span>}
                             <span className="block truncate text-[0.78rem] text-muted">{tierLabel(c.hotel.tier) ?? 'Partner hotel'} · {c.inHouse ? <span className="font-medium text-ink">Our contract — we quote it ourselves (no email)</span> : c.email}</span>
+                            {/* A rate this hotel already gave us. The agent still sees
+                              * "best rate on request"; the desk can answer straight away. */}
+                            {c.held && (
+                              <span className="mt-1 block text-[0.78rem] text-positive">
+                                We already hold a rate: <span className="num font-medium">{formatMoney(c.held.netMinor, c.held.currency)}</span> net for the stay
+                                {' '}<span className="text-muted">({formatMoney(c.held.perNightMinor, c.held.currency)} per room per night · {c.held.roomName} · {meal(c.held.mealPlan) ?? c.held.mealPlan})</span> — no need to email.
+                              </span>
+                            )}
                           </span>
                         </label>
                       </li>
