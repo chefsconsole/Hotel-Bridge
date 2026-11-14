@@ -22,6 +22,9 @@ export type OnRequestPartner = {
   listedOnly?: boolean;
   /** Curation tier, our own judgement of the property's level — not a star rating. */
   tier?: 'smart' | 'premium' | 'luxury' | 'ultra';
+  /** Set when we have already written to the chain and had no answer yet. Keeps the
+   *  register honest: not "never contacted", but nothing agreed either. */
+  contactedOn?: string;
   /** True only when the hotel has actually agreed terms with us. Otherwise the outreach record
    *  stays "in talks": live on request, but nothing signed. Never claim more than the hotel said. */
   agreed?: boolean;
@@ -590,4 +593,65 @@ export const LISTED_INDIA: OnRequestPartner[] = [
   lemonTree('Aurika, Udaipur - Luxury by Lemon Tree Hotels', 'Udaipur', 'luxury'),
   lemonTree('Keys Select by Lemon Tree Hotels, Udaipur', 'Udaipur', 'smart'),
   lemonTree('Keys Lite by Lemon Tree Hotels, Urban Square, Udaipur', 'Udaipur', 'smart'),
+];
+
+/* ------------------------------------------------------------------ *
+ * Silken Hotels (Spain) and La Siesta Hotels (Vietnam).
+ *
+ * Both chains were emailed on 13 Nov 2026 as part of our outreach and
+ * neither has answered yet, so nothing is agreed. Their properties are
+ * listed here so agents see real options — Spain had NO hotels at all,
+ * and Vietnam only Hanoi, Da Nang and Phu Quoc.
+ *
+ * Property names and cities were read from each chain's own website on
+ * 14 Nov 2026 (hoteles-silken.com, lasiestahotels.com,
+ * lasiestaresorts.com). Enquiries go to the chain reservations desk we
+ * already wrote to, so every reply lands on the thread we have open
+ * rather than scattering across fifteen separate property inboxes.
+ * Star ratings are left empty because we have not verified them.
+ * ------------------------------------------------------------------ */
+const SILKEN_DESK = 'reservas@hoteles-silken.com';
+const silken = (name: string, city: string, tier: 'smart' | 'premium'): OnRequestPartner => ({
+  name, city, country: 'Spain', email: SILKEN_DESK, reservationsEmail: SILKEN_DESK,
+  contactName: 'Silken Hotels central reservations', tier, listedOnly: true, contactedOn: '13 Nov 2026',
+  outreachName: 'Silken Hotels (Barcelona & Spain)',
+});
+
+const siesta = (name: string, city: string, email: string, tier: 'premium' | 'luxury'): OnRequestPartner => ({
+  name, city, country: 'Vietnam', email, reservationsEmail: email,
+  contactName: 'La Siesta Hotels reservations', tier, listedOnly: true, contactedOn: '13 Nov 2026',
+  outreachName: 'La Siesta Hotels (Hanoi & Hoi An)',
+});
+
+const SIESTA_DESK = 'info@lasiestahotels.com';
+
+export const LISTED_SPAIN_VIETNAM: OnRequestPartner[] = [
+  // Spain — we had no hotels in the country at all.
+  // A named contact beats a desk: Isabel runs this hotel, and she is our way
+  // into the whole chain. Enquiries for the other Silken hotels still go to the
+  // central desk — a Barcelona director should not be fielding Valencia dates.
+  {
+    ...silken('Silken Ramblas Barcelona', 'Barcelona', 'premium'),
+    email: 'direccion.ramblas@hoteles-silken.com',
+    reservationsEmail: SILKEN_DESK,
+    contactName: 'Isabel Stutz, Directora',
+    phone: '+34 933 426 180',
+    address: 'c/ Pintor Fortuny 13, 08001 Barcelona, Spain',
+  },
+  silken('Silken Sant Gervasi', 'Barcelona', 'smart'),
+  silken('Silken Puerta Valencia', 'Valencia', 'premium'),
+  silken('Silken Sirimiri Bilbao', 'Bilbao', 'smart'),
+  silken('Silken Reino de Aragón', 'Zaragoza', 'premium'),
+  silken('Silken Rona Dalba', 'Salamanca', 'smart'),
+  silken('Silken Saaj Maar', 'Puerto de la Cruz', 'premium'),
+  silken('Silken Saaj Las Palmas', 'Las Palmas', 'premium'),
+  // Vietnam — Hanoi deepened, Hoi An and Ho Chi Minh City are new.
+  siesta('La Siesta Classic Ma May', 'Hanoi', SIESTA_DESK, 'premium'),
+  siesta('La Siesta Premium Hang Be', 'Hanoi', SIESTA_DESK, 'premium'),
+  siesta('La Siesta Classic Hang Thung', 'Hanoi', SIESTA_DESK, 'premium'),
+  siesta('La Siesta Premium Lakeside', 'Hanoi', SIESTA_DESK, 'premium'),
+  siesta('La Siesta Premium Saigon', 'Ho Chi Minh City', SIESTA_DESK, 'premium'),
+  siesta('La Siesta Premium Saigon Central', 'Ho Chi Minh City', SIESTA_DESK, 'premium'),
+  // The Hoi An resort runs on its own site and its own desk.
+  siesta('La Siesta Hoi An Resort & Spa', 'Hoi An', 'info@lasiestaresorts.com', 'luxury'),
 ];

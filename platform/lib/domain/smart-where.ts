@@ -40,12 +40,18 @@ const AREAS: Record<string, string[]> = {
   // Indonesia & around
   ubud: ['Bali'], kuta: ['Bali'], legian: ['Bali'], seminyak: ['Bali'], 'nusa dua': ['Bali'], benoa: ['Bali'], jimbaran: ['Bali'],
   // Vietnam
-  danang: ['Da Nang'], 'hoi an': ['Da Nang'],
+  danang: ['Da Nang'], vietnam: ['Hanoi', 'Da Nang', 'Hoi An', 'Ho Chi Minh City', 'Phu Quoc'],
+  saigon: ['Ho Chi Minh City'], hcmc: ['Ho Chi Minh City'], 'ho chi minh': ['Ho Chi Minh City'],
+  'old quarter': ['Hanoi'], 'halong': ['Hanoi'], 'ha long': ['Hanoi'],
   // Middle East
   uae: ['Dubai'], emirates: ['Dubai'], 'jumeirah': ['Dubai'],
   // Europe
   europe: ['London', 'Paris', 'Amsterdam', 'Rome', 'Milan', 'Brussels', 'Prague', 'Vienna', 'Zurich', 'Munich', 'Berlin', 'Salzburg', 'Interlaken', 'Geneva'],
   belgium: ['Brussels'], bruges: ['Brussels'], milano: ['Milan'], lombardy: ['Milan'],
+  spain: ['Barcelona', 'Valencia', 'Bilbao', 'Zaragoza', 'Salamanca', 'Las Palmas', 'Puerto de la Cruz'],
+  espana: ['Barcelona', 'Valencia', 'Bilbao'], catalonia: ['Barcelona'], 'basque country': ['Bilbao'],
+  'costa brava': ['Barcelona'], 'canary islands': ['Las Palmas', 'Puerto de la Cruz'], canaries: ['Las Palmas', 'Puerto de la Cruz'],
+  tenerife: ['Puerto de la Cruz'], 'gran canaria': ['Las Palmas'],
   swiss: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], switzerland: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], jungfrau: ['Interlaken'], uk: ['London'], england: ['London'],
   holland: ['Amsterdam'], italy: ['Rome', 'Milan'], czech: ['Prague'], france: ['Paris'],
   austria: ['Vienna', 'Salzburg', 'Innsbruck', 'Graz', 'Linz', 'Villach', 'Lienz', 'Dornbirn', 'Steyr', 'Bischofshofen'],
@@ -63,6 +69,8 @@ const CODES: Record<string, string> = {
   sxr: 'Srinagar', vns: 'Varanasi', agr: 'Agra', ded: 'Dehradun', ixj: 'Katra', atq: 'Amritsar', udr: 'Udaipur',
   jai: 'Jaipur', jdh: 'Jodhpur', jsa: 'Jaisalmer', ixb: 'Darjeeling', pgh: 'Jim Corbett', ixm: 'Madurai',
   mxp: 'Milan', lin: 'Milan', bgy: 'Milan', bru: 'Brussels', crl: 'Brussels',
+  bcn: 'Barcelona', vlc: 'Valencia', bio: 'Bilbao', zaz: 'Zaragoza', lpa: 'Las Palmas', tfn: 'Puerto de la Cruz', tfs: 'Puerto de la Cruz',
+  sgn: 'Ho Chi Minh City', hui: 'Hoi An',
 };
 
 export const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();

@@ -10,7 +10,7 @@ import { closeDb, getDb, schema } from '@/lib/db';
 import { addDays, todayIso } from '@/lib/domain/dates';
 import { SYSTEM } from '@/lib/services/actor';
 import { audit } from '@/lib/services/audit';
-import { ASHLEE, ASHLEE_EXTRAS, ASHLEE_QUOTES_TO, FRAGRANT_NATURE, type Extra, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, LISTED_INDIA, LISTED_ON_REQUEST, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
+import { ASHLEE, ASHLEE_EXTRAS, ASHLEE_QUOTES_TO, FRAGRANT_NATURE, type Extra, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, LISTED_INDIA, LISTED_ON_REQUEST, LISTED_SPAIN_VIETNAM, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
 
 type DBT = Awaited<ReturnType<typeof getDb>>;
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -44,7 +44,7 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
 
   if (process.argv.includes('--new-only')) {
     const dryRun = process.argv.includes('--dry-run');
-    for (const p of [...ON_REQUEST, ...LISTED_ON_REQUEST, ...LISTED_INDIA]) {
+    for (const p of [...ON_REQUEST, ...LISTED_ON_REQUEST, ...LISTED_INDIA, ...LISTED_SPAIN_VIETNAM]) {
       const slug = slugify(`${p.name}-${p.city}`);
       const [existing] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
       if (existing) continue;
@@ -67,11 +67,15 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
         // Three different truths, and the record must not blur them: signed,
         // in talks, or listed for agents with nobody at the hotel spoken to yet.
         contactSource: p.listedOnly ? 'Hotel’s own website' : 'Their email reply',
-        stage: p.listedOnly ? 'to_contact' : p.agreed ? 'signed' : 'in_talks',
-        hotelId: h.id, lastContactOn: p.listedOnly ? null : todayIso(),
+        // A chain we have already written to stays 'contacted' — listing its
+        // properties must never rewind the relationship to "never approached".
+        stage: p.listedOnly ? (p.contactedOn ? 'contacted' : 'to_contact') : p.agreed ? 'signed' : 'in_talks',
+        hotelId: h.id, lastContactOn: p.listedOnly && !p.contactedOn ? null : todayIso(),
         notes: [
           p.listedOnly
-            ? 'LISTED, NOT CONTACTED. Shown to agents as best rate on request so we capture the enquiry in a city we had no hotels in. Nobody here has spoken to us — claim nothing. The first approach should carry a real dated agent enquiry.'
+            ? (p.contactedOn
+              ? `LISTED. We wrote to the chain on ${p.contactedOn} and have had no answer yet — nothing is agreed, so claim nothing. Listed so agents can enquire; enquiries go to the chain desk we are already in contact with, so replies land on that one thread.`
+              : 'LISTED, NOT CONTACTED. Shown to agents as best rate on request so we capture the enquiry in a city we had no hotels in. Nobody here has spoken to us — claim nothing. The first approach should carry a real dated agent enquiry.')
             : `${p.agreed ? 'Agreed terms' : 'Live on request — nothing signed yet. What the hotel said'}: ${p.terms}`,
           p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`,
         ].filter(Boolean).join('\n'),
@@ -80,7 +84,15 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
       const [prospect] = await db.select({ id: schema.hotelProspects.id, notes: schema.hotelProspects.notes }).from(schema.hotelProspects)
         .where(sql`lower(${schema.hotelProspects.name}) = lower(${p.outreachName ?? p.name})`).limit(1);
       if (prospect) {
-        await db.update(schema.hotelProspects).set({ ...record, notes: [prospect.notes, record.notes].filter(Boolean).join('\n\n') }).where(eq(schema.hotelProspects.id, prospect.id));
+        // An existing outreach record is the source of truth for the relationship:
+        // who we spoke to, at what address, and how far it got. Listing a property
+        // only adds a note and links the hotel — it never overwrites any of that.
+        const patch = p.listedOnly
+          ? { hotelId: h.id, updatedAt: new Date() }
+          : record;
+        await db.update(schema.hotelProspects)
+          .set({ ...patch, notes: [prospect.notes, record.notes].filter(Boolean).join('\n\n') })
+          .where(eq(schema.hotelProspects.id, prospect.id));
       } else {
         await db.insert(schema.hotelProspects).values({ name: p.name, destination: p.city, priority: 'P2', ...record });
       }
