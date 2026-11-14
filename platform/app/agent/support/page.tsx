@@ -5,7 +5,7 @@ import { supportAction } from '@/app/actions/agent';
 import { getDb, schema } from '@/lib/db';
 import { formatDateTime } from '@/lib/domain/dates';
 import { requireAgent } from '@/lib/session';
-import { SUPPORT_EMAIL } from '@/lib/config';
+import { SUPPORT_EMAIL, SUPPORT_PHONE_DISPLAY, whatsappUrl } from '@/lib/config';
 
 export const metadata = { title: 'Support' };
 
@@ -17,6 +17,11 @@ export default async function SupportPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader eyebrow="Help" title="Support" description={`Write to us here or at ${SUPPORT_EMAIL}. Include the booking reference so we can act straight away.`} />
+      {/* Urgent things happen on WhatsApp, not in a ticket queue. */}
+      <p className="mb-6 text-[0.9rem] text-muted">
+        Urgent — a guest arriving today, or a booking going wrong?{' '}
+        <a href={whatsappUrl('Hello HotelBridge — urgent help needed.')} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-4">WhatsApp us on {SUPPORT_PHONE_DISPLAY}</a>.
+      </p>
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] [&>*]:min-w-0">
         <Panel title="New request">
           <ActionForm action={supportAction} resetOnSuccess className="space-y-4">

@@ -19,5 +19,12 @@ export const GROUP_FIRST_RESPONSE_HOURS = 24;
 export const HOTEL_RESPONSE_HOURS = 48;
 
 export const SUPPORT_EMAIL = 'info@hotelbridge.co';
+/** The number agents reach us on. An agent stuck half-way through registration
+ *  will not write an email — they want one tap. Digits only for the wa.me link,
+ *  and a readable version for anyone who would rather dial it. */
+export const SUPPORT_WHATSAPP = '917021620577';
+export const SUPPORT_PHONE_DISPLAY = '+91 70216 20577';
+export const whatsappUrl = (text?: string) =>
+  `https://wa.me/${SUPPORT_WHATSAPP}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 /** Where new-agency registrations are announced (set HB_NOTIFY_EMAIL to e.g. registrations@hotelbridge.co). */
 export const NOTIFY_EMAIL = process.env.HB_NOTIFY_EMAIL || SUPPORT_EMAIL;

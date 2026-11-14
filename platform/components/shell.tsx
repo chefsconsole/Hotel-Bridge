@@ -104,8 +104,12 @@ export function AppShell({ nav, context, user, signOut, banner, children, action
               </button>
             </div>
           </header>
+          {/* Fixed, not in flow: the header is sticky, so a panel in normal flow
+            * opens at its document position — far above the fold once the page
+            * is scrolled, making the menu look broken and putting Request a
+            * hotel and the Group Desk out of reach on a phone. */}
           {open && (
-            <div className="border-b border-paper/10 bg-ink px-4 pt-3 pb-5 lg:hidden animate-[var(--animate-fade)]">
+            <div className="fixed inset-x-0 top-14 bottom-0 z-40 overflow-y-auto overscroll-contain border-b border-paper/10 bg-ink px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:hidden animate-[var(--animate-fade)]">
               <div className="mb-3 text-[0.8rem] text-paper/70">{context}</div>
               {links}
               <div className="mt-4 border-t border-paper/10 pt-3 text-[0.8rem] text-paper/60">{user}<div className="mt-2">{signOut}</div></div>

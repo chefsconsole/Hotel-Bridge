@@ -1,3 +1,4 @@
+import { SUPPORT_PHONE_DISPLAY, whatsappUrl } from '@/lib/config';
 import Link from 'next/link';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { registerAction } from '@/app/actions/auth';
@@ -96,6 +97,9 @@ export default function RegisterPage() {
           <span>I am authorised to register this business and accept the <Link href="/legal/terms" className="text-ink underline">terms of business</Link> and <Link href="/legal/privacy" className="text-ink underline">privacy notice</Link>.</span>
         </label>
         <SubmitButton className="mt-6 w-full" size="lg" pendingLabel="Creating your account…">Create agency account</SubmitButton>
+        <p className="mt-4 text-center text-[0.85rem] text-muted">
+          Stuck, or missing a document? <a href={whatsappUrl('Hello HotelBridge — I need help registering my agency.')} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-4">WhatsApp us on {SUPPORT_PHONE_DISPLAY}</a> and we will help you through it.
+        </p>
       </ActionForm>
     </div>
   );

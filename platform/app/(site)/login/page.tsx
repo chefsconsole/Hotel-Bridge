@@ -1,3 +1,4 @@
+import { SUPPORT_PHONE_DISPLAY, whatsappUrl } from '@/lib/config';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
@@ -25,6 +26,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         New to HotelBridge? <Link href="/register" className="font-medium text-ink underline underline-offset-4">Register your agency</Link>
       </p>
       <p className="mt-2 text-center text-[0.85rem] text-muted"><Link href="/forgot-password" className="text-ink underline underline-offset-4">Forgot your password?</Link></p>
+      <p className="mt-4 text-center text-[0.85rem] text-muted">
+        Can&rsquo;t get in? <a href={whatsappUrl('Hello HotelBridge — I cannot sign in to the agent portal.')} target="_blank" rel="noreferrer" className="font-medium text-ink underline underline-offset-4">WhatsApp us on {SUPPORT_PHONE_DISPLAY}</a>
+      </p>
     </div>
   );
 }
