@@ -47,23 +47,51 @@ const sameCity = (a: string, b: string) => a.trim().toLowerCase() === b.trim().t
 /** Who we would ask in one city, best first. Pure selection — sends nothing. */
 export async function groupTargets(db: DB, e: Enquiry, city: string): Promise<Target[]> {
   const tiers = e.tiers.filter(isTier) as Tier[];
+  // The agent named a hotel: ask that one first, whoever else we ask. Matching
+  // is by name, so it finds the hotel whether we contract it or only know of it.
+  const named = e.wantedHotel?.trim() ? await namedHotelTargets(db, e.wantedHotel.trim(), city) : [];
   const contracted = await db.select().from(hotels).where(and(
     eq(hotels.status, 'active'), eq(hotels.acceptsGroups, true), ilike(hotels.city, city.trim()),
     or(isNotNull(hotels.groupsEmail), isNotNull(hotels.reservationsEmail)),
     tiers.length ? inArray(hotels.tier, tiers) : undefined,
   )).orderBy(desc(hotels.totalRooms), asc(hotels.name)).limit(CONTRACTED_MAX);
   if (contracted.length) {
-    return contracted.map((h) => ({ hotelId: h.id, prospectId: null, name: h.name, email: (h.groupsEmail ?? h.reservationsEmail)!, city: h.city, source: 'contracted' as const }));
+    return dedupe([...named, ...contracted.map((h) => ({ hotelId: h.id, prospectId: null, name: h.name, email: (h.groupsEmail ?? h.reservationsEmail)!, city: h.city, source: 'contracted' as const }))]);
   }
   const like = `%${city.trim()}%`;
   const prospects = await db.select().from(hotelProspects).where(and(
     notInArray(hotelProspects.stage, ['declined', 'not_now']), isNotNull(hotelProspects.contactEmail),
     or(ilike(hotelProspects.destination, like), ilike(hotelProspects.name, like)),
   )).orderBy(asc(hotelProspects.priority), sql`${hotelProspects.totalRooms} desc nulls last`, asc(hotelProspects.name));
-  return prospects
+  return dedupe([...named, ...prospects
     .filter((p) => !tiers.length || tiers.includes(tierFromLabel(p.tier) as Tier))
     .slice(0, OUTREACH_MAX)
-    .map((p) => ({ hotelId: null, prospectId: p.id, name: p.name, email: p.contactEmail!, city: city.trim(), source: 'outreach' as const }));
+    .map((p) => ({ hotelId: null, prospectId: p.id, name: p.name, email: p.contactEmail!, city: city.trim(), source: 'outreach' as const }))]);
+}
+
+/** One email address per hotel: the named hotel must not also be asked as part of the crowd. */
+function dedupe(ts: Target[]): Target[] {
+  const seen = new Set<string>();
+  return ts.filter((t) => {
+    const k = t.email.trim().toLowerCase();
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+/** The hotel the agent asked for by name — contracted first, else our outreach list. */
+async function namedHotelTargets(db: DB, wanted: string, city: string): Promise<Target[]> {
+  const like = `%${wanted}%`;
+  const h = await db.select().from(hotels).where(and(
+    eq(hotels.status, 'active'), ilike(hotels.name, like),
+    or(isNotNull(hotels.groupsEmail), isNotNull(hotels.reservationsEmail)),
+  )).limit(2);
+  if (h.length) return h.map((x) => ({ hotelId: x.id, prospectId: null, name: x.name, email: (x.groupsEmail ?? x.reservationsEmail)!, city: x.city, source: 'contracted' as const }));
+  const p = await db.select().from(hotelProspects).where(and(
+    notInArray(hotelProspects.stage, ['declined', 'not_now']), isNotNull(hotelProspects.contactEmail), ilike(hotelProspects.name, like),
+  )).limit(2);
+  return p.map((x) => ({ hotelId: null, prospectId: x.id, name: x.name, email: x.contactEmail!, city: x.destination || city.trim(), source: 'outreach' as const }));
 }
 
 function requestEmail(e: Enquiry, leg: { city: string; checkIn: string; checkOut: string }, t: Target, respondByAt: Date, token: string) {

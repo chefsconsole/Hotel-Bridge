@@ -37,10 +37,14 @@ const legSchema = z.object({
 });
 
 export const enquirySchema = z.object({
+  // 'group' = the Group Desk proper. 'sourcing' = "find me a hotel here",
+  // which may be a single FIT room; same desk, same machinery, own label.
+  kind: z.enum(['group', 'sourcing']).default('group'),
+  wantedHotel: z.string().trim().max(160).optional().nullable(),
   groupName: z.string().trim().min(2, 'Name the group (e.g. "Sharma family wedding")').max(120),
   groupType: z.enum(['leisure', 'corporate', 'mice', 'wedding', 'education', 'sports', 'other']),
   legs: z.array(legSchema).min(1, 'Add at least one destination').max(8),
-  totalPax: z.number().int().min(2, 'Groups start at 2 travellers').max(2000),
+  totalPax: z.number().int().min(1, 'How many travellers?').max(2000),
   rooms: z.object({ single: z.number().int().min(0), double: z.number().int().min(0), twin: z.number().int().min(0), triple: z.number().int().min(0) }),
   category: z.enum(['3', '4', '5', 'any']).optional(),
   mealPlan: z.enum(['RO', 'BB', 'HB', 'FB']).optional(),
@@ -77,14 +81,18 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
   const agencyId = agencyOf(actor);
   const data = enquirySchema.parse(input);
   const year = new Date().getUTCFullYear();
-  const n = await nextNumber(db, `GRP-${year}`);
+  // Sourcing requests get their own series so nobody mistakes a one-room
+  // request for a 40-room group at a glance.
+  const prefix = data.kind === 'sourcing' ? 'REQ' : 'GRP';
+  const n = await nextNumber(db, `${prefix}-${year}`);
   const [agency] = await db.select({ isSample: agencies.isSample }).from(agencies).where(eq(agencies.id, agencyId));
   const assignee = await getSetting(db, 'desk.assignee');
   const [owner] = assignee ? await db.select({ id: users.id }).from(users).where(and(eq(users.id, assignee), eq(users.status, 'active'))) : [];
   const [e] = await db.insert(groupEnquiries).values({
     assignedTo: owner?.id ?? null,
-    reference: `GRP-${year}-${String(n).padStart(4, '0')}`,
+    reference: `${prefix}-${year}-${String(n).padStart(4, '0')}`,
     agencyId, createdBy: actor.userId, status: 'new',
+    kind: data.kind, wantedHotel: data.wantedHotel || null,
     groupName: data.groupName, groupType: data.groupType, legs: data.legs, totalPax: data.totalPax, rooms: data.rooms,
     category: data.category ?? null, mealPlan: data.mealPlan ?? null, budgetMinor: data.budgetMinor ?? null, budgetBasis: data.budgetBasis ?? null,
     currency: data.currency, coachParking: data.coachParking, accessibility: data.accessibility || null, specialRequests: data.specialRequests || null,
@@ -93,7 +101,9 @@ export async function createEnquiry(db: DB, actor: Actor, input: EnquiryInput) {
   }).returning();
   await db.insert(groupMessages).values({
     enquiryId: e.id, authorLabel: 'HotelBridge', visibility: 'shared',
-    body: `Thank you — we've received ${e.reference}. A Group Desk specialist will review it and reply within ${GROUP_FIRST_RESPONSE_HOURS} hours. We'll send you a written proposal before ${formatDate(e.quoteNeededBy)}.`,
+    body: data.kind === 'sourcing'
+      ? `Thank you — we've received ${e.reference}. We're sourcing ${e.wantedHotel ? e.wantedHotel : 'the right hotel'} for these dates and will come back to you within ${GROUP_FIRST_RESPONSE_HOURS} hours, with our offer before ${formatDate(e.quoteNeededBy)}.`
+      : `Thank you — we've received ${e.reference}. A Group Desk specialist will review it and reply within ${GROUP_FIRST_RESPONSE_HOURS} hours. We'll send you a written proposal before ${formatDate(e.quoteNeededBy)}.`,
   });
   await audit(db, actor, 'group.created', 'group_enquiry', e.id, { reference: e.reference }, agencyId);
   await groupEnquiryOpened(db, e);

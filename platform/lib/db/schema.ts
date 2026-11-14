@@ -24,7 +24,15 @@ const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataTyp
 
 export const agencies = pgTable('agencies', {
   id: id(),
+  // Permanent trading code, e.g. HB-A0042. Issued once, never reused, and the
+  // handle everything else is filed under: leads, quotes, bookings, invoices.
+  code: text('code'),
   name: text('name').notNull(),
+  // How we rank the relationship. Our own judgement, never shown to the agent.
+  // key | preferred | hot | standard | watch
+  grade: text('grade').notNull().default('standard'),
+  // Free-form internal labels: "Kerala specialist", "MICE", "pays late".
+  tags: text('tags').array().notNull().default([]),
   legalName: text('legal_name'),
   country: text('country').notNull(),
   city: text('city'),
@@ -61,7 +69,7 @@ export const agencies = pgTable('agencies', {
   isSample: boolean('is_sample').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
-});
+}, (t) => [uniqueIndex('agencies_code_uq').on(t.code)]);
 
 /** KYC documents an agency uploads (PAN card, GST certificate…). Stored in the
  *  database for now; move to object storage when files grow. Only staff and the
@@ -88,11 +96,13 @@ export const users = pgTable('users', {
   agencyId: uuid('agency_id').references(() => agencies.id),
   // owner | agent — only meaningful with agencyId
   agencyRole: text('agency_role'),
+  // The agent's own code under their agency, e.g. HB-A0042-02.
+  code: text('code'),
   partnerHotelId: uuid('partner_hotel_id'),
   status: text('status').notNull().default('active'), // active | disabled
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   createdAt: createdAt(),
-}, (t) => [uniqueIndex('users_email_uq').on(t.email)]);
+}, (t) => [uniqueIndex('users_email_uq').on(t.email), uniqueIndex('users_code_uq').on(t.code)]);
 
 export const sessions = pgTable('sessions', {
   // sha256 of the cookie token — the raw token is never stored
@@ -396,6 +406,10 @@ export const bookings = pgTable('bookings', {
   paymentDueAt: timestamp('payment_due_at', { withTimezone: true }),
   // On-request: the hotel must answer by this time, or the request lapses (no charge).
   hotelRespondBy: timestamp('hotel_respond_by', { withTimezone: true }),
+  // Which lead produced this booking, when it came from one rather than from a
+  // live search. At most one is set; neither, for a direct search booking.
+  rateRequestId: uuid('rate_request_id'),
+  enquiryId: uuid('enquiry_id'),
   isSample: boolean('is_sample').notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -503,6 +517,11 @@ export const groupEnquiries = pgTable('group_enquiries', {
   // new | under_review | sent_to_hotels | offers_received | proposal_prepared
   // | sent_to_agent | negotiation | won | lost | cancelled
   status: text('status').notNull().default('new'),
+  // group: 10+ rooms, the Group Desk. sourcing: an agent asked us to find a
+  // hotel we don't yet sell — any size, FIT included. Same desk, same machinery.
+  kind: text('kind').notNull().default('group'),
+  // Sourcing: the particular hotel the agent asked for, if they named one.
+  wantedHotel: text('wanted_hotel'),
   groupName: text('group_name').notNull(),
   groupType: text('group_type').notNull(), // leisure | corporate | mice | wedding | education | other
   legs: jsonb('legs').$type<GroupLeg[]>().notNull(),

@@ -54,7 +54,7 @@ export default async function AdminGroups({ searchParams }: { searchParams: Prom
               return (
                 <tr key={e.id}>
                   <td><Link href={`/admin/groups/${e.id}`} className="num font-medium hover:underline">{e.reference}</Link> {e.isSample && <SampleTag />}</td>
-                  <td>{agencyName}</td><td>{e.groupName}<p className="text-[0.75rem] text-faint">{e.totalPax} pax · {e.groupType}</p></td>
+                  <td>{agencyName}</td><td>{e.groupName}<p className="text-[0.75rem] text-faint">{e.kind === 'sourcing' ? `Hotel request · ${e.totalPax} guest${e.totalPax === 1 ? '' : 's'}` : `${e.totalPax} pax · ${e.groupType}`}</p></td>
                   <td>{e.legs.map((l) => l.city).join(' → ')}<p className="text-[0.75rem] text-faint">{formatDate(e.legs[0].checkIn)}</p></td>
                   <td className="text-[0.85rem]">{roomsText(e.rooms)}</td>
                   <td className="text-[0.8rem]"><p className={late ? 'text-negative' : 'text-muted'}>Reply by {formatDateTime(e.respondBy)}</p><p className={e.quoteNeededBy <= today ? 'text-attention' : 'text-muted'}>Quote by {formatDate(e.quoteNeededBy)}</p></td>

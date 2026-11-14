@@ -46,9 +46,20 @@ export default async function AdminBooking({ params }: { params: Promise<{ id: s
     <>
       <Link href="/admin/bookings" className="text-[0.85rem] text-muted hover:text-ink">← Bookings</Link>
       <header className="mt-4 mb-6">
-        <p className="eyebrow">{agency.name}</p>
+        <p className="eyebrow">{[agency.code, agency.name].filter(Boolean).join(' · ')}</p>
         <h1 className="num mt-1 text-[2rem] font-semibold">{b.reference}</h1>
         <div className="mt-2 flex flex-wrap gap-2"><StatusPill status={b.status} /><PaymentPill status={b.paymentStatus} />{b.isSample && <SampleTag />}</div>
+        {/* Where this booking came from, so the chain lead → quote → booking is one click in both directions. */}
+        {b.rateRequestId && (
+          <p className="mt-3 text-[0.85rem] text-muted">
+            From a best-rate request · <Link href={`/admin/rate-requests/${b.rateRequestId}`} className="font-medium text-ink underline underline-offset-2">open the lead</Link>
+          </p>
+        )}
+        {b.enquiryId && (
+          <p className="mt-3 text-[0.85rem] text-muted">
+            From a group enquiry · <Link href={`/admin/groups/${b.enquiryId}`} className="font-medium text-ink underline underline-offset-2">open the lead</Link>
+          </p>
+        )}
         <p className="mt-3 max-w-3xl text-[0.9rem] text-muted">{STATUS_EXPLAINER[b.status]}</p>
         <div className="mt-3"><HotelDeadline status={b.status} respondBy={b.hotelRespondBy} /></div>
       </header>

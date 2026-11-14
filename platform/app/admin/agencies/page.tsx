@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Empty, PageHeader, Pill, SampleTag } from '@/components/ui';
+import { GRADE_INFO, gradeOf } from '@/lib/domain/grades';
 import { getDb } from '@/lib/db';
 import { formatDate } from '@/lib/domain/dates';
 import { isIndia, isPan } from '@/lib/domain/india';
@@ -51,13 +52,15 @@ export default async function Agencies({ searchParams }: { searchParams: Promise
       )}
       <div className="overflow-x-auto rounded-[var(--radius-lg)] border border-line bg-surface">
         {rows.length === 0 ? <Empty title={tab === 'pending' ? 'No agencies waiting for approval' : 'No agencies here'} /> : (
-          <table className="table"><thead><tr><th>Agency</th><th>City</th><th>Registered</th><th>KYC</th><th>Status</th><th>Credit</th><th className="text-right">Users</th><th className="text-right">Bookings</th></tr></thead>
+          <table className="table"><thead><tr><th>Code</th><th>Agency</th><th>Grade</th><th>City</th><th>Registered</th><th>KYC</th><th>Status</th><th>Credit</th><th className="text-right">Users</th><th className="text-right">Bookings</th></tr></thead>
             <tbody>{rows.map(({ a, users, bookings, documents, panCard }) => {
               const india = isIndia(a.country);
               const kycOk = india ? !!a.pan && isPan(a.pan) && panCard : documents > 0;
               return (
                 <tr key={a.id}>
-                  <td><Link href={`/admin/agencies/${a.id}`} className="font-medium hover:underline">{a.name}</Link> {a.isSample && <SampleTag />}{a.legalName && <p className="text-[0.75rem] text-faint">{a.legalName}</p>}</td>
+                  <td className="num whitespace-nowrap text-[0.82rem] text-muted">{a.code ?? '—'}</td>
+                  <td><Link href={`/admin/agencies/${a.id}`} className="font-medium hover:underline">{a.name}</Link> {a.isSample && <SampleTag />}{a.legalName && <p className="text-[0.75rem] text-faint">{a.legalName}</p>}{a.tags.length > 0 && <p className="max-w-[16rem] truncate text-[0.72rem] text-faint" title={a.tags.join(', ')}>{a.tags.join(' · ')}</p>}</td>
+                  <td><Pill tone={GRADE_INFO[gradeOf(a.grade)].tone}>{GRADE_INFO[gradeOf(a.grade)].short}</Pill></td>
                   <td>{a.city ?? '—'}<p className="text-[0.75rem] text-faint">{[a.state, a.country].filter(Boolean).join(', ')}</p>{a.topDestinations && <p className="max-w-[16rem] truncate text-[0.72rem] text-muted" title={a.topDestinations}>Sells: {a.topDestinations}</p>}</td>
                   <td className="num whitespace-nowrap">{formatDate(a.createdAt)}</td>
                   <td>

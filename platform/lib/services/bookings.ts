@@ -23,6 +23,7 @@ import { formatDateTime, todayIso, formatDate } from '@/lib/domain/dates';
 import { describeRoom } from '@/lib/domain/occupancy';
 import type { PriceBreakdown } from '@/lib/domain/pricing';
 import { callSupplier, getAdapter } from '@/lib/suppliers/registry';
+import { DESK_SUPPLIER, deskOfferKey } from '@/lib/suppliers/desk';
 import { SupplierRejectedError, SupplierTimeoutError, SupplierUnavailableError, type BookResult, type SupplierOffer } from '@/lib/suppliers/types';
 import { SYSTEM, agencyOf, isStaff, requireStaff, type Actor } from './actor';
 import { audit } from './audit';
@@ -580,4 +581,127 @@ export async function recordWalletPayout(db: DB, actor: Actor, agencyId: string,
     await post(tx, actor, [{ bookingId: null, agencyId, kind: 'wallet_payout', account: 'agent', amountMinor: amount, currency: input.currency, reference, memo: 'Paid out to bank' }]);
     await audit(tx, actor, 'agency.wallet_payout', 'agency', agencyId, { amount, currency: input.currency, reference }, agencyId);
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * Desk bookings: a rate our team agreed with a hotel by email, turned
+ * into a real booking.
+ *
+ * Before this existed, confirming a best-rate lead only flipped a status
+ * on the lead itself — no invoice was raised, no ledger entry posted and
+ * nothing appeared under the agent's bookings. The money simply never got
+ * asked for. A desk booking is deliberately identical to a search booking
+ * from here on: same HB- reference, same charge, same invoice, same wallet,
+ * same cancellation handling, same history.
+ * ------------------------------------------------------------------ */
+export type DeskBookingInput = {
+  agencyId: string;
+  hotelId: string;
+  checkIn: string;
+  checkOut: string;
+  rooms: BookedRoom[];
+  leadGuest: string;
+  currency: string;
+  /** What the agent pays us, all rooms, whole stay. */
+  sellMinor: number;
+  /** What we owe the hotel, all rooms, whole stay. */
+  supplierCostMinor: number;
+  /** The lead this came from — exactly one. */
+  source: { kind: 'rate_request'; id: string } | { kind: 'group'; id: string };
+  /** The hotel's own words on cancellation, kept verbatim for the voucher. */
+  cancellationTerms?: string | null;
+  freeCancelUntil?: string | null;
+  hotelConfirmation?: string | null;
+  agentReference?: string | null;
+  specialRequests?: string | null;
+};
+
+export async function createDeskBooking(db: DB, actor: Actor, input: DeskBookingInput) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  if (input.sellMinor <= 0) throw new AppError('A booking needs a selling price');
+  if (input.supplierCostMinor < 0) throw new AppError('The hotel cost cannot be negative');
+  if (input.supplierCostMinor > input.sellMinor) throw new AppError('The hotel cost is above the selling price — check the rate before confirming');
+  if (!input.rooms.length) throw new AppError('A booking needs at least one room');
+
+  const [agency] = await db.select().from(schema.agencies).where(eq(schema.agencies.id, input.agencyId));
+  if (!agency) throw new NotFoundError('Agency');
+
+  // One booking per lead, ever. Re-confirming returns the booking already made
+  // rather than charging the agent twice.
+  const idempotencyKey = `desk:${input.source.kind}:${input.source.id}`;
+  const [existing] = await db.select().from(bookings)
+    .where(and(eq(bookings.agencyId, input.agencyId), eq(bookings.idempotencyKey, idempotencyKey)));
+  if (existing) return existing;
+
+  const offerKey = deskOfferKey(input.source.kind, input.source.id);
+  // The rate was negotiated net of any tax breakdown the hotel chose to give
+  // us, so we record no tax split rather than inventing one.
+  const netRevenueMinor = input.sellMinor - input.supplierCostMinor;
+  const cancelPolicy: CancelPolicy = {
+    nonRefundable: !input.freeCancelUntil,
+    freeCancelDays: null,
+    latePenaltyType: 'full',
+    latePenaltyBps: 0,
+  };
+  const pricing = {
+    currency: input.currency, rateBasis: 'net', collectionModel: 'prepaid_to_hb',
+    contractAmountMinor: input.supplierCostMinor, taxMinor: 0,
+    supplierCostMinor: input.supplierCostMinor, markupMinor: netRevenueMinor,
+    hotelCommissionMinor: 0, agentCommissionMinor: 0, commissionReceivableMinor: 0,
+    sellMinor: input.sellMinor, netRevenueMinor,
+    marginBps: input.sellMinor > 0 ? Math.round((netRevenueMinor / input.sellMinor) * 10_000) : 0,
+    markupBps: input.supplierCostMinor > 0 ? Math.round((netRevenueMinor / input.supplierCostMinor) * 10_000) : 0,
+    localTaxMinor: 0,
+    rule: 'Desk-agreed rate',
+    notes: input.cancellationTerms ? [`Hotel's cancellation terms: ${input.cancellationTerms}`] : [],
+  };
+
+  let b: Booking | undefined;
+  for (let attempt = 0; attempt < 5 && !b; attempt++) {
+    try {
+      b = await db.transaction(async (tx) => {
+        const [row] = await tx.insert(bookings).values({
+          reference: 'HB-' + randomCode(6),
+          agencyId: input.agencyId, createdBy: actor.userId, idempotencyKey,
+          supplier: DESK_SUPPLIER, supplierRef: `HBD-${input.source.id.slice(0, 8)}`,
+          hotelConfirmation: input.hotelConfirmation ?? null,
+          hotelId: input.hotelId, contractId: null, offerKey,
+          checkIn: input.checkIn, checkOut: input.checkOut, rooms: input.rooms,
+          leadGuest: input.leadGuest, agentReference: input.agentReference ?? null, specialRequests: input.specialRequests ?? null,
+          status: 'submitting', paymentStatus: 'not_due', paymentArrangement: 'prepay',
+          currency: input.currency, sellMinor: input.sellMinor, supplierCostMinor: input.supplierCostMinor,
+          taxMinor: 0, localTaxMinor: 0, commissionReceivableMinor: 0, netRevenueMinor,
+          collectionModel: 'prepaid_to_hb', pricing, cancelPolicy, freeCancelUntil: input.freeCancelUntil ?? null,
+          rateRequestId: input.source.kind === 'rate_request' ? input.source.id : null,
+          enquiryId: input.source.kind === 'group' ? input.source.id : null,
+          isSample: agency.isSample,
+        }).returning();
+        await tx.insert(bookingEvents).values({
+          bookingId: row.id, fromStatus: null, toStatus: 'submitting', actorId: actor.userId, actorLabel: actor.label,
+          note: `Desk-agreed rate from ${input.source.kind === 'rate_request' ? 'best-rate request' : 'group enquiry'}`,
+        });
+        return row;
+      });
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+      const [again] = await db.select().from(bookings).where(and(eq(bookings.agencyId, input.agencyId), eq(bookings.idempotencyKey, idempotencyKey)));
+      if (again) return again;
+      // Reference collision — try another code.
+    }
+  }
+  if (!b) throw new Error('Could not allocate a booking reference');
+
+  // The hotel has already agreed and is holding. What is outstanding is the
+  // money, so the booking goes straight to awaiting payment and is invoiced.
+  const confirmed = await db.transaction(async (tx) => {
+    const due = new Date(Date.now() + PAYMENT_HOLD_HOURS * 3_600_000);
+    let c = await transition(tx, actor, b!, 'awaiting_payment', 'Hotel agreed the rate and is holding the rooms — awaiting payment', { paymentDueAt: due });
+    await postCharge(tx, actor, c, due);
+    c = await setPayment(tx, c);
+    return c;
+  });
+  await audit(db, actor, 'booking.created', 'booking', confirmed.id,
+    { reference: confirmed.reference, sell: confirmed.sellMinor, currency: confirmed.currency, source: input.source.kind }, input.agencyId);
+  try { await bookingCreated(db, confirmed); } catch { /* logged by sendEmail */ }
+  return confirmed;
 }

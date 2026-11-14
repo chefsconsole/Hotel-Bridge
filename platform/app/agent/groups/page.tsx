@@ -22,7 +22,7 @@ export default async function GroupsPage() {
             <tbody>{rows.map(({ e }) => (
               <tr key={e.id}>
                 <td><Link href={`/agent/groups/${e.id}`} className="num font-medium hover:underline">{e.reference}</Link></td>
-                <td>{e.groupName}<p className="text-[0.75rem] text-faint">{e.totalPax} travellers · {e.groupType}</p></td>
+                <td>{e.groupName}<p className="text-[0.75rem] text-faint">{e.kind === 'sourcing' ? `Hotel request · ${e.totalPax} traveller${e.totalPax === 1 ? '' : 's'}` : `${e.totalPax} travellers · ${e.groupType}`}</p></td>
                 <td>{e.legs.map((l) => l.city).join(' → ')}<p className="text-[0.75rem] text-faint">{formatDate(e.legs[0].checkIn)}</p></td>
                 <td className="text-[0.85rem]">{roomsText(e.rooms)}</td>
                 <td>{formatDate(e.quoteNeededBy)}</td>

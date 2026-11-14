@@ -10,7 +10,7 @@ import { closeDb, getDb, schema } from '@/lib/db';
 import { addDays, todayIso } from '@/lib/domain/dates';
 import { SYSTEM } from '@/lib/services/actor';
 import { audit } from '@/lib/services/audit';
-import { ASHLEE, ASHLEE_EXTRAS, ASHLEE_QUOTES_TO, FRAGRANT_NATURE, type Extra, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
+import { ASHLEE, ASHLEE_EXTRAS, ASHLEE_QUOTES_TO, FRAGRANT_NATURE, type Extra, ASHLEE_CHILD_BREAKFAST, ASHLEE_EXTRA_BED, ASHLEE_NYE_SUPPLEMENT_PER_ROOM, ASHLEE_PERIODS, MUONG_THANH as MT, LISTED_INDIA, LISTED_ON_REQUEST, ON_REQUEST, ashleeNotes, onRequestDescription } from '@/data/partners';
 
 type DBT = Awaited<ReturnType<typeof getDb>>;
 const slugify = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
@@ -44,7 +44,7 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
 
   if (process.argv.includes('--new-only')) {
     const dryRun = process.argv.includes('--dry-run');
-    for (const p of ON_REQUEST) {
+    for (const p of [...ON_REQUEST, ...LISTED_ON_REQUEST, ...LISTED_INDIA]) {
       const slug = slugify(`${p.name}-${p.city}`);
       const [existing] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
       if (existing) continue;
@@ -53,7 +53,7 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
       const h = await upsertHotel(db, {
         name: p.name, city: p.city, country: p.country, address: p.address ?? null,
         starRating: p.starRating ?? null, starRatingVerified: false,
-        summary: 'Best rate on request — FIT and groups.', description: onRequestDescription,
+        summary: 'Best rate on request — FIT and groups.', description: onRequestDescription, tier: p.tier ?? null,
         bestRateOnRequest: true, rateRequestEmail: p.email,
         acceptsGroups: true, groupsEmail: p.email,
         contactName: p.contactName ?? null, contactEmail: p.email, reservationsEmail: p.reservationsEmail ?? p.email,
@@ -64,8 +64,17 @@ async function replaceExtras(db: DBT, hotelId: string, extras: Extra[], currency
       const [name, ...role] = (p.contactName ?? '').split(', ');
       const record = {
         contactName: name || null, contactRole: role.join(', ') || null, contactEmail: p.email, contactPhone: p.phone ?? null,
-        contactSource: 'Their email reply', stage: p.agreed ? 'signed' : 'in_talks', hotelId: h.id, lastContactOn: todayIso(),
-        notes: [`${p.agreed ? 'Agreed terms' : 'Live on request — nothing signed yet. What the hotel said'}: ${p.terms}`, p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`].filter(Boolean).join('\n'),
+        // Three different truths, and the record must not blur them: signed,
+        // in talks, or listed for agents with nobody at the hotel spoken to yet.
+        contactSource: p.listedOnly ? 'Hotel’s own website' : 'Their email reply',
+        stage: p.listedOnly ? 'to_contact' : p.agreed ? 'signed' : 'in_talks',
+        hotelId: h.id, lastContactOn: p.listedOnly ? null : todayIso(),
+        notes: [
+          p.listedOnly
+            ? 'LISTED, NOT CONTACTED. Shown to agents as best rate on request so we capture the enquiry in a city we had no hotels in. Nobody here has spoken to us — claim nothing. The first approach should carry a real dated agent enquiry.'
+            : `${p.agreed ? 'Agreed terms' : 'Live on request — nothing signed yet. What the hotel said'}: ${p.terms}`,
+          p.reservationsEmail && `Reservations: ${p.reservationsEmail}`, p.otherContacts && `Other contacts: ${p.otherContacts}`,
+        ].filter(Boolean).join('\n'),
         updatedAt: new Date(),
       };
       const [prospect] = await db.select({ id: schema.hotelProspects.id, notes: schema.hotelProspects.notes }).from(schema.hotelProspects)

@@ -6,6 +6,7 @@
 import { schema, type DB } from '@/lib/db';
 import { isProduction } from '@/lib/config';
 import { contractedAdapter } from './contracted';
+import { deskAdapter } from './desk';
 import { sandboxAdapter } from './sandbox';
 import { SupplierTimeoutError, SupplierUnavailableError, classify, type SupplierAdapter } from './types';
 
@@ -19,7 +20,9 @@ export const SUPPLIER_CANDIDATES = [
 ] as const;
 
 export function adapters(): SupplierAdapter[] {
-  const list: SupplierAdapter[] = [contractedAdapter];
+  // The desk adapter has search:false, so it is never part of a search —
+  // it exists so desk-agreed bookings go through the same boundary as any other.
+  const list: SupplierAdapter[] = [contractedAdapter, deskAdapter];
   if (!isProduction && process.env.HB_SANDBOX_SUPPLIER !== '0') list.push(sandboxAdapter);
   return list;
 }

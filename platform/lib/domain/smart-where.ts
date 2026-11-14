@@ -15,12 +15,24 @@ export type Suggestion =
 /** Regions, states and well-known areas → the destinations we use for them. */
 const AREAS: Record<string, string[]> = {
   // India
-  uttarakhand: ['Rishikesh', 'Haridwar', 'Mussoorie', 'Dehradun', 'Bhimtal'], 'char dham': ['Haridwar', 'Rishikesh'],
+  uttarakhand: ['Rishikesh', 'Haridwar', 'Mussoorie', 'Dehradun', 'Bhimtal', 'Nainital', 'Jim Corbett', 'Lansdowne', 'Rudraprayag', 'Sattal'], 'char dham': ['Haridwar', 'Rishikesh', 'Rudraprayag'],
+  corbett: ['Jim Corbett'], 'jim corbett': ['Jim Corbett'], ramnagar: ['Jim Corbett'],
   kashmir: ['Srinagar', 'Katra'], 'jammu': ['Katra'], 'vaishno devi': ['Katra'], gulmarg: ['Srinagar'], pahalgam: ['Srinagar'],
-  himachal: ['Shimla', 'Parwanoo'], kerala: ['Kochi', 'Munnar', 'Kollam'], cochin: ['Kochi'], 'fort kochi': ['Kochi'], alleppey: ['Kollam', 'Kochi'],
-  rajasthan: ['Udaipur'], 'uttar pradesh': ['Agra', 'Varanasi', 'Vrindavan'], mathura: ['Vrindavan'], banaras: ['Varanasi'], kashi: ['Varanasi'],
-  'madhya pradesh': ['Ujjain'], mahakal: ['Ujjain'], punjab: ['Amritsar'], 'golden temple': ['Amritsar'], sikkim: ['Gangtok'],
-  andaman: ['Neil Island (Andaman)'], havelock: ['Neil Island (Andaman)'], karnataka: ['Mysore'], mysuru: ['Mysore'], 'tamil nadu': ['Ooty'], nilgiris: ['Ooty'],
+  himachal: ['Shimla', 'Parwanoo', 'Manali', 'Kasauli', 'Chail', 'Kufri', 'Dharamshala'], manali: ['Manali'], dalhousie: ['Dharamshala'], mcleodganj: ['Dharamshala'],
+  kerala: ['Kochi', 'Munnar', 'Kollam', 'Alleppey', 'Thekkady', 'Athirappilly', 'Guruvayur', 'Malampuzha'], cochin: ['Kochi'], 'fort kochi': ['Kochi'],
+  alleppey: ['Alleppey'], alappuzha: ['Alleppey'], backwaters: ['Alleppey', 'Kollam'], periyar: ['Thekkady'],
+  rajasthan: ['Jaipur', 'Udaipur', 'Jodhpur', 'Jaisalmer', 'Pushkar', 'Mount Abu', 'Ranthambore', 'Sariska', 'Jawai'],
+  'golden triangle': ['Agra', 'Jaipur'], 'pink city': ['Jaipur'], 'blue city': ['Jodhpur'], ajmer: ['Pushkar'], desert: ['Jaisalmer'],
+  'uttar pradesh': ['Agra', 'Varanasi', 'Vrindavan', 'Ayodhya'], mathura: ['Vrindavan'], banaras: ['Varanasi'], kashi: ['Varanasi'], ayodhya: ['Ayodhya'],
+  'madhya pradesh': ['Ujjain', 'Kanha', 'Pench', 'Bandhavgarh'], mahakal: ['Ujjain'], punjab: ['Amritsar'], 'golden temple': ['Amritsar'],
+  sikkim: ['Gangtok'], 'west bengal': ['Darjeeling', 'Kalimpong'], 'north east': ['Gangtok', 'Darjeeling', 'Kalimpong'],
+  andaman: ['Neil Island (Andaman)'], havelock: ['Neil Island (Andaman)'],
+  karnataka: ['Mysore', 'Coorg', 'Sakleshpur', 'Karwar', 'Badami'], mysuru: ['Mysore'], madikeri: ['Coorg'], kodagu: ['Coorg'],
+  'tamil nadu': ['Ooty', 'Kodaikanal', 'Madurai', 'Yercaud', 'Anaikatti', 'Tiruvannamalai'], nilgiris: ['Ooty'], kodai: ['Kodaikanal'],
+  maharashtra: ['Lonavala', 'Panchgani', 'Tadoba'], mahabaleshwar: ['Panchgani'], khandala: ['Lonavala'],
+  gujarat: ['Gir'], 'gir forest': ['Gir'], odisha: ['Puri'], jagannath: ['Puri'],
+  wildlife: ['Ranthambore', 'Kanha', 'Pench', 'Bandhavgarh', 'Gir', 'Jim Corbett', 'Tadoba', 'Sariska', 'Jawai'],
+  safari: ['Ranthambore', 'Kanha', 'Pench', 'Bandhavgarh', 'Gir', 'Jim Corbett', 'Tadoba', 'Sariska'],
   'north goa': ['Goa'], 'south goa': ['Goa'], calangute: ['Goa'], morjim: ['Goa'], nainital: ['Bhimtal'], 'taj mahal': ['Agra'],
   // Thailand
   patong: ['Phuket'], kata: ['Phuket'], karon: ['Phuket'], 'laguna': ['Phuket'], 'ao nang': ['Krabi'], 'koh lanta': ['Krabi'], samui: ['Koh Samui'],
@@ -32,9 +44,10 @@ const AREAS: Record<string, string[]> = {
   // Middle East
   uae: ['Dubai'], emirates: ['Dubai'], 'jumeirah': ['Dubai'],
   // Europe
-  europe: ['London', 'Paris', 'Amsterdam', 'Rome', 'Prague', 'Vienna', 'Zurich', 'Munich', 'Berlin', 'Salzburg', 'Interlaken', 'Geneva'],
+  europe: ['London', 'Paris', 'Amsterdam', 'Rome', 'Milan', 'Brussels', 'Prague', 'Vienna', 'Zurich', 'Munich', 'Berlin', 'Salzburg', 'Interlaken', 'Geneva'],
+  belgium: ['Brussels'], bruges: ['Brussels'], milano: ['Milan'], lombardy: ['Milan'],
   swiss: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], switzerland: ['Zurich', 'Interlaken', 'Geneva', 'Bern'], jungfrau: ['Interlaken'], uk: ['London'], england: ['London'],
-  holland: ['Amsterdam'], italy: ['Rome'], czech: ['Prague'], france: ['Paris'],
+  holland: ['Amsterdam'], italy: ['Rome', 'Milan'], czech: ['Prague'], france: ['Paris'],
   austria: ['Vienna', 'Salzburg', 'Innsbruck', 'Graz', 'Linz', 'Villach', 'Lienz', 'Dornbirn', 'Steyr', 'Bischofshofen'],
   germany: ['Berlin', 'Munich'], bavaria: ['Munich'], tyrol: ['Innsbruck', 'Lienz'], tirol: ['Innsbruck', 'Lienz'], telfs: ['Innsbruck'], carinthia: ['Villach'],
   vorarlberg: ['Dornbirn'], wien: ['Vienna'], muenchen: ['Munich'], munchen: ['Munich'], zuerich: ['Zurich'], zurich: ['Zurich'], wallisellen: ['Zurich'], spreitenbach: ['Zurich'], ostermundigen: ['Bern'],
@@ -48,6 +61,8 @@ const CODES: Record<string, string> = {
   dad: 'Da Nang', han: 'Hanoi', hkg: 'Hong Kong', mle: 'Maldives', cmb: 'Sri Lanka', lhr: 'London', cdg: 'Paris', ams: 'Amsterdam',
   fco: 'Rome', prg: 'Prague', vie: 'Vienna', gva: 'Geneva', zrh: 'Zurich', muc: 'Munich', ber: 'Berlin', szg: 'Salzburg', inn: 'Innsbruck', grz: 'Graz', lnz: 'Linz', brn: 'Bern', syd: 'Sydney', jnb: 'Johannesburg', goi: 'Goa', gox: 'Goa', cok: 'Kochi',
   sxr: 'Srinagar', vns: 'Varanasi', agr: 'Agra', ded: 'Dehradun', ixj: 'Katra', atq: 'Amritsar', udr: 'Udaipur',
+  jai: 'Jaipur', jdh: 'Jodhpur', jsa: 'Jaisalmer', ixb: 'Darjeeling', pgh: 'Jim Corbett', ixm: 'Madurai',
+  mxp: 'Milan', lin: 'Milan', bgy: 'Milan', bru: 'Brussels', crl: 'Brussels',
 };
 
 export const norm = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();

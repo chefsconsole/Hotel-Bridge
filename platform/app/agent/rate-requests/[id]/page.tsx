@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { ActionForm, SubmitButton } from '@/components/forms';
 import { DL, Money, Notice, PageHeader, Panel, Pill } from '@/components/ui';
 import { rateRequestDecisionAction } from '@/app/actions/rate-requests';
-import { getDb } from '@/lib/db';
+import { inArray } from 'drizzle-orm';
+import { getDb, schema } from '@/lib/db';
 import { daysBetween, formatDate, formatDateTime } from '@/lib/domain/dates';
 import { formatMoney } from '@/lib/domain/money';
 import { describeRoom, describeRooms, encodeRooms } from '@/lib/domain/occupancy';
@@ -28,6 +29,11 @@ export default async function RateRequestPage({ params }: { params: Promise<{ id
   const stayQuery = new URLSearchParams({ in: r.checkIn, out: r.checkOut, rooms: encodeRooms(r.rooms) }).toString();
   const meal = (k: string | null) => (k ? MEAL_PLANS[k as keyof typeof MEAL_PLANS] ?? k : null);
   const open = state === 'working' || state === 'offers';
+  // Once we confirm, the lead has a real booking with an invoice behind it.
+  const [booking] = state === 'booked'
+    ? await (await getDb()).select({ id: schema.bookings.id, reference: schema.bookings.reference })
+        .from(schema.bookings).where(inArray(schema.bookings.rateRequestId, [r.id, ...offers.map((o) => o.id)])).limit(1)
+    : [];
 
   return (
     <div className="animate-[var(--animate-rise)]">
@@ -92,7 +98,13 @@ export default async function RateRequestPage({ params }: { params: Promise<{ id
                 })}
               </ul>
               {state === 'accepted' && <div className="mt-5"><Notice tone="success">Done — our reservations team will contact you for the guest names and payment to confirm the booking.</Notice></div>}
-              {state === 'booked' && <div className="mt-5"><Notice tone="success" title="Booked">Confirmed with the hotel. You have the details by email.</Notice></div>}
+              {state === 'booked' && (
+                <div className="mt-5"><Notice tone="success" title={booking ? `Booked · ${booking.reference}` : 'Booked'}>
+                  Confirmed with the hotel. {booking
+                    ? <>Your invoice is ready — <Link href={`/agent/bookings/${booking.id}`} className="font-medium underline underline-offset-2">open the booking</Link> to pay it.</>
+                    : <>You have the details by email.</>}
+                </Notice></div>
+              )}
             </Panel>
           )}
 

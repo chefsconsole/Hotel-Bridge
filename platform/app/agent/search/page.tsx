@@ -78,7 +78,7 @@ async function Results({ sp, tripId }: { sp: SP; tripId?: string }) {
       {onRequest.length > 0 && <OnRequestList hotels={onRequest} q={q} />}
       {results.length === 0 && onRequest.length > 0 ? null : results.length === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-line bg-surface">
-          <Empty title={tiers.length ? `No ${tiers.map((t) => TIER_INFO[t].label).join(' or ')} hotels free for this search` : 'Nothing available for this search'} action={<Link href="/agent/groups/new" className="text-[0.9rem] font-medium underline underline-offset-4">Ask the Group Desk instead</Link>}>
+          <Empty title={tiers.length ? `No ${tiers.map((t) => TIER_INFO[t].label).join(' or ')} hotels free for this search` : 'Nothing available for this search'} action={<Link href={`/agent/requests/new?city=${encodeURIComponent(input.city)}&in=${input.checkIn}&out=${input.checkOut}`} className="text-[0.9rem] font-medium underline underline-offset-4">Ask us to find a hotel</Link>}>
             None of our hotels in {input.city} can take this room configuration on these dates. Try different dates or fewer rooms per booking.
           </Empty>
         </div>

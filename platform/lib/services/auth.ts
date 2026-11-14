@@ -17,6 +17,8 @@ import { welcomeAgency } from './notify';
 import { AppError, isUniqueViolation } from './errors';
 import type { Actor } from './actor';
 import { audit } from './audit';
+import { nextNumber } from './counters';
+import { agencyCode, agentCode } from '@/lib/domain/grades';
 import { checkDocument, taxIdsSchema, type UploadFile } from './kyc';
 import { isIndia } from '@/lib/domain/india';
 
@@ -142,7 +144,11 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
   let created: { agency: typeof agencies.$inferSelect; user: typeof users.$inferSelect };
   try {
     created = await db.transaction(async (tx) => {
+      // The agency's permanent trading code, issued once, inside the same
+      // transaction so a half-registered agency can never exist without one.
+      const code = agencyCode(await nextNumber(tx, 'agency'));
       const [agency] = await tx.insert(agencies).values({
+        code,
         name: data.agencyName, legalName: data.legalName || null, country: data.country, city: data.city || null,
         website: data.website || null, taxId: data.taxId || ids.gstin || null, phone: data.phone || null,
         address: data.address || null, state: data.state || null, pincode: data.pincode || null,
@@ -152,7 +158,8 @@ export async function registerAgency(db: DB, input: z.infer<typeof registrationS
         billingCurrency: data.billingCurrency, status: 'pending',
       }).returning();
       const [user] = await tx.insert(users).values({
-        email: data.email, name: data.name, passwordHash, agencyId: agency.id, agencyRole: 'owner',
+        // The owner always takes seat 01.
+        email: data.email, name: data.name, passwordHash, agencyId: agency.id, agencyRole: 'owner', code: agentCode(code, 1),
       }).returning();
       await audit(tx as unknown as DB, { userId: user.id, label: `${user.name} (${user.email})`, platformRole: null, agencyId: agency.id, agencyRole: 'owner', partnerHotelId: null },
         'agency.registered', 'agency', agency.id, { name: agency.name, country: agency.country });
@@ -212,8 +219,12 @@ export async function addAgencyUser(db: DB, actor: Actor, input: { name: string;
   const password = passwordSchema.parse(input.password);
   const name = z.string().trim().min(2).max(120).parse(input.name);
   try {
+    const [ag] = await db.select({ code: agencies.code }).from(agencies).where(eq(agencies.id, actor.agencyId));
+    // Seats are numbered by how many already exist, so codes stay stable and readable.
+    const seats = await db.select({ n: sql<number>`count(*)::int` }).from(users).where(eq(users.agencyId, actor.agencyId));
     const [u] = await db.insert(users).values({
       email, name, passwordHash: await hashPassword(password), agencyId: actor.agencyId, agencyRole: input.role === 'owner' ? 'owner' : 'agent',
+      code: ag?.code ? agentCode(ag.code, seats[0].n + 1) : null,
     }).returning();
     await audit(db, actor, 'agency.user_added', 'user', u.id, { email, role: u.agencyRole });
     return u;

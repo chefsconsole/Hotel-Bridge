@@ -31,6 +31,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
     { href: '/agent', label: 'Today', icon: 'overview', section: 'Book' },
     { href: '/agent/search', label: 'Search hotels', icon: 'search', section: 'Book' },
     { href: '/agent/rate-requests', label: 'Best-rate requests', icon: 'spark', badge: rates, section: 'Book' },
+    { href: '/agent/requests/new', label: 'Request a hotel', icon: 'spark', section: 'Book' },
     { href: '/agent/groups', label: 'Group Desk', icon: 'groups', section: 'Book' },
     { href: '/agent/saved', label: 'Saved hotels', icon: 'saved', section: 'Book' },
     { href: '/agent/trips', label: 'Client trips', icon: 'trips', badge: followUps, section: 'Sell' },
@@ -56,6 +57,7 @@ export default async function AgentLayout({ children }: { children: React.ReactN
       actions={[
         { label: 'Search hotels', href: '/agent/search', hint: 'book find rates' },
         { label: 'Paste a group enquiry', href: '/agent/groups/new', hint: 'new group request mice wedding' },
+        { label: 'Request a hotel we don\u2019t list', href: '/agent/requests/new', hint: 'find source hotel enquiry destination specific' },
         { label: 'New client trip', href: '/agent/trips/new', hint: 'quote proposal' },
         { label: 'Compare saved hotels', href: '/agent/saved', hint: 'side by side shortlist' },
       ]}

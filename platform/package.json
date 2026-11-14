@@ -18,7 +18,8 @@
     "go-live:check": "tsx scripts/go-live-check.ts",
     "load:partners": "tsx scripts/load-partners.ts",
     "reset-password": "tsx scripts/reset-password.ts",
-    "password-link": "tsx scripts/password-link.ts"
+    "password-link": "tsx scripts/password-link.ts",
+    "backfill:codes": "tsx scripts/backfill-codes.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.3.0",

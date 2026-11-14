@@ -18,7 +18,7 @@ import {
 } from '@/lib/services/bookings';
 import {
   addPricingRule, addRatePeriod, addRestriction, addRoomType, contractSchema, createContract, createHotel, createPartnerUser,
-  deactivateRatePeriod, importRateSheet, parseRateSheet, removeRestriction, setAgencyCredit, setAgencyStatus, setAllocation,
+  deactivateRatePeriod, importRateSheet, parseRateSheet, removeRestriction, setAgencyCredit, setAgencyGrade, setAgencyStatus, setAllocation,
   setContractStatus, setHotelImages, setHotelStatus, updateContract, updateHotel,
 } from '@/lib/services/catalog';
 import {
@@ -253,6 +253,16 @@ export async function agencyStatusAction(_: ActionResult | null, fd: FormData): 
     await setAgencyStatus(await getDb(), await staff(), str(fd, 'agencyId'), str(fd, 'status') as 'verified', optStr(fd, 'note'));
     revalidatePath(`/admin/agencies/${str(fd, 'agencyId')}`);
     return `Agency ${str(fd, 'status')}.`;
+  });
+}
+
+/** How we rank an agency, and the desk's own labels for it. Internal only. */
+export async function agencyGradeAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    await setAgencyGrade(await getDb(), await staff(), str(fd, 'id'), { grade: str(fd, 'grade'), tags: optStr(fd, 'tags') ?? '' });
+    revalidatePath(`/admin/agencies/${str(fd, 'id')}`);
+    revalidatePath('/admin/agencies');
+    return 'Saved.';
   });
 }
 

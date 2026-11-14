@@ -13,8 +13,15 @@ export type OnRequestPartner = {
   phone?: string; otherContacts?: string;
   /** Name of its existing outreach record, when that differs from the hotel name. */
   outreachName?: string;
-  /** Internal only — what the hotel agreed or stated, for the team. Never shown to agents. */
-  terms: string;
+  /** Internal only — what the hotel agreed or stated, for the team. Never shown to agents.
+   *  Absent on a LISTED hotel: nobody there has said anything to us yet. */
+  terms?: string;
+  /** True for a hotel we have put in front of agents WITHOUT having spoken to it.
+   *  We list it so an agent in that city sees real options and can ask; their dated
+   *  enquiry is then what we take to the hotel. Never describe one as a partner. */
+  listedOnly?: boolean;
+  /** Curation tier, our own judgement of the property's level — not a star rating. */
+  tier?: 'smart' | 'premium' | 'luxury' | 'ultra';
   /** True only when the hotel has actually agreed terms with us. Otherwise the outreach record
    *  stays "in talks": live on request, but nothing signed. Never claim more than the hotel said. */
   agreed?: boolean;
@@ -406,4 +413,181 @@ export const FRAGRANT_NATURE: FlatContract[] = [
       { name: 'Lunch or dinner', category: 'dining', unit: 'per_person', price: 1300, child: 600 },
       gala('2026-12-24', 3000, 1500, 'Christmas Eve gala dinner'), gala('2026-12-31', 4000, 2000, "New Year's Eve gala dinner"),
     ] },
+];
+
+/* ------------------------------------------------------------------ *
+ * LISTED, NOT YET CONTACTED.
+ *
+ * Cities where we had no hotels at all, so an agent searching them saw
+ * nothing and we lost the enquiry silently. These are real properties,
+ * taken from NH Hotel Group's own city pages on nh-hotels.com (13 Nov
+ * 2026), routed to the B2B desks published on NH's own travel-agents
+ * page (nh-hotels.com/en/contact/travel-agents, read the same day).
+ *
+ * Nobody at NH has promised us anything. They are listed so an agent
+ * can ask, and their real dated enquiry is what we then take to the
+ * hotel — a far better opening than a cold partnership email.
+ * Star ratings are left empty because we have not verified them.
+ * ------------------------------------------------------------------ */
+
+/** NH's published B2B desks, by the country the hotel sits in. */
+const NH_DESK = {
+  it: { email: 'leads@nh-hotels.com', reservationsEmail: 'prenotazioni@nh-hotels.com' },
+  de: { email: 'nh.germany@nh-hotels.com', reservationsEmail: 'reservierungen@nh-hotels.com' },
+  be: { email: 'sales.nl@nh-hotels.com', reservationsEmail: 'bookings@nh-hotels.com' },
+  fr: { email: 'leads@nh-hotels.com', reservationsEmail: 'reservations@nh-hotels.com' },
+  uk: { email: 'leads.gsf@nh-hotels.com', reservationsEmail: 'reservations@nh-hotels.com' },
+} as const;
+
+const nh = (
+  name: string, city: string, country: string, desk: keyof typeof NH_DESK,
+  tier: 'smart' | 'premium',
+): OnRequestPartner => ({
+  name, city, country, ...NH_DESK[desk], tier, listedOnly: true,
+  contactName: 'NH Hotel Group travel-agency desk',
+});
+
+export const LISTED_ON_REQUEST: OnRequestPartner[] = [
+  // Milan — we had none.
+  nh('NH Collection Milano Touring', 'Milan', 'Italy', 'it', 'premium'),
+  nh('NH Collection Milano CityLife', 'Milan', 'Italy', 'it', 'premium'),
+  nh('NH Collection Milano Porta Nuova', 'Milan', 'Italy', 'it', 'premium'),
+  nh('NH Milano Corso Buenos Aires', 'Milan', 'Italy', 'it', 'smart'),
+  nh('NH Milano Machiavelli', 'Milan', 'Italy', 'it', 'smart'),
+  nh('NH Milano Fiera', 'Milan', 'Italy', 'it', 'smart'),
+  // Rome — we had one.
+  nh('NH Collection Roma Fori Imperiali', 'Rome', 'Italy', 'it', 'premium'),
+  nh('NH Collection Roma Palazzo Cinquecento', 'Rome', 'Italy', 'it', 'premium'),
+  nh('NH Collection Roma Centro', 'Rome', 'Italy', 'it', 'premium'),
+  nh('NH Collection Roma Giustiniano', 'Rome', 'Italy', 'it', 'premium'),
+  nh('NH Roma Villa Carpegna', 'Rome', 'Italy', 'it', 'smart'),
+  nh('nhow Roma', 'Rome', 'Italy', 'it', 'premium'),
+  // Berlin — we had one.
+  nh('NH Collection Berlin Mitte Friedrichstrasse', 'Berlin', 'Germany', 'de', 'premium'),
+  nh('NH Collection Berlin Mitte Checkpoint Charlie', 'Berlin', 'Germany', 'de', 'premium'),
+  nh('NH Berlin Alexanderplatz', 'Berlin', 'Germany', 'de', 'smart'),
+  nh('NH Berlin Kurfürstendamm', 'Berlin', 'Germany', 'de', 'smart'),
+  nh('NH Berlin Potsdamer Platz', 'Berlin', 'Germany', 'de', 'smart'),
+  nh('nhow Berlin', 'Berlin', 'Germany', 'de', 'premium'),
+  // Brussels — we had none.
+  nh('NH Collection Brussels Centre', 'Brussels', 'Belgium', 'be', 'premium'),
+  nh('NH Collection Brussels Grand Sablon', 'Brussels', 'Belgium', 'be', 'premium'),
+  nh('NH Brussels Grand Place Arenberg', 'Brussels', 'Belgium', 'be', 'smart'),
+  nh("NH Brussels Carrefour de l'Europe", 'Brussels', 'Belgium', 'be', 'smart'),
+  nh('NH Brussels Stephanie', 'Brussels', 'Belgium', 'be', 'smart'),
+  nh('NH Brussels EU Berlaymont', 'Brussels', 'Belgium', 'be', 'smart'),
+  // Paris — we had one.
+  nh('NH Collection Paris Ponthieu Champs-Élysées', 'Paris', 'France', 'fr', 'premium'),
+  nh("NH Paris Gare de l'Est", 'Paris', 'France', 'fr', 'smart'),
+  nh('NH Paris Opéra Faubourg', 'Paris', 'France', 'fr', 'smart'),
+  // London — we had three.
+  nh('nhow London', 'London', 'United Kingdom', 'uk', 'premium'),
+];
+
+/* ------------------------------------------------------------------ *
+ * India — LISTED, NOT YET CONTACTED (same rule as LISTED_ON_REQUEST).
+ *
+ * We had hotels in only ~25 Indian destinations, so an agent searching
+ * Jaipur, Jodhpur, Coorg, Darjeeling, Kasauli or Ranthambore saw nothing
+ * and we lost the enquiry. These are real properties read from each
+ * chain's own website on 13 Nov 2026:
+ *   Sterling Holidays  sterlingholidays.com/resorts-hotels
+ *                      rate requests -> crs@sterlingholidays.com
+ *                      (central reservations, from their own contact page)
+ *   Lemon Tree Hotels  lemontreehotels.com/jaipur-hotels
+ *                      rate requests -> reservations@lemontreehotels.com
+ *                      (from their own contact page)
+ *
+ * Neither chain has promised us anything. Star ratings are left empty
+ * because we have not verified them.
+ * ------------------------------------------------------------------ */
+const sterling = (name: string, city: string): OnRequestPartner => ({
+  name, city, country: 'India', email: 'crs@sterlingholidays.com',
+  reservationsEmail: 'crs@sterlingholidays.com', contactName: 'Sterling Holidays central reservations',
+  tier: 'smart', listedOnly: true,
+});
+
+const lemonTree = (name: string, city: string, tier: 'smart' | 'premium' | 'luxury'): OnRequestPartner => ({
+  name, city, country: 'India', email: 'reservations@lemontreehotels.com',
+  reservationsEmail: 'reservations@lemontreehotels.com', contactName: 'Lemon Tree Hotels reservations',
+  tier, listedOnly: true,
+});
+
+export const LISTED_INDIA: OnRequestPartner[] = [
+  sterling('Sterling Regalia Agra', 'Agra'),
+  sterling('Sterling Lake Palace Alleppey', 'Alleppey'),
+  sterling('Sterling Luxury Houseboat Alleppey', 'Alleppey'),
+  sterling('Sterling Borderland Amritsar', 'Amritsar'),
+  sterling('Sterling Anaikatti', 'Anaikatti'),
+  sterling('Sterling Athirappilly', 'Athirappilly'),
+  sterling('Sterling Rampath Ayodhya', 'Ayodhya'),
+  sterling('Sterling Saryu Ayodhya', 'Ayodhya'),
+  sterling('Sterling Bandhavgarh', 'Bandhavgarh'),
+  sterling('Sterling Banashree Badami', 'Badami'),
+  sterling('Sterling Shivalik Chail', 'Chail'),
+  sterling('Sterling Brookstone Coorg', 'Coorg'),
+  sterling('Sterling Riverview Jim Corbett', 'Jim Corbett'),
+  sterling('Sterling Quinta Jim Corbett', 'Jim Corbett'),
+  sterling('Sterling Darjeeling', 'Darjeeling'),
+  sterling('Sterling GK Exotica Dehradun', 'Dehradun'),
+  sterling('Sterling Marbella Dehradun', 'Dehradun'),
+  sterling('Sterling Nirmaya Dharamshala', 'Dharamshala'),
+  sterling('Sterling Gangtok - Orange Village', 'Gangtok'),
+  sterling('Sterling Mount Olive Gangtok', 'Gangtok'),
+  sterling('Sterling Gir', 'Gir'),
+  sterling('Sterling Goa Varca', 'Goa'),
+  sterling('Sterling Darshan Guruvayur', 'Guruvayur'),
+  sterling('Sterling Guruvayur', 'Guruvayur'),
+  sterling('Sterling Mantra Haridwar', 'Haridwar'),
+  sterling('Sterling Rudraksh Jaisalmer', 'Jaisalmer'),
+  sterling('Sterling Amargarh Jodhpur', 'Jodhpur'),
+  sterling('Sterling Leopard Haven Jawai', 'Jawai'),
+  sterling('Sterling Park Kalimpong', 'Kalimpong'),
+  sterling('Sterling Kanha', 'Kanha'),
+  sterling('Sterling Ameris Kasauli', 'Kasauli'),
+  sterling('Sterling Karwar', 'Karwar'),
+  sterling('Sterling Kodai - Lake', 'Kodaikanal'),
+  sterling('Sterling Kodai - Valley', 'Kodaikanal'),
+  sterling('Sterling Kufri', 'Kufri'),
+  sterling('Sterling Valley of Pine, Lansdowne', 'Lansdowne'),
+  sterling('Sterling Stolen Heaven Lonavala', 'Lonavala'),
+  sterling('Sterling V Grand Madurai', 'Madurai'),
+  sterling('Sterling Govardhana Malampuzha', 'Malampuzha'),
+  sterling('Sterling Manali', 'Manali'),
+  sterling('Sterling Avante Mohali', 'Mohali'),
+  sterling('Sterling Mount Abu', 'Mount Abu'),
+  sterling('Sterling Munnar', 'Munnar'),
+  sterling('Sterling Mussoorie', 'Mussoorie'),
+  sterling('Sterling Nainital', 'Nainital'),
+  sterling('Sterling Ooty - Elk Hill', 'Ooty'),
+  sterling('Sterling Ooty - Fern Hill', 'Ooty'),
+  sterling('Sterling Palavelli by the Godavari', 'Godavari'),
+  sterling('Sterling Panchgani', 'Panchgani'),
+  sterling('Sterling Padam Pench', 'Pench'),
+  sterling('Sterling Orient Woods Pench', 'Pench'),
+  sterling('Sterling Puri', 'Puri'),
+  sterling('Sterling Arka Suites Puri', 'Puri'),
+  sterling('Sterling Pushkar', 'Pushkar'),
+  sterling('Sterling Bagh Ranthambore', 'Ranthambore'),
+  sterling('Sterling Kastoori Rudraprayag', 'Rudraprayag'),
+  sterling('Sterling Palm Bliss Wellness Resort Rishikesh', 'Rishikesh'),
+  sterling('Sterling Kadumane Hills Sakleshpur', 'Sakleshpur'),
+  sterling('Sterling Lake View Sattal', 'Sattal'),
+  sterling('Sterling Rewild Sariska', 'Sariska'),
+  sterling('De Laila Houseboats Srinagar', 'Srinagar'),
+  sterling('Sterling Vanyatara Tadoba', 'Tadoba'),
+  sterling('Sterling Thekkady', 'Thekkady'),
+  sterling('Sterling Tipeshwar', 'Tipeshwar'),
+  sterling('Sterling Arunai Anantha Tiruvannamalai', 'Tiruvannamalai'),
+  sterling('Sterling Aravalli Udaipur', 'Udaipur'),
+  sterling('Sterling Balicha Udaipur', 'Udaipur'),
+  sterling('Sterling Jaisinghgarh Udaipur', 'Udaipur'),
+  sterling('Sterling Naman Bastar, Jagdalpur', 'Jagdalpur'),
+  // Jaipur and Udaipur — Sterling has no Jaipur property, so Lemon Tree covers it.
+  lemonTree('Lemon Tree Premier, Jaipur', 'Jaipur', 'premium'),
+  lemonTree('Red Fox by Lemon Tree Hotels, Jaipur', 'Jaipur', 'smart'),
+  lemonTree('Keys Lite by Lemon Tree Hotels, Jaipur', 'Jaipur', 'smart'),
+  lemonTree('Aurika, Udaipur - Luxury by Lemon Tree Hotels', 'Udaipur', 'luxury'),
+  lemonTree('Keys Select by Lemon Tree Hotels, Udaipur', 'Udaipur', 'smart'),
+  lemonTree('Keys Lite by Lemon Tree Hotels, Urban Square, Udaipur', 'Udaipur', 'smart'),
 ];

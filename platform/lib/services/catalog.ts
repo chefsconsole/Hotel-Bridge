@@ -5,6 +5,7 @@
  * ------------------------------------------------------------------ */
 import { and, asc, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { cleanTags, isGrade } from '@/lib/domain/grades';
 import { schema, type DB } from '@/lib/db';
 import { addDays, daysBetween, isIsoDate, nightsOf, formatDate } from '@/lib/domain/dates';
 import { CURRENCIES, parseMoney } from '@/lib/domain/money';
@@ -441,6 +442,19 @@ export async function setAgencyCredit(db: DB, actor: Actor, agencyId: string, in
     paymentTermsDays: z.number().int().min(0).max(90).parse(input.termsDays), updatedAt: new Date(),
   }).where(eq(agencies.id, agencyId));
   await audit(db, actor, 'agency.credit', 'agency', agencyId, { ...input, note, previous: { enabled: a.creditEnabled, limit: a.creditLimitMinor } }, agencyId);
+}
+
+/** The desk's own view of an agency: how we rank it and how we label it.
+ *  Never shown to the agency, and deliberately has no effect on pricing —
+ *  what an agent is quoted comes from the contract and the pricing rule. */
+export async function setAgencyGrade(db: DB, actor: Actor, agencyId: string, input: { grade: string; tags: string | string[] }) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  if (!isGrade(input.grade)) throw new AppError('Choose a grade from the list');
+  const [a] = await db.select().from(agencies).where(eq(agencies.id, agencyId));
+  if (!a) throw new NotFoundError('Agency');
+  const tags = cleanTags(input.tags);
+  await db.update(agencies).set({ grade: input.grade, tags, updatedAt: new Date() }).where(eq(agencies.id, agencyId));
+  await audit(db, actor, 'agency.graded', 'agency', agencyId, { grade: input.grade, tags, previous: { grade: a.grade, tags: a.tags } }, agencyId);
 }
 
 /* ------------------------------ partners ------------------------------ */

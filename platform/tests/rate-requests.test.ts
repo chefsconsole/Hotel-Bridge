@@ -121,12 +121,38 @@ describe('best rate on request — run by the HotelBridge desk', () => {
     expect((await deskTodo(f.db))[0].title).toContain('agent accepted Marais Boutique — confirm with the hotel');
     await expect(markBooked(f.db, f.A, child.id, 'X1')).rejects.toThrow();
     await expect(markBooked(f.db, f.ADMIN, r.id, 'X1')).rejects.toThrow(/Only an accepted offer/);
-    await markBooked(f.db, f.ADMIN, child.id, 'HTL-48213977');
+    const booking = await markBooked(f.db, f.ADMIN, child.id, 'HTL-48213977', 'Rahul Mehta');
     view = await getRateRequest(f.db, f.A, r.id);
     expect(view.state).toBe('booked');
     expect(view.offers[0].quoteNotes).toContain('HTL-48213977');
     expect(await deskTodo(f.db)).toEqual([]);
     expect((await mails(f)).some((m) => m.kind === 'rate_request_agent' && m.subject.startsWith('Booked'))).toBe(true);
+
+    // Confirming must produce a REAL booking: the agent is actually charged.
+    // Before this existed, a confirmed lead was only a status and was never invoiced.
+    expect(booking.reference).toMatch(/^HB-[A-Z2-9]{6}$/);
+    expect(booking).toMatchObject({
+      supplier: 'desk', status: 'awaiting_payment', paymentStatus: 'due',
+      paymentArrangement: 'prepay', rateRequestId: child.id, leadGuest: 'Rahul Mehta',
+      hotelConfirmation: 'HTL-48213977', enquiryId: null,
+    });
+    // The money matches the offer the agent accepted, both sides of it.
+    expect(booking.sellMinor).toBe(66_000);
+    expect(booking.supplierCostMinor + booking.netRevenueMinor).toBe(booking.sellMinor);
+    // An invoice exists for exactly that amount.
+    const invs = await f.db.select().from(schema.invoices).where(eq(schema.invoices.bookingId, booking.id));
+    expect(invs).toHaveLength(1);
+    expect(invs[0].totalMinor).toBe(66_000);
+    // And the agency can see it among its own bookings.
+    const mine = await f.db.select().from(schema.bookings).where(eq(schema.bookings.agencyId, booking.agencyId));
+    expect(mine.map((b) => b.reference)).toContain(booking.reference);
+
+    // Confirming twice must never charge twice.
+    await f.db.update(schema.rateRequests).set({ status: 'accepted' }).where(eq(schema.rateRequests.id, child.id));
+    const again = await markBooked(f.db, f.ADMIN, child.id, 'HTL-48213977', 'Rahul Mehta');
+    expect(again.id).toBe(booking.id);
+    const allInvoices = await f.db.select().from(schema.invoices).where(eq(schema.invoices.bookingId, booking.id));
+    expect(allInvoices).toHaveLength(1);
   });
 
   it('over budget: the agent can ask for more hotels, which go to the team; a reply can be set aside', async () => {

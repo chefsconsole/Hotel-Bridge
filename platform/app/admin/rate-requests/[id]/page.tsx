@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { DL, Money, Notice, PageHeader, Panel, Pill } from '@/components/ui';
 import { deskAction } from '@/app/actions/rate-requests';
-import { getDb } from '@/lib/db';
+import { inArray } from 'drizzle-orm';
+import { getDb, schema } from '@/lib/db';
 import { daysBetween, formatDate, formatDateTime } from '@/lib/domain/dates';
 import { formatMoney } from '@/lib/domain/money';
 import { describeRoom, describeRooms } from '@/lib/domain/occupancy';
@@ -32,6 +33,11 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
   const others = rows.filter((x) => x.status !== 'hotel_quoted' && x.status !== 'review');
   const askable = candidates.filter((c) => c.askable && c.email);
   const badge = AGENT_STATE[state];
+  // Once confirmed this lead has a real booking behind it — show it, so the
+  // desk can get to the invoice and payment without hunting for the reference.
+  const ids = [r.id, ...rows.map((x) => x.id)];
+  const [booking] = await (await getDb()).select({ id: schema.bookings.id, reference: schema.bookings.reference, paymentStatus: schema.bookings.paymentStatus })
+    .from(schema.bookings).where(inArray(schema.bookings.rateRequestId, ids)).limit(1);
 
   return (
     <div className="animate-[var(--animate-rise)]">
@@ -39,6 +45,12 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
       <PageHeader eyebrow={`${r.reference} · ${agency?.name ?? ''}${agency?.isSample ? ' · demo' : ''}`} title={`${r.hotelName}, ${r.city}`}
         description={`${formatDate(r.checkIn)} – ${formatDate(r.checkOut)} · ${nights} night${nights === 1 ? '' : 's'} · ${describeRooms(r.rooms)} · asked ${formatDateTime(r.createdAt)}`}
         actions={<div className="flex flex-col items-end gap-1"><Pill tone={badge.tone}>Agent sees: {badge.label}</Pill></div>} />
+
+      {booking && (
+        <div className="mb-6"><Notice tone="success" title={`Booked · ${booking.reference}`}>
+          The invoice is raised and payment is {booking.paymentStatus}. <Link href={`/admin/bookings/${booking.id}`} className="font-medium underline underline-offset-2">Open the booking</Link>.
+        </Notice></div>
+      )}
 
       {agency?.isSample && <div className="mb-6"><Notice title="Demo agency">Emails to hotels for this request are recorded but never sent. Use each hotel’s reply link below to play the hotel.</Notice></div>}
 
@@ -48,8 +60,9 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
             <Panel title={`Agent accepted ${acceptedRow.hotelName} — confirm with the hotel`} description={`Agent pays ${formatMoney(acceptedRow.sellMinor!, acceptedRow.quoteCurrency!)} · hotel net ${formatMoney(acceptedRow.quoteNetMinor!, acceptedRow.quoteCurrency!)}. The hotel was asked to hold the rooms. Confirm with them, then mark it booked — the agent gets an email.`}>
               <ActionForm action={deskAction} className="flex flex-wrap items-end gap-3">
                 <input type="hidden" name="id" value={acceptedRow.id} /><input type="hidden" name="rootId" value={r.id} /><input type="hidden" name="intent" value="booked" />
+                <Field label="Lead guest (optional)" className="min-w-0 flex-1"><input name="leadGuest" className="field" maxLength={120} placeholder="Name on the voucher" /></Field>
                 <Field label="Hotel confirmation number (optional)" className="min-w-0 flex-1"><input name="confirmation" className="field" maxLength={80} placeholder="e.g. 48213977" /></Field>
-                <SubmitButton pendingLabel="Saving…" confirm="Mark this as booked and tell the agent?">Mark as booked</SubmitButton>
+                <SubmitButton pendingLabel="Saving…" confirm="Create the booking, raise the invoice and tell the agent?">Mark as booked</SubmitButton>
               </ActionForm>
             </Panel>
           )}

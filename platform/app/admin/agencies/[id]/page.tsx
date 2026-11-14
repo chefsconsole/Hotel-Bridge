@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { RuleForm } from '@/components/rule-form';
 import { DL, Money, PageHeader, Panel, Pill } from '@/components/ui';
-import { adminTaxIdsAction, adminUploadKycAction, agencyCreditAction, agencyStatusAction, walletPayoutAction } from '@/app/actions/admin';
+import { adminTaxIdsAction, adminUploadKycAction, agencyCreditAction, agencyGradeAction, agencyStatusAction, walletPayoutAction } from '@/app/actions/admin';
 import { walletBalances } from '@/lib/services/ledger';
 import { KycPanel } from '@/components/kyc-panel';
 import { kycStatus } from '@/lib/services/kyc';
@@ -13,6 +13,7 @@ import { getDb, schema } from '@/lib/db';
 import { formatDate, formatDateTime } from '@/lib/domain/dates';
 import { toDecimalString } from '@/lib/domain/money';
 import { requireStaff } from '@/lib/session';
+import { GRADES, GRADE_INFO, gradeOf } from '@/lib/domain/grades';
 import { agencyOutstanding } from '@/lib/services/ledger';
 
 export default async function AgencyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,14 +35,40 @@ export default async function AgencyPage({ params }: { params: Promise<{ id: str
   return (
     <>
       <Link href="/admin/agencies" className="text-[0.85rem] text-muted hover:text-ink">← Agencies</Link>
-      <PageHeader eyebrow={a.country} title={a.name} actions={<Pill tone={a.status === 'verified' ? 'positive' : 'attention'}>{a.status}</Pill>} />
+      <PageHeader
+        eyebrow={[a.code, a.country].filter(Boolean).join(' · ')}
+        title={a.name}
+        actions={<div className="flex flex-wrap items-center gap-2">
+          <Pill tone={GRADE_INFO[gradeOf(a.grade)].tone}>{GRADE_INFO[gradeOf(a.grade)].label}</Pill>
+          <Pill tone={a.status === 'verified' ? 'positive' : 'attention'}>{a.status}</Pill>
+        </div>} />
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel title="Registration">
           <DL items={[['Legal name', a.legalName], ['PAN', a.pan], ['GSTIN', a.gstin], ['Other registration', a.taxId], ['Address', [a.address, a.pincode].filter(Boolean).join(' ') || null], ['City', a.city], ['State', a.state], ['Website', a.website], ['Phone', a.phone], ['Top destinations', a.topDestinations], ['Business', a.segments], ['Bookings / month', a.monthlyBookings], ['Heard about us', a.heardFrom], ['Registered', formatDate(a.createdAt)], ['Verified', a.verifiedAt ? formatDate(a.verifiedAt) : null], ['Billing currency', a.billingCurrency]]} />
-          <ul className="mt-5 border-t border-line pt-4 text-[0.88rem]">{users.map((u) => <li key={u.id}>{u.name} · <span className="text-muted">{u.email} · {u.agencyRole}</span></li>)}</ul>
+          <ul className="mt-5 border-t border-line pt-4 text-[0.88rem]">{users.map((u) => (
+            <li key={u.id}>{u.code && <span className="num mr-2 text-faint">{u.code}</span>}{u.name} · <span className="text-muted">{u.email} · {u.agencyRole}</span></li>
+          ))}</ul>
           {a.internalNotes && <p className="mt-4 text-[0.82rem] whitespace-pre-line text-muted">{a.internalNotes}</p>}
         </Panel>
         <KycPanel k={k} uploadAction={adminUploadKycAction} taxAction={adminTaxIdsAction} agencyId={a.id} editableTax title="KYC documents" />
+        <Panel title="Grade and tags" description="How we rank this relationship, and any labels that help the desk. Internal only — the agency never sees this, and it does not change what they are quoted.">
+          <ActionForm action={agencyGradeAction} className="space-y-4">
+            <input type="hidden" name="id" value={a.id} />
+            <Field label="Grade">
+              <select name="grade" defaultValue={gradeOf(a.grade)} className="field">
+                {GRADES.map((g) => <option key={g} value={g}>{GRADE_INFO[g].label} — {GRADE_INFO[g].meaning}</option>)}
+              </select>
+            </Field>
+            <Field label="Tags" hint="Comma separated, e.g. kerala specialist, mice, pays on time">
+              <input name="tags" defaultValue={a.tags.join(', ')} className="field" placeholder="kerala specialist, mice" />
+            </Field>
+            {a.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">{a.tags.map((t) => <Pill key={t} tone="neutral">{t}</Pill>)}</div>
+            )}
+            <SubmitButton size="sm" pendingLabel="Saving…">Save</SubmitButton>
+          </ActionForm>
+        </Panel>
+
         <Panel title="Approve or decline" description="Only approved agencies can book. Look at the PAN card, check the name matches the registration, and call if unsure.">
           {a.status !== 'verified' && !k.ready && <p className="mb-3 rounded-[var(--radius-sm)] bg-attention-bg px-3 py-2 text-[0.85rem] text-attention">Can’t approve yet — missing: {k.missing.join(', ')}.</p>}
           <ActionForm action={agencyStatusAction} className="space-y-3">

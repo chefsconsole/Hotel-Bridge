@@ -86,7 +86,10 @@ export async function deskAction(_: ActionResult | null, fd: FormData): Promise<
       const r = await releaseOffer(db, actor, id, bps(fd, 'markupPct'));
       void r; return done('Sent to the agent — they have an email now and can accept it on the portal.');
     }
-    if (intent === 'booked') { await markBooked(db, actor, id, optStr(fd, 'confirmation') ?? null); return done('Marked as booked — the agent has the confirmation by email.'); }
+    if (intent === 'booked') {
+      const b = await markBooked(db, actor, id, optStr(fd, 'confirmation') ?? null, optStr(fd, 'leadGuest') ?? null);
+      return done(`Booked as ${b.reference}. The agent has the confirmation and the invoice is raised.`);
+    }
     if (intent === 'holdback') { await holdBackOffer(db, actor, id); return done('Set aside — the agent won’t see this reply.'); }
     if (intent === 'close') { await closeWithoutOffer(db, actor, id, str(fd, 'message')); return done('Closed — the agent has your note.'); }
     if (intent === 'assign') { await assignRateRequest(db, actor, id, optStr(fd, 'userId') ?? null); return done('Assigned — they have the details by email.'); }

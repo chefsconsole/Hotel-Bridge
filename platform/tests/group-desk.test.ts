@@ -98,3 +98,46 @@ describe('group desk automation', () => {
     expect((await dispatchToHotels(f.db, SYSTEM, nowhere.id)).noHotels).toEqual(['Reykjavik']);
   });
 });
+
+describe('hotel sourcing requests', () => {
+  it('takes a one-room FIT request for a city we do not sell, asks the hotel the agent named first, and never mixes it up with a group', async () => {
+    f = await setup();
+    await f.db.insert(schema.settings).values([{ key: 'groups.autoDispatch', value: '1' }]);
+    // A destination we have no contracted hotel in — only outreach contacts.
+    await f.db.insert(schema.hotelProspects).values([
+      { name: 'Rambagh Palace', destination: 'Jaipur', contactEmail: 'res@rambagh.test', stage: 'contacted', priority: 'P1' },
+      { name: 'Jaipur Marriott', destination: 'Jaipur', contactEmail: 'res@jaipurmarriott.test', stage: 'contacted', priority: 'P2' },
+    ]);
+
+    const e = await createEnquiry(f.db, f.A, {
+      kind: 'sourcing', wantedHotel: 'Rambagh Palace',
+      groupName: 'Rambagh Palace, Jaipur', groupType: 'leisure', totalPax: 2,
+      rooms: { single: 0, double: 1, twin: 0, triple: 0 },
+      legs: [{ city: 'Jaipur', checkIn: addDays(f.today, 40), checkOut: addDays(f.today, 42) }],
+      currency: 'INR', coachParking: false, quoteNeededBy: addDays(f.today, 1),
+    });
+
+    // Its own reference series, so a single room is never read as a 40-room group.
+    expect(e.reference).toMatch(/^REQ-\d{4}-\d{4}$/);
+    expect(e.kind).toBe('sourcing');
+
+    await dispatchToHotels(f.db, SYSTEM, e.id);
+    const reqs = await f.db.select().from(schema.groupHotelRequests).where(eq(schema.groupHotelRequests.enquiryId, e.id));
+    // The hotel the client asked for is asked first, and only once.
+    expect(reqs[0].hotelName).toBe('Rambagh Palace');
+    expect(reqs.filter((r) => r.hotelEmail === 'res@rambagh.test')).toHaveLength(1);
+    expect(reqs.map((r) => r.hotelEmail)).toContain('res@jaipurmarriott.test');
+
+    // The agent is told we are sourcing, and sees nothing about who we asked.
+    const seen = await getEnquiry(f.db, f.A, e.id);
+    expect(seen.messages[0].body).toContain('Rambagh Palace');
+    expect(seen.requests).toEqual([]);
+  });
+
+  it('still numbers and labels a real group as a group', async () => {
+    f = await setup();
+    const e = await enquiry(f);
+    expect(e.reference).toMatch(/^GRP-\d{4}-\d{4}$/);
+    expect(e.kind).toBe('group');
+  });
+});

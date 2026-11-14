@@ -6,6 +6,7 @@ import { getDb, schema } from '@/lib/db';
 import { attempt, bool, file, int, optStr, str, type ActionResult } from '@/lib/action';
 import { updateTaxIds, uploadAgencyDocument, type DocumentKind } from '@/lib/services/kyc';
 import { decodeRooms } from '@/lib/domain/occupancy';
+import { addDays, todayIso } from '@/lib/domain/dates';
 import { formatMoney, parseMoney } from '@/lib/domain/money';
 import { requireAgent } from '@/lib/session';
 import { createQuote } from '@/lib/services/search';
@@ -118,6 +119,54 @@ export async function createGroupAction(_: ActionResult | null, fd: FormData): P
     // Ask our hotels straight away (contracted group hotels first). A failure here never loses the enquiry.
     if ((await getSetting(db, 'groups.autoDispatch')) === '1') {
       try { await dispatchToHotels(db, SYSTEM, e.id); } catch (err) { console.error('[groups] auto-dispatch failed', err); }
+    }
+    return { ok: true };
+  });
+  if (id) redirect(`/agent/groups/${id}?new=1`);
+  return r;
+}
+
+/** "Find me a hotel" — a destination we don't sell yet, or a hotel the client named.
+ *  It becomes a sourcing enquiry on the same desk as groups: one room or forty. */
+export async function createRequestAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  let id = '';
+  const r = await attempt(async () => {
+    const { actor } = await requireAgent();
+    const city = str(fd, 'city');
+    const checkIn = str(fd, 'checkIn');
+    const checkOut = str(fd, 'checkOut');
+    const currency = str(fd, 'currency') as 'INR';
+    const budget = str(fd, 'budget');
+    let budgetMinor: number | null = null;
+    if (budget) {
+      try { budgetMinor = parseMoney(budget, currency); } catch { throw new AppError('Budget must be an amount, e.g. 6000 or 6000.50'); }
+    }
+    const roomCount = int(fd, 'rooms') ?? 1;
+    const totalPax = int(fd, 'totalPax') ?? 1;
+    const wantedHotel = optStr(fd, 'wantedHotel');
+    // The room split the group form asks for in detail: here we infer the
+    // obvious one from rooms and guests, so the agent answers two questions
+    // instead of five. Any remainder goes in as a single.
+    const doubles = Math.min(roomCount, Math.max(0, totalPax - roomCount));
+    const rooms = { single: roomCount - doubles, double: doubles, twin: 0, triple: 0 };
+    const db = await getDb();
+    const e = await createEnquiry(db, actor, {
+      kind: 'sourcing', wantedHotel,
+      groupName: wantedHotel ? `${wantedHotel}, ${city}` : `${city} — ${totalPax} guest${totalPax === 1 ? '' : 's'}`,
+      groupType: 'leisure',
+      legs: [{ city, checkIn, checkOut }],
+      totalPax, rooms,
+      mealPlan: (optStr(fd, 'mealPlan') as 'BB') ?? undefined,
+      budgetMinor, budgetBasis: budgetMinor ? 'per_room_night' : null, currency,
+      coachParking: false, specialRequests: optStr(fd, 'specialRequests'),
+      // We promise a reply in 24 hours, so the quote is needed by tomorrow —
+      // never later than arrival, which the schema enforces.
+      quoteNeededBy: [addDays(todayIso(), 1), checkIn].sort()[0],
+      tiers: parseTiers(fd.getAll('tiers').map(String)),
+    });
+    id = e.id;
+    if ((await getSetting(db, 'groups.autoDispatch')) === '1') {
+      try { await dispatchToHotels(db, SYSTEM, e.id); } catch (err) { console.error('[requests] auto-dispatch failed', err); }
     }
     return { ok: true };
   });

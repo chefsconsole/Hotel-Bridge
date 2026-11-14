@@ -69,6 +69,12 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
 
   const go = (path: string) => start(() => router.push(path));
   const stayParams = (extra: Record<string, string> = {}) => new URLSearchParams({ ...keep, ...extra, ...(checkIn && checkOut ? { in: checkIn, out: checkOut } : {}), rooms: encodeRooms(rooms) });
+  /** Nothing we sell matches: carry what the agent already typed into the request form. */
+  const requestHref = (typed: string) => {
+    const q = new URLSearchParams({ city: typed.trim(), adults: String(adults), rooms: String(rooms.length) });
+    if (checkIn && checkOut) { q.set('in', checkIn); q.set('out', checkOut); }
+    return `/agent/requests/new?${q}`;
+  };
 
   function choose(s: Suggestion) {
     setError('');
@@ -99,7 +105,7 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
     const best = !city && query.trim() ? smartWhere(query, destinations, hotels, 1)[0] : undefined;
     if (best && best.kind === 'hotel' && !hotel) { choose(best); return; }
     const chosen = city || (best?.kind === 'city' ? best.city : undefined);
-    if (!chosen) { setError(query.trim() ? `No partner hotels match “${query.trim()}” yet — try a city, a hotel or a region, or ask the Group Desk` : 'Where are your clients going?'); setPanel('where'); whereInput.current?.focus(); return; }
+    if (!chosen) { setError(query.trim() ? `No partner hotels match “${query.trim()}” yet — try a city, a hotel or a region, or ask us to find one` : 'Where are your clients going?'); setPanel('where'); whereInput.current?.focus(); return; }
     if (!checkIn || !checkOut) { setError('Choose check-in and check-out dates'); setPanel(checkIn ? 'out' : 'in'); return; }
     if (agesMissing()) return;
     setError('');
@@ -179,7 +185,14 @@ export function SearchForm({ destinations, hotels = [], initial, keep }: {
                 {matches.length === 0 ? (
                   <div className="px-2 py-3 text-[0.9rem] text-muted">
                     <p>No partner hotels for “{query}” yet.</p>
-                    <p className="mt-1 text-[0.82rem]">Try a city (“Phuket”), a hotel (“Royal Cliff”), a region (“Uttarakhand”) or an airport code (“BKK”). For anywhere else, <Link href="/agent/groups/new" className="font-medium text-ink underline underline-offset-2">the Group Desk sources hotels for you</Link>.</p>
+                    <p className="mt-1 text-[0.82rem]">Try a city (“Phuket”), a hotel (“Royal Cliff”), a region (“Uttarakhand”) or an airport code (“BKK”).</p>
+                    <Link href={requestHref(query)} className="mt-3 flex items-center gap-3 rounded-xl bg-mist px-3 py-2.5 transition-colors hover:bg-champagne-soft">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-[#e8c88a]"><Icon d={I.search} className="size-4" /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-ink">Ask us to find one</span>
+                        <span className="block text-[0.8rem] text-muted">We go to the hotels and come back with a rate in 24 hours.</span>
+                      </span>
+                    </Link>
                   </div>
                 ) : (
                   <ul className="max-h-80 overflow-auto">

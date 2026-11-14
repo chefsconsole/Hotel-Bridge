@@ -35,6 +35,7 @@ import { AppError, NotFoundError } from './errors';
 import { appUrl, sendEmail } from './email';
 import { MEAL_PLANS } from './catalog';
 import { searchHotels } from './search';
+import { createDeskBooking } from './bookings';
 import { getSetting } from './settings';
 import { listStaff } from './staff';
 
@@ -568,23 +569,49 @@ export async function acceptRateQuote(db: DB, actor: Actor, id: string) {
   ]);
 }
 
-/** The team has confirmed the accepted offer with the hotel: the request is done, and the agent is told. */
-export async function markBooked(db: DB, actor: Actor, id: string, confirmation?: string | null) {
+/** The team has confirmed the accepted offer with the hotel: the request becomes a
+ *  real booking — invoice, ledger, voucher and all — and the agent is told.
+ *
+ *  The booking is what makes the money real. Before it existed this step only
+ *  set a status, so a confirmed lead was never invoiced. */
+export async function markBooked(db: DB, actor: Actor, id: string, confirmation?: string | null, guestName?: string | null) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
   const r = await load(db, actor, id);
   if (r.status !== 'accepted') throw new AppError('Only an accepted offer can be marked as booked');
+  if (r.sellMinor == null || r.quoteNetMinor == null || !r.quoteCurrency) {
+    throw new AppError('This offer has no price recorded, so it cannot be booked');
+  }
   const conf = confirmation?.trim().slice(0, 80) || null;
+
+  // The booking first: if it fails, the request stays "accepted" and the team
+  // can try again. Never leave a request marked booked with no booking behind it.
+  const lead = guestName?.trim() || 'Guest name to follow';
+  const booking = await createDeskBooking(db, actor, {
+    agencyId: r.agencyId, hotelId: r.hotelId, checkIn: r.checkIn, checkOut: r.checkOut,
+    rooms: r.rooms.map((room) => ({
+      adults: room.adults, childAges: room.childAges, roomTypeId: '',
+      roomName: r.quoteRoomType ?? 'As quoted', mealPlan: r.quoteMealPlan ?? r.mealPlan ?? 'RO', guestNames: [],
+    })),
+    leadGuest: lead, currency: r.quoteCurrency,
+    sellMinor: r.sellMinor, supplierCostMinor: r.quoteNetMinor,
+    source: { kind: 'rate_request', id: r.id },
+    cancellationTerms: r.quoteCancellation, hotelConfirmation: conf,
+    specialRequests: r.notes,
+  });
+
   const now = new Date();
   await db.update(rateRequests).set({ status: 'booked', updatedAt: now, quoteNotes: conf ? [r.quoteNotes, `Hotel confirmation: ${conf}`].filter(Boolean).join(' · ') : r.quoteNotes })
     .where(eq(rateRequests.id, r.id));
-  await audit(db, actor, 'rate_request.booked', 'rate_request', r.id, { confirmation: conf }, r.agencyId);
+  await audit(db, actor, 'rate_request.booked', 'rate_request', r.id, { confirmation: conf, booking: booking.reference }, r.agencyId);
   const root = await rootOf(db, r);
   await notifyAgent(db, root, `Booked · ${r.hotelName} · ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)}`, [
     `Your stay at ${r.hotelName} is confirmed: ${describeRooms(r.rooms)}, ${formatDate(r.checkIn)} – ${formatDate(r.checkOut)}, ${formatMoney(r.sellMinor!, r.quoteCurrency!)}.`,
+    `Booking reference ${booking.reference}. Your invoice is ready in the portal.`,
     ...(conf ? [`Hotel confirmation number: ${conf}`] : []),
     '',
     'Details:',
   ]);
+  return booking;
 }
 
 /** What the desk must do next on each open request — for the admin overview. */

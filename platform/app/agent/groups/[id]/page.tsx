@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { MEAL_PLANS } from '@/lib/services/catalog';
 import { notFound } from 'next/navigation';
@@ -18,15 +19,19 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
   const { new: isNew } = await searchParams;
   const d = await getEnquiry(await getDb(), actor, id).catch((e) => { if (e instanceof NotFoundError) notFound(); throw e; });
   const e = d.enquiry;
+  // A sourcing request is the same machinery as a group, but an agent who asked
+  // for one room must never be told a "Group Desk" is handling their "group".
+  const sourcing = e.kind === 'sourcing';
+  const desk = sourcing ? 'our team' : 'the Group Desk';
   return (
     <>
-      <Link href="/agent/groups" className="text-[0.85rem] text-muted hover:text-ink">← Group requests</Link>
+      <Link href="/agent/groups" className="text-[0.85rem] text-muted hover:text-ink">← {sourcing ? 'Your requests' : 'Group requests'}</Link>
       <header className="mt-4 mb-6">
         <p className="eyebrow num">{e.reference}</p>
         <h1 className="mt-1 text-[2rem] font-semibold">{e.groupName}</h1>
         <div className="mt-2"><StagePill status={e.status} /></div>
       </header>
-      {isNew && <div className="mb-6"><Notice tone="success" title="Request received">{d.progress.asked > 0 ? <>We&apos;ve asked {d.progress.asked} hotel{d.progress.asked === 1 ? '' : 's'} already. They reply within 48 hours and your offer appears here.</> : <>The Group Desk will review it and reply by {formatDateTime(e.respondBy)}.</>}</Notice></div>}
+      {isNew && <div className="mb-6"><Notice tone="success" title="Request received">{d.progress.asked > 0 ? <>We&apos;ve asked {d.progress.asked} hotel{d.progress.asked === 1 ? '' : 's'} already. They reply within 48 hours and your offer appears here.</> : <>We&apos;ll review it and reply by {formatDateTime(e.respondBy)}.</>}</Notice></div>}
       {d.progress.asked > 0 && !['won', 'lost', 'cancelled'].includes(e.status) && d.proposals.every((p) => p.status !== 'sent') && (
         <div className="mb-6 grid gap-3 sm:grid-cols-3">
           <div className="rounded-[var(--radius-md)] border border-line bg-surface p-4"><p className="text-[0.7rem] tracking-[0.12em] text-faint uppercase">Hotels asked</p><p className="num mt-1 text-[1.5rem] font-light">{d.progress.asked}</p></div>
@@ -54,7 +59,7 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
               {p.status === 'sent' && (
                 <ActionForm action={proposalDecisionAction} className="mt-4">
                   <input type="hidden" name="proposalId" value={p.id} /><input type="hidden" name="enquiryId" value={e.id} />
-                  <Field label="Note to the Group Desk (optional)"><input name="note" className="field" /></Field>
+                  <Field label={`Note to ${desk} (optional)`}><input name="note" className="field" /></Field>
                   <div className="mt-3 flex gap-2">
                     <SubmitButton name="decision" value="accept" confirm="Accept this proposal?">Accept proposal</SubmitButton>
                     <SubmitButton name="decision" value="decline" variant="secondary">Decline</SubmitButton>
@@ -75,7 +80,7 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
             {!['won', 'lost', 'cancelled'].includes(e.status) && (
               <ActionForm action={groupMessageAction} resetOnSuccess className="mt-4">
                 <input type="hidden" name="enquiryId" value={e.id} />
-                <textarea name="body" rows={3} className="field" placeholder="Write to the Group Desk…" />
+                <textarea name="body" rows={3} className="field" placeholder={`Write to ${desk}…`} />
                 <SubmitButton size="sm" className="mt-2">Send</SubmitButton>
               </ActionForm>
             )}
@@ -84,10 +89,12 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
         <Panel title="Request">
           <DL cols={1} items={[
             ['Itinerary', <ul key="l">{e.legs.map((l, i) => <li key={i}>{l.city}: {formatDate(l.checkIn)} – {formatDate(l.checkOut)}</li>)}</ul>],
-            ['Travellers', `${e.totalPax} · ${e.groupType}`],
+            ['Travellers', sourcing ? `${e.totalPax} guest${e.totalPax === 1 ? '' : 's'}` : `${e.totalPax} · ${e.groupType}`],
             ['Rooms', roomsText(e.rooms)],
+            ['Hotel asked for', sourcing ? e.wantedHotel : null],
             ['Category / meals', `${e.category && e.category !== 'any' ? `${e.category}-star` : 'Any category'} · ${e.mealPlan ? (MEAL_PLANS[e.mealPlan as keyof typeof MEAL_PLANS] ?? e.mealPlan) : 'meals to advise'}`],
-            ['Coach parking', e.coachParking ? 'Required' : 'Not needed'],
+            // Coach parking is a coach-group question; it is noise on a one-room request.
+            ...(sourcing ? [] : [['Coach parking', e.coachParking ? 'Required' : 'Not needed'] as [string, ReactNode]]),
             ['Accessibility', e.accessibility],
             ['Other', e.specialRequests],
             ['Budget', e.budgetMinor ? `${formatMoney(e.budgetMinor, e.currency)} (${e.budgetBasis?.replace(/_/g, ' ')})` : null],
@@ -99,4 +106,4 @@ export default async function GroupPage({ params, searchParams }: { params: Prom
   );
 }
 
-export const metadata = { title: 'Group request' };
+export const metadata = { title: 'Your request' };
