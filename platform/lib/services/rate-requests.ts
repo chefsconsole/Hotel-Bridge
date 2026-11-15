@@ -388,8 +388,12 @@ async function heldRates(db: DB, hotelIds: string[], root: RateRequest): Promise
 }
 
 /** One click: email every ticked hotel its private reply link. Extra hotels become part of the same request. */
-export async function askHotels(db: DB, actor: Actor, rootId: string, hotelIds: string[]) {
+export async function askHotels(db: DB, actor: Actor, rootId: string, hotelIds: string[], opts: { email?: boolean } = {}) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
+  // email: false — the hotel has ALREADY given us a rate, by phone, WhatsApp or
+  // a mail that never came through the portal. Adding it to the request must not
+  // then email them asking for the rate they just gave us.
+  const sendToHotel = opts.email !== false;
   const ids = [...new Set(hotelIds)].filter((x) => z.string().uuid().safeParse(x).success);
   if (!ids.length) throw new AppError('Tick at least one hotel to ask');
   const root = await load(db, actor, rootId);
@@ -411,8 +415,9 @@ export async function askHotels(db: DB, actor: Actor, rootId: string, hotelIds: 
         mealPlan: root.mealPlan, notes: root.notes, budgetMinor: root.budgetMinor, budgetCurrency: root.budgetCurrency, parentId: root.id, assignedTo: root.assignedTo,
       });
     }
-    // We hold this hotel's contract: no email — the team enters the rate from the contract with the reply link.
-    if (quotesInHouse(email)) { result.inHouse.push(h.name); continue; }
+    // We hold this hotel's contract, or we already have their offer in hand:
+    // no email — the team types the rate in with the reply link.
+    if (!sendToHotel || quotesInHouse(email)) { result.inHouse.push(h.name); continue; }
     const respondByAt = new Date(Date.now() + RATE_REPLY_HOURS * 3_600_000);
     const fresh = { ...row, respondByAt, hotelEmail: email };
     const { subject, body } = hotelEmail(fresh, h);
@@ -542,7 +547,13 @@ export async function getRateRequest(db: DB, actor: Actor, id: string) {
   const fit = offers.length ? budgetFit(offers[0]) : 'unknown';
   const wantsMore = state === 'no_offer' || state === 'expired' || (state === 'offers' && offers.every((o) => budgetFit(o) === 'over'));
   const alt = wantsMore && !isStaff(actor) ? await alternatives(db, actor, root) : { onRequest: [], priced: [] };
-  return { request: root, state, offers, fit, alternatives: alt, stillWorking: rows.some((x) => WORKING.includes(x.status)) };
+  // An agent is never handed what we pay the hotel, our margin, or which
+  // address we used. Stripping it here means no future screen or API can leak
+  // it by accident — the agent sees the selling price and nothing behind it.
+  const visible = isStaff(actor) ? offers : offers.map((o) => ({
+    ...o, quoteNetMinor: null, quoteRateMinor: null, markupBps: null, hotelEmail: null,
+  }));
+  return { request: root, state, offers: visible, fit, alternatives: alt, stillWorking: rows.some((x) => WORKING.includes(x.status)) };
 }
 
 export async function listRateRequests(db: DB, actor: Actor) {

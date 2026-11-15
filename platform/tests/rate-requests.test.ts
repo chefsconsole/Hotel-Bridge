@@ -266,3 +266,51 @@ describe('rates we hold but do not publish', () => {
     expect(cands2.find((c) => c.hotel.id === other.id)?.held ?? null).toBeNull();
   });
 });
+
+describe('an offer that arrived outside the portal', () => {
+  it('records a rate we already have without emailing the hotel, and sends it to the agent', async () => {
+    f = await setup();
+    process.env.RESEND_API_KEY = 'test'; process.env.EMAIL_FROM = 'hb@test';
+    const [h] = await f.db.insert(schema.hotels).values({
+      name: 'Phoned Us Hotel', slug: 'phoned-us-hotel', city: 'Rome', country: 'Italy',
+      status: 'active', tier: 'premium', bestRateOnRequest: true, rateRequestEmail: 'sales@phoned.test',
+    }).returning();
+    const checkIn = addDays(f.today, 30);
+    const r = await createRateRequest(f.db, f.A, { hotelId: h.id, checkIn, checkOut: addDays(f.today, 32), rooms: [{ adults: 2, childAges: [] }] });
+
+    // The hotel already gave us a rate on the phone. Adding it must send nothing.
+    const res = await askHotels(f.db, f.ADMIN, r.id, [h.id], { email: false });
+    expect(res.emailed).toEqual([]);
+    expect(res.inHouse).toEqual(['Phoned Us Hotel']);
+    const toHotel = (await mails(f)).filter((m) => m.toEmail === 'sales@phoned.test');
+    expect(toHotel).toEqual([]); // nothing was sent asking for a rate we have
+
+    // The desk types in what the hotel said, through the same reply link.
+    const rows = (await deskRequest(f.db, f.ADMIN, r.id)).rows;
+    const row = rows.find((x) => x.hotelId === h.id && x.id !== r.id) ?? rows.find((x) => x.hotelId === h.id)!;
+    await hotelQuote(f.db, row.token, {
+      decline: false, currency: 'EUR', roomType: 'Deluxe', rate: '180',
+      mealPlan: 'BB', cancellation: 'Free until 14 days before arrival', validUntil: addDays(f.today, 10),
+    });
+
+    // From here it is the normal flow: add our margin and send it on.
+    const quoted = (await deskRequest(f.db, f.ADMIN, r.id)).rows.find((x) => x.status === 'hotel_quoted')!;
+    await releaseOffer(f.db, f.ADMIN, quoted.id, 1000);
+
+    const view = await getRateRequest(f.db, f.A, r.id);
+    expect(view.state).toBe('offers');
+    expect(view.offers).toHaveLength(1);
+    expect(view.offers[0].hotelName).toBe('Phoned Us Hotel');
+    // The agent sees a selling price and never what we pay the hotel, our
+    // margin, or the address we used.
+    expect(view.offers[0].sellMinor).toBeGreaterThan(0);
+    expect(view.offers[0].quoteNetMinor).toBeNull();
+    expect(view.offers[0].quoteRateMinor).toBeNull();
+    expect(view.offers[0].markupBps).toBeNull();
+    expect(view.offers[0].hotelEmail).toBeNull();
+    // The desk still sees all of it.
+    const deskView = await getRateRequest(f.db, f.ADMIN, r.id);
+    expect(deskView.offers[0].quoteNetMinor).toBe(36_000);
+    expect(deskView.offers[0].markupBps).toBe(1000);
+  });
+});

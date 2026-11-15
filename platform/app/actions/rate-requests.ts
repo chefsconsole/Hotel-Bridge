@@ -72,8 +72,18 @@ export async function deskAction(_: ActionResult | null, fd: FormData): Promise<
     const id = str(fd, 'id');
     const intent = str(fd, 'intent');
     const done = (msg: string) => { revalidatePath(`/admin/rate-requests/${str(fd, 'rootId') || id}`); revalidatePath('/admin/rate-requests'); return msg; };
-    if (intent === 'ask') {
-      const r = await askHotels(db, actor, id, fd.getAll('hotelIds').map(String));
+    if (intent === 'ask' || intent === 'offline') {
+      // 'offline': we already have these hotels' rates — add them to the
+      // request so we can type the rate in, but do not email them.
+      const r = await askHotels(db, actor, id, fd.getAll('hotelIds').map(String), { email: intent === 'ask' });
+      if (intent === 'offline') {
+        return {
+          ok: r.inHouse.length > 0,
+          message: done(r.inHouse.length
+            ? `Added ${r.inHouse.join(', ')} — no email sent. Use “Enter their rate” below to type in the offer you already have, then send it to the agent.`
+            : r.skipped.length ? `Skipped ${r.skipped.join(', ')}.` : 'Nothing added.'),
+        };
+      }
       const parts = [
         r.emailed.length ? `Emailed ${r.emailed.length} hotel${r.emailed.length === 1 ? '' : 's'}: ${r.emailed.join(', ')}.` : '',
         r.failed.length ? (r.demo ? `Demo: recorded for ${r.failed.join(', ')} — not sent. Use each hotel reply link to play the hotel.` : `Could not email ${r.failed.join(', ')} — call them, or enter their reply from the hotel link.`) : '',

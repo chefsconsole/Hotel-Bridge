@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Inter_Tight } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -16,7 +17,16 @@ export const viewport: Viewport = { themeColor: '#0b1220' };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${interTight.variable}`}>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {children}
+        {/* Vercel Web Analytics: page views and visitors, no cookies and no
+          * personal data. Served by Vercel itself, so it costs no dependency.
+          * It only records anything once Analytics is enabled for the project
+          * in the Vercel dashboard. */}
+        {process.env.VERCEL_ENV === 'production' && (
+          <Script src="/_vercel/insights/script.js" strategy="afterInteractive" />
+        )}
+      </body>
     </html>
   );
 }

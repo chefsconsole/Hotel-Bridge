@@ -107,10 +107,12 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
           )}
 
           {!closed && (
-            <Panel title="Ask hotels" description={`Tick the suitable hotels — the one requested and, for choice, 2–3 similar ones in ${r.city}. One click emails each its private link. Budget and agency are never shared.`}>
+            <Panel title="Ask hotels" description={`Tick the suitable hotels — the one requested and, for choice, 2–3 similar ones in ${r.city}. One click emails each its private link. Already have an offer from one of them? Add it without emailing. Budget and agency are never shared.`}>
               {askable.length === 0 ? <p className="text-[0.9rem] text-muted">Every suitable hotel with an email in {r.city} has been asked.</p> : (
                 <ActionForm action={deskAction}>
-                  <input type="hidden" name="id" value={r.id} /><input type="hidden" name="intent" value="ask" />
+                  {/* No hidden intent: each button carries its own, so the one
+                    * actually clicked decides whether the hotels get emailed. */}
+                  <input type="hidden" name="id" value={r.id} />
                   <ul className="divide-y divide-line">
                     {askable.map((c) => (
                       <li key={c.hotel.id}>
@@ -133,7 +135,18 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-4"><SubmitButton pendingLabel="Emailing…">Email selected hotels</SubmitButton></div>
+                  <div className="mt-4 flex flex-wrap items-center gap-3">
+                    <SubmitButton name="intent" value="ask" pendingLabel="Emailing…">Email selected hotels</SubmitButton>
+                    {/* An offer that arrived by phone, WhatsApp or a mail outside the
+                      * portal: add the hotel so the rate can be typed in, and do NOT
+                      * email them asking for what they have already given us. */}
+                    <SubmitButton variant="secondary" name="intent" value="offline" pendingLabel="Adding…">
+                      I already have their rate — don’t email
+                    </SubmitButton>
+                  </div>
+                  <p className="mt-2 text-[0.8rem] text-muted">
+                    Got an offer by phone, WhatsApp or email? Tick those hotels and use the second button — then enter the rate below and send it on.
+                  </p>
                 </ActionForm>
               )}
             </Panel>
@@ -148,7 +161,7 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                     <td className="font-medium">{x.hotelName}<p className="text-[0.72rem] font-normal text-faint">{x.reference}{x.hotelEmail ? ` · ${x.hotelEmail}` : ''}</p></td>
                     <td><Pill tone={RATE_STATUS[x.status]?.tone ?? 'neutral'}>{x.status === 'review' && quotesInHouse(x.hotelEmail) ? 'Our contract — enter rate' : x.status === 'not_emailed' && agency?.isSample ? 'Demo — recorded, not sent' : RATE_STATUS[x.status]?.label ?? x.status}</Pill>{x.status === 'sent' && <p className="mt-1 text-[0.72rem] text-faint">reply by {formatDateTime(x.respondByAt)}</p>}</td>
                     <td className="text-[0.85rem]">{x.quoteNetMinor != null && x.quoteCurrency ? <>net {formatMoney(x.quoteNetMinor, x.quoteCurrency)}{x.sellMinor != null && ['quoted', 'accepted', 'booked'].includes(x.status) ? <> → agent {formatMoney(x.sellMinor, x.quoteCurrency)}</> : null}</> : x.declineReason ?? '—'}</td>
-                    <td>{['review', 'sent', 'not_emailed'].includes(x.status) && <a href={appUrl(`/r/${x.token}`)} target="_blank" rel="noreferrer" className="text-[0.78rem] font-medium underline" title={quotesInHouse(x.hotelEmail) ? 'We hold the contract: enter the rate from it' : 'Open to enter a reply the hotel gave by phone or email'}>{quotesInHouse(x.hotelEmail) ? 'Enter our rate' : 'Hotel reply link'}</a>}</td>
+                    <td>{['review', 'sent', 'not_emailed'].includes(x.status) && <a href={appUrl(`/r/${x.token}`)} target="_blank" rel="noreferrer" className="text-[0.78rem] font-medium underline" title={quotesInHouse(x.hotelEmail) ? 'We hold the contract: enter the rate from it' : 'Open to enter a reply the hotel gave by phone or email'}>{quotesInHouse(x.hotelEmail) ? 'Enter our rate' : x.status === 'review' ? 'Enter their rate' : 'Hotel reply link'}</a>}</td>
                   </tr>
                 ))}</tbody>
               </table></div>
