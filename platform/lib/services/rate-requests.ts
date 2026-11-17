@@ -172,7 +172,11 @@ async function defaultAssignee(db: DB): Promise<string | null> {
 }
 
 /** Email the HotelBridge team inbox and the assigned person about a request. Never throws. */
-async function tellDesk(db: DB, root: RateRequest, subject: string, lines: string[]) {
+/** `about` is the hotel the notice concerns, when that is not the hotel the
+ *  agent originally asked for. Several hotels sit under one request, so
+ *  printing the root hotel next to another hotel's quote reads as if the quote
+ *  were theirs. */
+async function tellDesk(db: DB, root: RateRequest, subject: string, lines: string[], about?: { hotelName: string; city: string }) {
   try {
     const [a] = await db.select({ name: schema.agencies.name, isSample: schema.agencies.isSample }).from(schema.agencies).where(eq(schema.agencies.id, root.agencyId));
     const [u] = await db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, root.userId));
@@ -181,7 +185,8 @@ async function tellDesk(db: DB, root: RateRequest, subject: string, lines: strin
     const body = [
       ...lines.map((l) => l.replace('{agency}', a?.name ?? 'An agency')),
       '',
-      `  Hotel:     ${root.hotelName}, ${root.city}`,
+      `  Hotel:     ${about?.hotelName ?? root.hotelName}, ${about?.city ?? root.city}`,
+      ...(about && about.hotelName !== root.hotelName ? [`  Agent asked for: ${root.hotelName}`] : []),
       `  Stay:      ${formatDate(root.checkIn)} – ${formatDate(root.checkOut)} (${nights} night${nights === 1 ? '' : 's'})`,
       `  Rooms:     ${describeRooms(root.rooms)}`,
       `  Meals:     ${root.mealPlan ? MEAL_PLANS[root.mealPlan as keyof typeof MEAL_PLANS] ?? root.mealPlan : 'Not specified'}`,
@@ -194,7 +199,7 @@ async function tellDesk(db: DB, root: RateRequest, subject: string, lines: strin
       appUrl(`/admin/rate-requests/${root.id}`),
     ].join('\n');
     const tag = a?.isSample ? 'DEMO · ' : '';
-    const subj = `${tag}${subject} · ${root.reference} · ${root.hotelName} · ${a?.name ?? ''}`;
+    const subj = `${tag}${subject} · ${root.reference} · ${about?.hotelName ?? root.hotelName} · ${a?.name ?? ''}`;
     const to = new Set([NOTIFY_EMAIL.toLowerCase()]);
     await sendEmail(db, { to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'ops_rate_request', relatedId: root.id, subject: subj, body });
     if (assignee && !to.has(assignee.email.toLowerCase())) await sendEmail(db, { to: assignee.email, toName: assignee.name, kind: 'ops_rate_request', relatedId: root.id, subject: subj, body });
@@ -246,7 +251,7 @@ export async function hotelQuote(db: DB, token: string, answer: { decline: true;
     const reason = answer.reason?.trim().slice(0, 500) || null;
     await db.update(rateRequests).set({ status: 'declined', answeredAt: now, declineReason: reason, updatedAt: now }).where(eq(rateRequests.id, r.id));
     await audit(db, SYSTEM, 'rate_request.declined', 'rate_request', r.id, { reason }, r.agencyId);
-    await tellDesk(db, root, `${r.hotelName} can’t offer`, [`${r.hotelName} answered “not available”${reason ? ` (${reason})` : ''}. Ask another hotel if the agent has no offer yet.`]);
+    await tellDesk(db, root, `${r.hotelName} can’t offer`, [`${r.hotelName} answered “not available”${reason ? ` (${reason})` : ''}. Ask another hotel if the agent has no offer yet.`], { hotelName: r.hotelName, city: r.city });
     return { declined: true as const };
   }
 
@@ -269,7 +274,7 @@ export async function hotelQuote(db: DB, token: string, answer: { decline: true;
   await tellDesk(db, root, `${r.hotelName} replied — check and send`, [
     `${r.hotelName} quoted ${formatMoney(rateMinor, q.currency)} per room per night (${q.roomType}) — ${formatMoney(net, q.currency)} net for the stay, valid until ${formatDate(q.validUntil)}.`,
     `With ${markupBps / 100}% markup the agent would pay ${formatMoney(sell, q.currency)}. Check it and send it to the agent in one click.`,
-  ]);
+  ], { hotelName: r.hotelName, city: r.city });
   return { declined: false as const, sellMinor: sell };
 }
 
@@ -613,7 +618,7 @@ export async function acceptRateQuote(db: DB, actor: Actor, id: string) {
   await audit(db, actor, 'rate_request.accepted', 'rate_request', r.id, { sell: r.sellMinor, currency: r.quoteCurrency }, r.agencyId);
   await tellDesk(db, root, `Agent accepted ${r.hotelName} — confirm the booking`, [
     `The agent accepted ${r.hotelName} at ${formatMoney(r.sellMinor!, r.quoteCurrency!)} (net ${formatMoney(r.quoteNetMinor!, r.quoteCurrency!)}). The hotel has been told to hold the rooms — confirm the booking with them.`,
-  ]);
+  ], { hotelName: r.hotelName, city: r.city });
 }
 
 /** The team has confirmed the accepted offer with the hotel: the request becomes a
@@ -698,7 +703,7 @@ export async function lapseRateRequests(db: DB, now = new Date()) {
     const root = await rootOf(db, r);
     await tellDesk(db, root, `No reply from ${r.hotelName}`, [
       `${r.hotelName} (${r.hotelEmail ?? 'no email'}) never answered. Call the hotel, or ask another one — the agent is still waiting for an offer.`,
-    ]);
+    ], { hotelName: r.hotelName, city: r.city });
   }
   const stale = await db.update(rateRequests).set({ status: 'expired', updatedAt: now })
     .where(and(eq(rateRequests.status, 'quoted'), lt(rateRequests.quoteValidUntil, todayIso(now)))).returning();
