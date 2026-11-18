@@ -345,7 +345,9 @@ export async function deskCandidates(db: DB, rootId: string) {
   const [root] = await db.select().from(rateRequests).where(eq(rateRequests.id, rootId));
   if (!root) throw new NotFoundError('Request');
   const rows = await family(db, root.id);
-  const [self] = await db.select({ tier: hotels.tier }).from(hotels).where(eq(hotels.id, root.hotelId));
+  // A request may have no hotel record (an offer the desk sourced elsewhere),
+  // in which case there is no tier to sort the suggestions around.
+  const [self] = root.hotelId ? await db.select({ tier: hotels.tier }).from(hotels).where(eq(hotels.id, root.hotelId)) : [];
   const all = await onRequestHotels(db, root.city);
   all.sort((a, b) => (a.id === root.hotelId ? -1 : b.id === root.hotelId ? 1 : 0)
     || tierDistance(a.tier, self?.tier) - tierDistance(b.tier, self?.tier) || tierIndex(a.tier) - tierIndex(b.tier) || a.name.localeCompare(b.name));
@@ -436,6 +438,73 @@ export async function askHotels(db: DB, actor: Actor, rootId: string, hotelIds: 
   return result;
 }
 
+/* --------------- an offer the desk sourced somewhere else --------------- */
+
+export const recordedOfferSchema = z.object({
+  hotelName: z.string().trim().min(2, 'Name the hotel').max(120),
+  city: z.string().trim().max(80).optional().nullable(),
+  currency: z.enum(CURRENCIES),
+  roomType: z.string().trim().min(1, 'Name the room type').max(80),
+  rate: z.string().trim().min(1, 'Enter the rate per room per night'),
+  mealPlan: z.string().trim().max(10).optional().nullable(),
+  cancellation: z.string().trim().min(3, 'Add the cancellation terms').max(800),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  validUntil: z.string().refine(isIsoDate, 'Say until when the rate is valid'),
+});
+
+/**
+ * Record an offer the desk already has, for ANY hotel — one we list, or one
+ * found on an OTA, a bedbank or in a direct conversation. It lands as a hotel
+ * reply, so from here it is the normal flow: set the markup and send it on.
+ *
+ * Nothing is emailed anywhere. The hotel is identified by name only; no hotel
+ * record is invented, because we may never deal with them again.
+ */
+export async function recordOffer(db: DB, actor: Actor, rootId: string, input: z.input<typeof recordedOfferSchema>) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  const root = await load(db, actor, rootId);
+  if (root.parentId) throw new AppError('Open the main request to record an offer');
+  if (['accepted', 'booked', 'cancelled'].includes(agentState(await family(db, root.id)))) {
+    throw new AppError('This request is closed — the agent already accepted an offer or cancelled it');
+  }
+  const q = recordedOfferSchema.parse(input);
+  if (q.validUntil < todayIso()) throw new AppError('That rate has already expired');
+
+  const nights = daysBetween(root.checkIn, root.checkOut);
+  const rooms = root.rooms.length;
+  let rateMinor: number;
+  try { rateMinor = parseMoney(q.rate, q.currency); } catch { throw new AppError('Enter the rate as a number, e.g. 4500 or 4500.50'); }
+  if (rateMinor <= 0) throw new AppError('The rate must be more than zero');
+  const net = rateMinor * nights * rooms;
+  const markupBps = await defaultMarkupBps(db);
+  const sell = sellFor(net, markupBps, q.currency);
+
+  const year = todayIso().slice(0, 4);
+  const n = await nextNumber(db, `RR-${year}`);
+  const now = new Date();
+  const [row] = await db.insert(rateRequests).values({
+    reference: `RR-${year}-${String(n).padStart(4, '0')}`,
+    agencyId: root.agencyId, userId: root.userId,
+    // No hotel record: this offer may be from a hotel we never deal with again.
+    hotelId: null, hotelName: q.hotelName, hotelEmail: null,
+    city: q.city?.trim() || root.city,
+    checkIn: root.checkIn, checkOut: root.checkOut, rooms: root.rooms,
+    mealPlan: root.mealPlan, notes: root.notes,
+    budgetMinor: root.budgetMinor, budgetCurrency: root.budgetCurrency,
+    // Straight to "hotel replied": the desk checks it and sends it on.
+    status: 'hotel_quoted', token: randomCode(24), respondByAt: now, answeredAt: now,
+    parentId: root.id, assignedTo: root.assignedTo ?? actor.userId,
+    quoteCurrency: q.currency, quoteRoomType: q.roomType, quoteRateMinor: rateMinor,
+    quoteNetMinor: net, sellMinor: sell, markupBps,
+    quoteMealPlan: q.mealPlan || root.mealPlan, quoteCancellation: q.cancellation,
+    quoteNotes: q.notes || null, quoteValidUntil: q.validUntil,
+  }).returning();
+
+  await audit(db, actor, 'rate_request.offer_recorded', 'rate_request', row.id,
+    { hotel: q.hotelName, net, currency: q.currency, source: 'recorded by the desk' }, root.agencyId);
+  return row;
+}
+
 /** The team checks a hotel's reply and sends it to the agent with our markup. */
 export async function releaseOffer(db: DB, actor: Actor, id: string, markupBps: number) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
@@ -514,8 +583,10 @@ export async function deskRequest(db: DB, actor: Actor, id: string) {
 /** Other hotels in the city when the agent wants more choice. */
 export async function alternatives(db: DB, actor: Actor, r: RateRequest) {
   const asked = await family(db, r.id);
-  const exclude = [...new Set([r.hotelId, ...asked.filter((a) => a.status !== 'cancelled').map((a) => a.hotelId)])];
-  const [self] = await db.select({ tier: hotels.tier }).from(hotels).where(eq(hotels.id, r.hotelId));
+  // Offers the desk sourced elsewhere have no hotel record, so they exclude nothing.
+  const exclude = [...new Set([r.hotelId, ...asked.filter((a) => a.status !== 'cancelled').map((a) => a.hotelId)])]
+    .filter((x): x is string => x != null);
+  const [self] = r.hotelId ? await db.select({ tier: hotels.tier }).from(hotels).where(eq(hotels.id, r.hotelId)) : [];
   // Closest tier first; on a tie the lower (usually cheaper) tier, since we are often here because of the budget.
   const onRequest = (await onRequestHotels(db, r.city, { exclude }))
     .sort((a, b) => tierDistance(a.tier, self?.tier) - tierDistance(b.tier, self?.tier) || tierIndex(a.tier) - tierIndex(b.tier))
@@ -638,8 +709,21 @@ export async function markBooked(db: DB, actor: Actor, id: string, confirmation?
   // The booking first: if it fails, the request stays "accepted" and the team
   // can try again. Never leave a request marked booked with no booking behind it.
   const lead = guestName?.trim() || 'Guest name to follow';
+  // An offer the desk recorded for a hotel we do not list has no hotel record.
+  // By the time it is booked the hotel is real business, so add it then —
+  // quietly, as an on-request listing, rather than blocking the booking.
+  let hotelId = r.hotelId;
+  if (!hotelId) {
+    const slug = r.hotelName.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72) + '-' + r.city.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const [existing] = await db.select({ id: schema.hotels.id }).from(schema.hotels).where(eq(schema.hotels.slug, slug));
+    hotelId = existing?.id ?? (await db.insert(schema.hotels).values({
+      name: r.hotelName, slug, city: r.city, country: '—', status: 'active',
+      bestRateOnRequest: true, summary: 'Added from a booking the desk sourced directly.',
+    }).returning())[0].id;
+    await db.update(rateRequests).set({ hotelId }).where(eq(rateRequests.id, r.id));
+  }
   const booking = await createDeskBooking(db, actor, {
-    agencyId: r.agencyId, hotelId: r.hotelId, checkIn: r.checkIn, checkOut: r.checkOut,
+    agencyId: r.agencyId, hotelId, checkIn: r.checkIn, checkOut: r.checkOut,
     rooms: r.rooms.map((room) => ({
       adults: room.adults, childAges: room.childAges, roomTypeId: '',
       roomName: r.quoteRoomType ?? 'As quoted', mealPlan: r.quoteMealPlan ?? r.mealPlan ?? 'RO', guestNames: [],

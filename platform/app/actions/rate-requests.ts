@@ -5,7 +5,9 @@ import { getDb } from '@/lib/db';
 import { attempt, bps, int, optStr, str, type ActionResult } from '@/lib/action';
 import { decodeRooms } from '@/lib/domain/occupancy';
 import { requireAgent, requireStaff } from '@/lib/session';
-import { acceptRateQuote, askAlternative, askHotels, assignRateRequest, cancelRateRequest, closeWithoutOffer, createRateRequest, holdBackOffer, hotelQuote, markBooked, releaseOffer } from '@/lib/services/rate-requests';
+import {
+  acceptRateQuote, askAlternative, askHotels, assignRateRequest, cancelRateRequest, closeWithoutOffer, createRateRequest, holdBackOffer, hotelQuote, markBooked, recordOffer, releaseOffer,
+} from '@/lib/services/rate-requests';
 
 /** Rooms come either from the search (encoded) or from the simple room picker. */
 function roomsFrom(fd: FormData) {
@@ -99,6 +101,14 @@ export async function deskAction(_: ActionResult | null, fd: FormData): Promise<
     if (intent === 'booked') {
       const b = await markBooked(db, actor, id, optStr(fd, 'confirmation') ?? null, optStr(fd, 'leadGuest') ?? null);
       return done(`Booked as ${b.reference}. The agent has the confirmation and the invoice is raised.`);
+    }
+    if (intent === 'record') {
+      const row = await recordOffer(db, actor, id, {
+        hotelName: str(fd, 'hotelName'), city: optStr(fd, 'city'), currency: str(fd, 'currency') as 'INR',
+        roomType: str(fd, 'roomType'), rate: str(fd, 'rate'), mealPlan: optStr(fd, 'mealPlan'),
+        cancellation: str(fd, 'cancellation'), notes: optStr(fd, 'notes'), validUntil: str(fd, 'validUntil'),
+      });
+      return { ok: true, message: done(`Recorded ${row.hotelName}. Check it below and send it to the agent — nothing was emailed to the hotel.`) };
     }
     if (intent === 'holdback') { await holdBackOffer(db, actor, id); return done('Set aside — the agent won’t see this reply.'); }
     if (intent === 'close') { await closeWithoutOffer(db, actor, id, str(fd, 'message')); return done('Closed — the agent has your note.'); }

@@ -127,6 +127,13 @@
       "when": 1794615308147,
       "tag": "0017_codes_grades_lead_links",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795026520488,
+      "tag": "0018_offer_from_anywhere",
+      "breakpoints": true
     }
   ]
 }

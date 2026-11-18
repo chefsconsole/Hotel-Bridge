@@ -1,0 +1,1 @@
+ALTER TABLE "rate_requests" ALTER COLUMN "hotel_id" DROP NOT NULL;

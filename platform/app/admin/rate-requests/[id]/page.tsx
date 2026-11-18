@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ActionForm, Field, SubmitButton } from '@/components/forms';
+import { DateField } from '@/components/date-fields';
 import { DL, Money, Notice, PageHeader, Panel, Pill } from '@/components/ui';
 import { deskAction } from '@/app/actions/rate-requests';
 import { inArray } from 'drizzle-orm';
 import { getDb, schema } from '@/lib/db';
 import { daysBetween, formatDate, formatDateTime } from '@/lib/domain/dates';
-import { formatMoney } from '@/lib/domain/money';
+import { CURRENCIES, formatMoney } from '@/lib/domain/money';
 import { describeRoom, describeRooms } from '@/lib/domain/occupancy';
 import { requireStaff } from '@/lib/session';
 import { MEAL_PLANS } from '@/lib/services/catalog';
@@ -149,6 +150,37 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                   </p>
                 </ActionForm>
               )}
+            </Panel>
+          )}
+
+          {/* An offer the desk found anywhere — an OTA, a bedbank, WhatsApp, a
+            * phone call — for any hotel, listed or not. Nothing is emailed. */}
+          {!closed && (
+            <Panel title="Record an offer you already have"
+              description="Any hotel, from anywhere — a 3-star you found yourself, a bedbank rate, a reply on WhatsApp. The hotel does not have to be one of ours and nothing is emailed to them. Paste the details, then send it to the agent like any other offer.">
+              <ActionForm action={deskAction} resetOnSuccess className="space-y-4">
+                <input type="hidden" name="id" value={r.id} /><input type="hidden" name="rootId" value={r.id} /><input type="hidden" name="intent" value="record" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Hotel name" required><input name="hotelName" required maxLength={120} className="field" placeholder="e.g. Hotel Sunrise Bangkok" /></Field>
+                  <Field label="City" hint={`Leave empty for ${r.city}`}><input name="city" maxLength={80} className="field" placeholder={r.city} /></Field>
+                  <Field label="Room type" required><input name="roomType" required maxLength={80} className="field" placeholder="e.g. Deluxe Double" /></Field>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Field label="Rate / room / night" required><input name="rate" required className="field num" inputMode="decimal" placeholder="4500" /></Field>
+                    <Field label="Currency"><select name="currency" defaultValue={r.budgetCurrency ?? 'INR'} className="field">
+                      {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select></Field>
+                  </div>
+                  <Field label="Meals"><select name="mealPlan" defaultValue={r.mealPlan ?? ''} className="field">
+                    {[['', 'As asked'], ['RO', 'Room only'], ['BB', 'Breakfast'], ['HB', 'Half board'], ['FB', 'Full board']].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select></Field>
+                  <DateField label="Rate valid until" name="validUntil" required />
+                </div>
+                <Field label="Cancellation terms" required><input name="cancellation" required maxLength={800} className="field" placeholder="e.g. Free cancellation until 7 days before arrival" /></Field>
+                <Field label="Anything else" hint="Taxes, inclusions, or the hotel's message pasted as it is — kept with the offer.">
+                  <textarea name="notes" rows={3} maxLength={2000} className="field" placeholder="Paste the offer here as you received it…" />
+                </Field>
+                <SubmitButton pendingLabel="Recording…">Record this offer</SubmitButton>
+              </ActionForm>
             </Panel>
           )}
 

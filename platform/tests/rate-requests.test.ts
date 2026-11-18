@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { schema } from '@/lib/db';
 import { addDays } from '@/lib/domain/dates';
 import {
-  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskCandidates, deskRequest, deskTodo, getRateRequest, holdBackOffer, hotelQuote, lapseRateRequests, listRateRequests, markBooked, rateRequestByToken, releaseOffer,
+  acceptRateQuote, askAlternative, askHotels, assignRateRequest, closeWithoutOffer, createRateRequest, deskCandidates, deskRequest, deskTodo, getRateRequest, holdBackOffer, hotelQuote, lapseRateRequests, listRateRequests, markBooked, rateRequestByToken, recordOffer, releaseOffer,
 } from '@/lib/services/rate-requests';
 import { searchHotels } from '@/lib/services/search';
 import { setup, type Fixture } from './helpers';
@@ -312,5 +312,49 @@ describe('an offer that arrived outside the portal', () => {
     const deskView = await getRateRequest(f.db, f.ADMIN, r.id);
     expect(deskView.offers[0].quoteNetMinor).toBe(36_000);
     expect(deskView.offers[0].markupBps).toBe(1000);
+  });
+});
+
+describe('an offer the desk sourced somewhere else', () => {
+  it('records an offer for a hotel we do not list, sends it to the agent, and books it', async () => {
+    f = await setup();
+    await f.db.update(schema.hotels).set({ bestRateOnRequest: true, rateRequestEmail: 'sales@fixture.test' })
+      .where(eq(schema.hotels.id, f.hotel.id));
+    const checkIn = addDays(f.today, 30);
+    const r = await createRateRequest(f.db, f.A, {
+      hotelId: f.hotel.id, checkIn, checkOut: addDays(f.today, 32), rooms: [{ adults: 2, childAges: [] }],
+    });
+
+    // A 3-star found on an OTA. It is not one of our hotels and never will be.
+    const row = await recordOffer(f.db, f.ADMIN, r.id, {
+      hotelName: 'Hotel Sunrise Bangkok', city: 'Bangkok', currency: 'THB',
+      roomType: 'Deluxe Double', rate: '1500', mealPlan: 'BB',
+      cancellation: 'Free until 7 days before arrival', notes: 'Found on an OTA; pay on arrival.',
+      validUntil: addDays(f.today, 10),
+    });
+    expect(row.hotelId).toBeNull();            // no invented hotel record
+    expect(row.hotelName).toBe('Hotel Sunrise Bangkok');
+    expect(row.status).toBe('hotel_quoted');   // straight to "check and send"
+    expect(row.quoteNetMinor).toBe(300_000);   // 1500 × 2 nights × 1 room
+    // Nothing was emailed to anyone.
+    expect((await mails(f)).filter((m) => /sunrise/i.test(m.toEmail ?? ''))).toEqual([]);
+
+    // Normal flow from here: send it to the agent.
+    await releaseOffer(f.db, f.ADMIN, row.id, 1000);
+    const view = await getRateRequest(f.db, f.A, r.id);
+    expect(view.state).toBe('offers');
+    expect(view.offers.map((o) => o.hotelName)).toContain('Hotel Sunrise Bangkok');
+    expect(view.offers[0].quoteNetMinor).toBeNull(); // our cost still hidden
+
+    // The agent takes it, and it becomes a real booking even though we had no
+    // hotel on file — the hotel is created at that point, not invented earlier.
+    await acceptRateQuote(f.db, f.A, row.id);
+    const booking = await markBooked(f.db, f.ADMIN, row.id, 'OTA-99', 'Priya Nair');
+    expect(booking.reference).toMatch(/^HB-/);
+    expect(booking.sellMinor).toBe(330_000);
+    const [h] = await f.db.select().from(schema.hotels).where(eq(schema.hotels.name, 'Hotel Sunrise Bangkok'));
+    expect(h).toBeDefined();
+    expect(h.bestRateOnRequest).toBe(true);
+    expect(booking.hotelId).toBe(h.id);
   });
 });

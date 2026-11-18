@@ -640,7 +640,10 @@ export const rateRequests = pgTable('rate_requests', {
   reference: text('reference').notNull(),
   agencyId: uuid('agency_id').notNull().references(() => agencies.id),
   userId: uuid('user_id').notNull(),
-  hotelId: uuid('hotel_id').notNull().references(() => hotels.id),
+  // Null when the desk recorded an offer for a hotel we do not list — sourced
+  // from an OTA, a bedbank or a direct conversation. hotelName always carries
+  // the name, so an offer never depends on us having the hotel on file first.
+  hotelId: uuid('hotel_id').references(() => hotels.id),
   hotelName: text('hotel_name').notNull(),
   hotelEmail: text('hotel_email'),
   city: text('city').notNull(),
