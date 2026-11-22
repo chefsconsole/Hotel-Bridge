@@ -84,7 +84,7 @@ const FONT = 'Verdana,Geneva,sans-serif';
 
 /** HotelBridge-branded HTML for every email: logo header, buttons for portal links, footer. */
 export function toHtml(text: string): string {
-  const base = (process.env.APP_URL || 'https://www.hotelbridge.co').replace(/\/$/, '');
+  const base = siteBase();
   /* Our own links become labelled buttons. Match any HotelBridge host rather
    * than just the configured base: links are built from APP_URL, which pointed
    * at portal.hotelbridge.co before the site moved to www and may still, and
@@ -134,8 +134,15 @@ export async function recentEmails(db: Executor, limit = 100) {
   return db.select().from(schema.outboundEmails).orderBy(desc(schema.outboundEmails.createdAt)).limit(limit);
 }
 
+/** The site's own address, for absolute links in email. */
+export function siteBase() {
+  // Never fall back to localhost in production: these links go to hotels, and
+  // a localhost URL in a rate request is dead on arrival.
+  const fallback = isProduction ? 'https://www.hotelbridge.co' : 'http://localhost:3050';
+  return (process.env.APP_URL || fallback).replace(/\/$/, '');
+}
+
 /** Absolute links in emails (hotel reply pages). */
 export function appUrl(path: string) {
-  const base = (process.env.APP_URL || 'http://localhost:3050').replace(/\/$/, '');
-  return base + path;
+  return siteBase() + path;
 }
