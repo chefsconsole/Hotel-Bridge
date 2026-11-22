@@ -10,6 +10,7 @@ import { services, stats, testimonials } from '../data/mockData';
 import { useRevealAll } from '../hooks/useInView';
 import { useTilt } from '../hooks/useTilt';
 import { Magnetic } from '../components/MagneticButton';
+import { PORTAL_LOGIN_URL, PORTAL_REGISTER_URL } from '../lib/portal';
 import { useEffect, useRef, useState } from 'react';
 
 /* ───────────────────────────────────────────────────
@@ -772,6 +773,85 @@ export const Home = () => {
                   ))}
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ════════════════════════════════════════════════
+          AGENT PORTAL — the live product at portal.hotelbridge.co
+          ════════════════════════════════════════════════ */}
+      <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-14 items-center">
+            <div className="reveal">
+              <p className="text-xs font-semibold text-secondary uppercase tracking-[0.3em] mb-4">
+                For travel agents
+              </p>
+              <h2 className="text-3xl lg:text-4xl font-serif text-primary mb-5">
+                Your own booking portal, open around the clock
+              </h2>
+              <p className="text-gray-600 leading-relaxed mb-8">
+                Register your agency once and search our contracted hotels, see B2B rates
+                with your margin already applied, and send any enquiry straight to our desk.
+                For anywhere we don&rsquo;t yet cover, ask and we source it for you.
+              </p>
+              <ul className="space-y-3 mb-9">
+                {[
+                  'Live B2B rates on contracted hotels, taxes included',
+                  'Best rate on request — we go to the hotels for you',
+                  'Group and FIT enquiries handled by our desk',
+                  'Invoices, payments and vouchers in one place',
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-3 text-gray-700">
+                    <span className="mt-1 text-secondary shrink-0">✓</span>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex flex-wrap items-center gap-4">
+                <Button asChild size="lg" className="btn-gold text-white border-0 px-7 rounded-full font-semibold">
+                  <a href={PORTAL_REGISTER_URL}>Register your agency</a>
+                </Button>
+                <a
+                  href={PORTAL_LOGIN_URL}
+                  className="text-sm font-semibold text-primary hover:text-secondary transition-colors inline-flex items-center gap-1"
+                >
+                  Already registered? Sign in
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                    <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </a>
+              </div>
+              <p className="text-xs text-gray-400 mt-5">
+                Verification usually takes one working day. You can search and send enquiries straight away.
+              </p>
+            </div>
+
+            <div className="reveal">
+              <div className="rounded-2xl border border-gray-200 bg-white shadow-xl overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 bg-primary">
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/25" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/25" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-white/25" />
+                  <span className="ml-3 text-[11px] text-white/70 font-mono">portal.hotelbridge.co</span>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="h-10 rounded-lg bg-gray-100 flex items-center px-3 text-xs text-gray-400">
+                    Where to — city, hotel or region
+                  </div>
+                  {[
+                    { n: 'Contracted hotels', v: 'Live price' },
+                    { n: 'Best rate on request', v: 'Within the hour' },
+                    { n: 'Group Desk', v: 'Proposal in 24h' },
+                  ].map((row) => (
+                    <div key={row.n} className="flex items-center justify-between border-b border-gray-100 pb-3 last:border-0">
+                      <span className="text-sm text-gray-700">{row.n}</span>
+                      <span className="text-xs font-semibold text-secondary">{row.v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>

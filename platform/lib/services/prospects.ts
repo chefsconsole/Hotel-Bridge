@@ -16,9 +16,15 @@ import { AppError, NotFoundError } from './errors';
 const { hotelProspects } = schema;
 const SALES = ['admin', 'sales', 'ops'] as const;
 
+/* "signed" is the end of the outreach funnel: the hotel is live in the
+ * catalogue and sellable. Most such hotels are sold on request rather than on
+ * a signed rate contract, so the label says "Listed" — calling it "Signed"
+ * read as 69 signed contracts when the real number of contracted hotels was
+ * seven. Whether a hotel is contracted or on-request is on the hotel record
+ * (bestRateOnRequest) and in its contracts, not in this stage. */
 export const STAGE_LABEL: Record<string, string> = {
   to_contact: 'To contact', contacted: 'Contacted', in_talks: 'In talks', rates_received: 'Rates received',
-  signed: 'Signed', declined: 'Declined', not_now: 'Not now',
+  signed: 'Listed', declined: 'Declined', not_now: 'Not now',
 };
 export const OPEN_STAGES = ['to_contact', 'contacted', 'in_talks', 'rates_received'];
 

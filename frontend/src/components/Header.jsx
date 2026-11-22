@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
+import { PORTAL_LOGIN_URL } from '../lib/portal';
 import { Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -84,6 +85,17 @@ export const Header = () => {
 
             {/* CTA */}
             <div className="hidden lg:flex items-center space-x-3">
+              {/* Travel agents live in a separate app on portal.hotelbridge.co,
+                  so this is a real external link, not a router route. */}
+              <a
+                href={PORTAL_LOGIN_URL}
+                className="text-sm font-semibold text-primary hover:text-secondary transition-colors inline-flex items-center gap-1"
+              >
+                Agent Portal
+                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M7 17 17 7M9 7h8v8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </a>
               <Link to="/login" className="text-sm text-gray-500 hover:text-primary transition-colors font-medium">
                 Partner Login
               </Link>
@@ -128,6 +140,12 @@ export const Header = () => {
               </Link>
             ))}
             <div className="pt-2 flex flex-col gap-2">
+              <a
+                href={PORTAL_LOGIN_URL}
+                className="px-4 py-3 text-sm font-semibold text-primary rounded-lg hover:bg-gray-50 transition-all"
+              >
+                Agent Portal ↗
+              </a>
               <Link
                 to="/login"
                 className="px-4 py-3 text-sm font-medium text-gray-500 hover:text-primary rounded-lg hover:bg-gray-50 transition-all"

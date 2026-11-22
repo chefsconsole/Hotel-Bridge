@@ -84,7 +84,7 @@ const FONT = 'Verdana,Geneva,sans-serif';
 
 /** HotelBridge-branded HTML for every email: logo header, buttons for portal links, footer. */
 export function toHtml(text: string): string {
-  const base = (process.env.APP_URL || 'https://portal.hotelbridge.co').replace(/\/$/, '');
+  const base = (process.env.APP_URL || 'https://www.hotelbridge.co').replace(/\/$/, '');
   const ownLink = (u: string) => u.startsWith(base);
   const linkify = (h: string) => h.replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#1a4f8b;word-break:break-all;">${url}</a>`);
   const button = (url: string) => `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;"><tr><td style="background:${NAVY};border-radius:24px;"><a href="${url}" style="display:inline-block;padding:12px 26px;font-family:${FONT};font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">${buttonLabel(url)} &rarr;</a></td></tr></table>`;
@@ -118,7 +118,7 @@ export function toHtml(text: string): string {
 <tr><td style="padding:30px 32px 14px;font-family:${FONT};font-size:14px;line-height:1.6;color:#222222;">${blocks.join('')}</td></tr>
 <tr><td style="padding:18px 32px 26px;border-top:1px solid #eee7d8;font-family:${FONT};font-size:11.5px;line-height:1.6;color:#7a7365;">
   <strong style="color:${NAVY};">HotelBridge</strong> &middot; Hotels direct. No middleman.<br>
-  <a href="mailto:info@hotelbridge.co" style="color:#7a7365;">info@hotelbridge.co</a> &middot; +91 70216 20577 &middot; <a href="${base}" style="color:#7a7365;">portal.hotelbridge.co</a><br>
+  <a href="mailto:info@hotelbridge.co" style="color:#7a7365;">info@hotelbridge.co</a> &middot; +91 70216 20577 &middot; <a href="${base}" style="color:#7a7365;">www.hotelbridge.co</a><br>
   Sunrise, Charkop, Kandivali West, Mumbai 400067
 </td></tr>
 </table></td></tr></table></body></html>`;

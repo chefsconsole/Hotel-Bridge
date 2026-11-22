@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { PORTAL_LOGIN_URL } from '../lib/portal';
 import { useState } from 'react';
 import { Mail, MapPin, Linkedin, Facebook, Instagram, ArrowRight, Send, CheckCircle2 } from 'lucide-react';
 import { saveLead } from '../lib/leadsStore';
@@ -197,6 +198,9 @@ export const Footer = () => {
               <Link to="/terms" className="text-gray-500 hover:text-secondary text-xs transition-colors" data-cursor="link">
                 Terms of Service
               </Link>
+              <a href={PORTAL_LOGIN_URL} className="text-gray-500 hover:text-secondary text-xs transition-colors">
+                Agent Portal
+              </a>
               <Link to="/login" className="text-gray-500 hover:text-secondary text-xs transition-colors">
                 Partner Login
               </Link>

@@ -39,6 +39,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     '/admin/suppliers': ['admin', 'ops'],
     '/admin/agencies': ['admin', 'ops', 'sales', 'finance'],
     '/admin/pricing': ['admin', 'finance'],
+    // Money hotels owe us: admin and finance, same as the rest of the ledger.
+    '/admin/commissions': ['admin', 'finance'],
     '/admin/partners': ['admin', 'sales'],
     '/admin/audit': ['admin', 'finance'],
     '/admin/emails': ['admin', 'ops', 'sales'],
@@ -58,6 +60,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/rate-check', label: 'Rate comparison', icon: 'compare', section: 'Portfolio' },
     { href: '/admin/suppliers', label: 'Suppliers', icon: 'plug', section: 'Portfolio' },
     { href: '/admin/agencies', label: 'Agencies', icon: 'agencies', section: 'Commercial' },
+    { href: '/admin/commissions', label: 'Commissions', icon: 'finance', section: 'Commercial' },
     { href: '/admin/pricing', label: 'Pricing & settings', icon: 'pricing', section: 'Commercial' },
     { href: '/admin/partners', label: 'Partner applications', icon: 'inbox', section: 'Commercial' },
     { href: '/admin/team', label: 'Team', icon: 'agencies', section: 'Governance' },
