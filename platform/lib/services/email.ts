@@ -85,7 +85,13 @@ const FONT = 'Verdana,Geneva,sans-serif';
 /** HotelBridge-branded HTML for every email: logo header, buttons for portal links, footer. */
 export function toHtml(text: string): string {
   const base = (process.env.APP_URL || 'https://www.hotelbridge.co').replace(/\/$/, '');
-  const ownLink = (u: string) => u.startsWith(base);
+  /* Our own links become labelled buttons. Match any HotelBridge host rather
+   * than just the configured base: links are built from APP_URL, which pointed
+   * at portal.hotelbridge.co before the site moved to www and may still, and
+   * mail queued under the old host must not degrade to a bare URL. The base
+   * check stays for localhost and preview deployments. */
+  const ownLink = (u: string) =>
+    /^https?:\/\/([a-z0-9-]+\.)*hotelbridge\.co(\/|$|\?|#)/i.test(u) || u.startsWith(base);
   const linkify = (h: string) => h.replace(/https?:\/\/[^\s<]+/g, (url) => `<a href="${url}" style="color:#1a4f8b;word-break:break-all;">${url}</a>`);
   const button = (url: string) => `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;"><tr><td style="background:${NAVY};border-radius:24px;"><a href="${url}" style="display:inline-block;padding:12px 26px;font-family:${FONT};font-size:14px;font-weight:bold;color:#ffffff;text-decoration:none;">${buttonLabel(url)} &rarr;</a></td></tr></table>`;
 
