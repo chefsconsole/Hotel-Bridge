@@ -6,7 +6,7 @@ import { ActionForm, Field, SubmitButton } from '@/components/forms';
 import { Empty, Money, Notice, PageHeader, Panel, Pill } from '@/components/ui';
 import { addRateAction, allocationAction, contractStatusAction, deactivateRateAction, importRatesAction, restrictionAction, updateContractAction } from '@/app/actions/admin';
 import { getDb } from '@/lib/db';
-import { formatDate } from '@/lib/domain/dates';
+import { ALL_DAYS, describeDays, formatDate } from '@/lib/domain/dates';
 import { DEFAULT_RULE, priceOffer } from '@/lib/domain/pricing';
 import { requireStaff } from '@/lib/session';
 import { contractDetail, MEAL_PLANS } from '@/lib/services/catalog';
@@ -52,7 +52,9 @@ export default async function ContractPage({ params, searchParams }: { params: P
                 const pv = preview(r.price2Minor);
                 return (
                   <tr key={r.id} className={r.active ? '' : 'opacity-40'}>
-                    <td>{rtName(r.roomTypeId)}</td><td>{r.mealPlan}</td><td className="num whitespace-nowrap">{formatDate(r.dateFrom)} – {formatDate(r.dateTo)}</td>
+                    <td>{rtName(r.roomTypeId)}</td><td>{r.mealPlan}</td><td className="num whitespace-nowrap">{formatDate(r.dateFrom)} – {formatDate(r.dateTo)}
+                      {r.daysOfWeek !== ALL_DAYS && <span className="ml-2 rounded bg-line/60 px-1.5 py-0.5 text-[0.7rem] font-medium tracking-tight">{describeDays(r.daysOfWeek)}</span>}
+                    </td>
                     {[r.price1Minor, r.price2Minor, r.price3Minor, r.childMinor].map((v, i) => <td key={i} className="text-right">{v == null ? '—' : <Money minor={v} currency={c.currency} />}</td>)}
                     <td className="num">{r.minStay}n / {r.releaseDays}d</td>
                     <td className="text-right">{pv ? <><Money minor={pv.sellMinor} currency={c.currency} /><p className="text-[0.72rem] text-faint">net rev. <Money minor={pv.netRevenueMinor} currency={c.currency} /></p></> : '—'}</td>
@@ -77,6 +79,15 @@ export default async function ContractPage({ params, searchParams }: { params: P
                 <Field label="Per child"><input name="child" className="field num" inputMode="decimal" /></Field>
                 <Field label="Min stay"><input name="minStay" defaultValue={1} className="field num" /></Field>
                 <Field label="Release days"><input name="releaseDays" defaultValue={0} className="field num" /></Field>
+                <Field label="Nights" hint="Only when the hotel prices weekdays and weekends apart — load one period per band over the same dates." className="sm:col-span-4">
+                  <select name="daysOfWeek" className="field" defaultValue={String(ALL_DAYS)}>
+                    <option value={String(ALL_DAYS)}>Every night</option>
+                    <option value="15">Mon–Thu</option>
+                    <option value="112">Fri–Sun</option>
+                    <option value="31">Mon–Fri</option>
+                    <option value="96">Sat–Sun</option>
+                  </select>
+                </Field>
               </div>
               <SubmitButton size="sm" className="mt-3">Add rates</SubmitButton>
             </ActionForm>

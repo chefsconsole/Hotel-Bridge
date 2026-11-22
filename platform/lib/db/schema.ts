@@ -271,6 +271,10 @@ export const ratePeriods = pgTable('rate_periods', {
   price2Minor: money('price2_minor'),
   price3Minor: money('price3_minor'),
   childMinor: money('child_minor'), // per child per night; null = children not priced
+  // Weekday mask: bit 0 Monday … bit 6 Sunday. 127 = every night, which is
+  // what a sheet with no weekday split means. Lets one room type carry a
+  // Mon–Thu and a Fri–Sun price over the same dates.
+  daysOfWeek: integer('days_of_week').notNull().default(127),
   minStay: integer('min_stay').notNull().default(1),
   releaseDays: integer('release_days').notNull().default(0),
   active: boolean('active').notNull().default(true),

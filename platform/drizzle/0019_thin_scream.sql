@@ -1,0 +1,1 @@
+ALTER TABLE "rate_periods" ADD COLUMN "days_of_week" integer DEFAULT 127 NOT NULL;

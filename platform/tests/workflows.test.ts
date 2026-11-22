@@ -373,6 +373,14 @@ describe('contracts', () => {
     await addRatePeriod(f.db, f.ADMIN, c.id, rate);
     await expect(addRatePeriod(f.db, f.ADMIN, c.id, { ...rate, dateFrom: addDays(f.today, 40), dateTo: addDays(f.today, 60) })).rejects.toThrow(/already cover/);
     await expect(addRatePeriod(f.db, f.A, c.id, rate)).rejects.toThrow();
+    // Same dates are fine when the two periods split the week between them —
+    // that is how a Mon–Thu / Fri–Sun sheet is loaded — but a mask that shares
+    // even one weekday with an existing period would leave a night double-priced.
+    const weekendDates = { dateFrom: addDays(f.today, 60), dateTo: addDays(f.today, 90) };
+    await addRatePeriod(f.db, f.ADMIN, c.id, { ...rate, ...weekendDates, daysOfWeek: 0b0001111 });
+    await addRatePeriod(f.db, f.ADMIN, c.id, { ...rate, ...weekendDates, daysOfWeek: 0b1110000, price2Minor: 8_000 });
+    await expect(addRatePeriod(f.db, f.ADMIN, c.id, { ...rate, ...weekendDates, daysOfWeek: 0b0000001 }))
+      .rejects.toThrow(/already cover/);
     await expect(createContract(f.db, f.ADMIN, f.hotel.id, {
       reference: 'C-3', inventoryModel: 'direct_net', rateBasis: 'net', collectionModel: 'pay_direct_to_hotel', currency: 'EUR',
       validFrom: f.today, validTo: addDays(f.today, 100), commissionBps: 0, taxMode: 'included', taxBps: 0, localTaxMinor: 0,

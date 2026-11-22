@@ -7,7 +7,7 @@ import { and, asc, desc, eq, gte, lte, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { cleanTags, isGrade } from '@/lib/domain/grades';
 import { schema, type DB } from '@/lib/db';
-import { addDays, daysBetween, isIsoDate, nightsOf, formatDate } from '@/lib/domain/dates';
+import { ALL_DAYS, addDays, daysBetween, describeDays, isIsoDate, nightsOf, formatDate } from '@/lib/domain/dates';
 import { CURRENCIES, parseMoney } from '@/lib/domain/money';
 import { validateTerms, PricingError } from '@/lib/domain/pricing';
 import { requireStaff, type Actor } from './actor';
@@ -237,20 +237,34 @@ export const ratePeriodSchema = z.object({
   price2Minor: z.number().int().positive().nullable(),
   price3Minor: z.number().int().positive().nullable(),
   childMinor: z.number().int().min(0).nullable(),
+  daysOfWeek: z.number().int().min(1).max(127).default(127),
   minStay: z.number().int().min(1).max(30),
   releaseDays: z.number().int().min(0).max(90),
 }).refine((v) => v.dateTo >= v.dateFrom, { message: 'End must be after start', path: ['dateTo'] })
   .refine((v) => v.price1Minor != null || v.price2Minor != null || v.price3Minor != null, { message: 'Enter at least one occupancy price', path: ['price2Minor'] });
 
-async function assertNoOverlap(db: DB, contractId: string, r: { roomTypeId: string; mealPlan: string; dateFrom: string; dateTo: string }, exceptId?: string) {
-  const clash = await db.select({ id: ratePeriods.id }).from(ratePeriods).where(and(
+/* Two periods for the same room and meal plan may share dates as long as they
+ * split the week between them (Mon–Thu vs Fri–Sun). Only an overlap in BOTH
+ * the dates and the weekday mask would leave a night with two prices. */
+async function assertNoOverlap(
+  db: DB, contractId: string,
+  r: { roomTypeId: string; mealPlan: string; dateFrom: string; dateTo: string; daysOfWeek?: number },
+  exceptId?: string,
+) {
+  const mask = r.daysOfWeek ?? ALL_DAYS;
+  const clash = await db.select({ id: ratePeriods.id, days: ratePeriods.daysOfWeek }).from(ratePeriods).where(and(
     eq(ratePeriods.contractId, contractId), eq(ratePeriods.roomTypeId, r.roomTypeId), eq(ratePeriods.mealPlan, r.mealPlan), eq(ratePeriods.active, true),
-    lte(ratePeriods.dateFrom, r.dateTo), gte(ratePeriods.dateTo, r.dateFrom), exceptId ? ne(ratePeriods.id, exceptId) : undefined,
+    lte(ratePeriods.dateFrom, r.dateTo), gte(ratePeriods.dateTo, r.dateFrom),
+    sql`(${ratePeriods.daysOfWeek} & ${mask}) <> 0`,
+    exceptId ? ne(ratePeriods.id, exceptId) : undefined,
   ));
-  if (clash.length) throw new AppError(`Rates for this room and meal plan already cover part of ${formatDate(r.dateFrom)} – ${formatDate(r.dateTo)}. Deactivate the old period first.`);
+  if (clash.length) {
+    const on = mask === ALL_DAYS ? '' : ` on ${describeDays(mask)}`;
+    throw new AppError(`Rates for this room and meal plan already cover part of ${formatDate(r.dateFrom)} – ${formatDate(r.dateTo)}${on}. Deactivate the old period first.`);
+  }
 }
 
-export async function addRatePeriod(db: DB, actor: Actor, contractId: string, input: z.infer<typeof ratePeriodSchema>) {
+export async function addRatePeriod(db: DB, actor: Actor, contractId: string, input: z.input<typeof ratePeriodSchema>) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
   const data = ratePeriodSchema.parse(input);
   const [c] = await db.select().from(contracts).where(eq(contracts.id, contractId));

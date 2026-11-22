@@ -194,6 +194,7 @@ export async function addRateAction(_: ActionResult | null, fd: FormData): Promi
     await addRatePeriod(await getDb(), await staff(), str(fd, 'contractId'), {
       roomTypeId: str(fd, 'roomTypeId'), mealPlan: str(fd, 'mealPlan') as 'BB', dateFrom: str(fd, 'dateFrom'), dateTo: str(fd, 'dateTo'),
       price1Minor: money(fd, 'p1', c), price2Minor: money(fd, 'p2', c), price3Minor: money(fd, 'p3', c), childMinor: money(fd, 'child', c),
+      daysOfWeek: int(fd, 'daysOfWeek') ?? undefined,
       minStay: int(fd, 'minStay') ?? 1, releaseDays: int(fd, 'releaseDays') ?? 0,
     });
     revalidatePath(`/admin/contracts/${str(fd, 'contractId')}`);

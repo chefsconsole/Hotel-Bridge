@@ -134,6 +134,13 @@
       "when": 1795026520488,
       "tag": "0018_offer_from_anywhere",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795072061389,
+      "tag": "0019_thin_scream",
+      "breakpoints": true
     }
   ]
 }

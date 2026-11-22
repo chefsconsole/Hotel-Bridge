@@ -5,14 +5,15 @@
  *
  * Rules, in the order a revenue manager would apply them:
  *  1. Contract must be active, distribution permitted, and cover every night.
- *  2. Every night needs an active rate period for the room type + meal plan.
+ *  2. Every night needs an active rate period for the room type + meal plan
+ *     whose weekday mask covers that night.
  *  3. The occupancy must fit the room type and have a price.
  *  4. Blackout or stop-sell on any night -> not sellable.
  *  5. Minimum stay is taken from the ARRIVAL night's period.
  *  6. Inside the release period, allotment can't be used -> on request.
  *  7. Instant confirmation only with allotment left on every night.
  * ------------------------------------------------------------------ */
-import { daysBetween, nightsOf, within } from './dates';
+import { ALL_DAYS, dayAllowed, daysBetween, nightsOf, within } from './dates';
 import { fits, type RoomCapacity } from './occupancy';
 import type { RoomRequest } from '@/lib/db/schema';
 
@@ -23,6 +24,8 @@ export type ContractRow = {
 export type RatePeriodRow = {
   roomTypeId: string; mealPlan: string; dateFrom: string; dateTo: string; active: boolean;
   price1Minor: number | null; price2Minor: number | null; price3Minor: number | null; childMinor: number | null;
+  /** Weekday mask (bit 0 Monday … bit 6 Sunday). Absent means every night. */
+  daysOfWeek?: number;
   minStay: number; releaseDays: number;
 };
 export type RestrictionRow = { roomTypeId: string | null; kind: string; dateFrom: string; dateTo: string; amountMinor: number | null; note: string | null };
@@ -72,7 +75,10 @@ export function evaluateStay(args: {
   }
 
   const periods = args.periods.filter((p) => p.active && p.roomTypeId === roomType.id && p.mealPlan === mealPlan);
-  const periodFor = (night: string) => periods.find((p) => within(night, p.dateFrom, p.dateTo));
+  // A night may fall inside two periods that split the week between them, so
+  // the weekday mask decides which one prices it.
+  const periodFor = (night: string) =>
+    periods.find((p) => within(night, p.dateFrom, p.dateTo) && dayAllowed(p.daysOfWeek ?? ALL_DAYS, night));
 
   const restr = args.restrictions.filter((r) => r.roomTypeId == null || r.roomTypeId === roomType.id);
   const notes: string[] = [];
