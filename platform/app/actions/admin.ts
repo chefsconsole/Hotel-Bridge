@@ -10,6 +10,7 @@ import { recordHotelSettlement } from '@/lib/services/tracker';
 import { dispatchToHotels } from '@/lib/services/group-desk';
 import { addStaff, updateStaff } from '@/lib/services/staff';
 import { importProspects, linkProspectToHotel, logContact, updateProspect } from '@/lib/services/prospects';
+import { assignTask, createTask, setTaskStatus, updateTask } from '@/lib/services/tasks';
 import type { StaffRole } from '@/lib/services/actor';
 import { parseMoney } from '@/lib/domain/money';
 import { requireStaff } from '@/lib/session';
@@ -509,5 +510,57 @@ export async function moveGroupStageAction(enquiryId: string, status: string): P
     revalidatePath('/admin/groups');
     revalidatePath(`/admin/groups/${enquiryId}`);
     return 'Moved.';
+  });
+}
+
+/* ------------------------------ tasks ------------------------------ */
+
+const taskFields = (fd: FormData) => ({
+  title: str(fd, 'title'),
+  detail: optStr(fd, 'detail'),
+  assignedTo: optStr(fd, 'assignedTo'),
+  dueOn: str(fd, 'dueOn'),
+  priority: (optStr(fd, 'priority') ?? 'normal') as 'high' | 'normal' | 'low',
+  entity: optStr(fd, 'entity') as 'booking' | 'group' | 'hotel' | 'contract' | 'prospect' | 'agency' | 'rate_request' | undefined,
+  entityId: optStr(fd, 'entityId'),
+});
+
+export async function createTaskAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const t = await createTask(await getDb(), actor, taskFields(fd));
+    revalidatePath('/admin/tasks');
+    revalidatePath('/admin');
+    return t.assignedTo ? 'Task added and assigned.' : 'Task added to the unassigned queue.';
+  });
+}
+
+export async function updateTaskAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    await updateTask(await getDb(), actor, str(fd, 'taskId'), taskFields(fd));
+    revalidatePath('/admin/tasks');
+    return 'Task updated.';
+  });
+}
+
+/** The queue's one-click buttons: done, reopen, cancel, and "take it". */
+export async function taskOpsAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const actor = await staff();
+    const db = await getDb();
+    const id = str(fd, 'taskId');
+    const op = str(fd, 'op');
+    let msg: string;
+    if (op === 'done') { await setTaskStatus(db, actor, id, 'done'); msg = 'Done.'; }
+    else if (op === 'reopen') { await setTaskStatus(db, actor, id, 'open'); msg = 'Back on the list.'; }
+    else if (op === 'cancel') { await setTaskStatus(db, actor, id, 'cancelled'); msg = 'Cancelled.'; }
+    else if (op === 'take') { await assignTask(db, actor, id, actor.userId); msg = 'Yours now.'; }
+    else if (op === 'unassign') { await assignTask(db, actor, id, null); msg = 'Back in the unassigned queue.'; }
+    else if (op === 'assign') { await assignTask(db, actor, id, optStr(fd, 'assignedTo') ?? null); msg = 'Reassigned.'; }
+    else throw new AppError('Unknown operation');
+    revalidatePath('/admin/tasks');
+    revalidatePath('/admin');
+    return msg;
   });
 }

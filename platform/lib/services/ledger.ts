@@ -113,3 +113,83 @@ export async function creditBookingToWallet(db: Executor, actor: Actor, b: { id:
 export async function lockWallet(db: Executor, agencyId: string) {
   await db.execute(sql`select pg_advisory_xact_lock(hashtext(${'wallet:' + agencyId}))`);
 }
+
+/* --------------------------- invoices, for staff --------------------------- */
+
+export type InvoiceRow = {
+  id: string; number: string; kind: string; currency: string;
+  totalMinor: number; taxMinor: number; issuedAt: Date; dueAt: Date | null;
+  lines: { label: string; amountMinor: number }[];
+  agencyId: string; agencyName: string; agencyCode: string | null;
+  bookingId: string | null; bookingRef: string | null;
+  /** What is still unsettled on the invoice's booking, from the ledger. Null
+   *  for an invoice with no booking, where there is no balance to read. */
+  outstandingMinor: number | null;
+};
+
+export type InvoiceFilter = { kind?: string; agencyId?: string; q?: string; unpaid?: boolean; limit?: number };
+
+/* Every invoice we have issued, across agencies — the staff-side counterpart
+ * of /agent/finance, which shows one agency its own.
+ *
+ * "Outstanding" is the booking's agent-account balance in the ledger, not a
+ * field on the invoice: an invoice is a document, and what is owed is decided
+ * by the money that has moved since. A credit note is shown at its face value
+ * and never netted off here — netting is the ledger's job, and doing it twice
+ * would understate what an agency owes. */
+export async function listInvoices(db: Executor, filter: InvoiceFilter = {}): Promise<InvoiceRow[]> {
+  const term = filter.q?.trim();
+  const rows = await db.select({
+    inv: invoices,
+    agencyName: schema.agencies.name,
+    agencyCode: schema.agencies.code,
+    bookingRef: schema.bookings.reference,
+    outstanding: sql<string | null>`(
+      select sum(l.amount_minor) from ledger_entries l
+      where l.booking_id = ${invoices.bookingId} and l.account = 'agent' and l.currency = ${invoices.currency}
+    )`,
+  }).from(invoices)
+    .innerJoin(schema.agencies, eq(schema.agencies.id, invoices.agencyId))
+    .leftJoin(schema.bookings, eq(schema.bookings.id, invoices.bookingId))
+    .where(and(
+      filter.kind && filter.kind !== 'all' ? eq(invoices.kind, filter.kind) : undefined,
+      filter.agencyId ? eq(invoices.agencyId, filter.agencyId) : undefined,
+      term ? sql`(${invoices.number} ilike ${'%' + term + '%'} or ${schema.agencies.name} ilike ${'%' + term + '%'} or coalesce(${schema.bookings.reference}, '') ilike ${'%' + term + '%'})` : undefined,
+    ))
+    /* Number breaks the tie: two invoices raised in the same instant (a
+     * booking and its amendment, or a cancellation credit note) share an
+     * issuedAt, and without this the list reorders itself between loads. The
+     * numbers are sequential per year, so the highest really is the newest. */
+    .orderBy(desc(invoices.issuedAt), desc(invoices.number)).limit(filter.limit ?? 300);
+  const mapped: InvoiceRow[] = rows.map((r) => ({
+    id: r.inv.id, number: r.inv.number, kind: r.inv.kind, currency: r.inv.currency,
+    totalMinor: r.inv.totalMinor, taxMinor: r.inv.taxMinor, issuedAt: r.inv.issuedAt, dueAt: r.inv.dueAt,
+    lines: r.inv.lines, agencyId: r.inv.agencyId, agencyName: r.agencyName, agencyCode: r.agencyCode,
+    bookingId: r.inv.bookingId, bookingRef: r.bookingRef,
+    outstandingMinor: r.outstanding == null ? null : Number(r.outstanding),
+  }));
+  // Filtered after the query because "unpaid" is a property of the ledger
+  // balance above, not a column we could index on.
+  return filter.unpaid ? mapped.filter((i) => (i.outstandingMinor ?? 0) > 0) : mapped;
+}
+
+/** Totals per currency over the invoices given — never added across currencies. */
+export function invoiceTotals(rows: InvoiceRow[]) {
+  const by = new Map<string, { currency: string; invoiced: number; credited: number; tax: number; outstanding: number; count: number }>();
+  // Outstanding belongs to the BOOKING, so two invoices on one booking report
+  // the same balance. Counting each booking once stops that being doubled.
+  const seenBooking = new Set<string>();
+  for (const r of rows) {
+    const t = by.get(r.currency) ?? { currency: r.currency, invoiced: 0, credited: 0, tax: 0, outstanding: 0, count: 0 };
+    if (r.kind === 'credit_note') t.credited += r.totalMinor; else t.invoiced += r.totalMinor;
+    t.tax += r.taxMinor;
+    const key = r.bookingId ?? `inv:${r.id}`;
+    if (!seenBooking.has(key)) {
+      seenBooking.add(key);
+      t.outstanding += Math.max(0, r.outstandingMinor ?? 0);
+    }
+    t.count++;
+    by.set(r.currency, t);
+  }
+  return [...by.values()].sort((a, b) => b.invoiced - a.invoiced);
+}

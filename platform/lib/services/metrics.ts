@@ -175,6 +175,23 @@ export async function operationalIssues(db: DB): Promise<OpsIssue[]> {
   const apps = await db.select({ n: sql<number>`count(*)::int` }).from(partnerApplications).where(eq(partnerApplications.status, 'new'));
   if (apps[0].n) issues.push({ severity: 'attention', kind: 'partner', title: `${apps[0].n} new partner application${apps[0].n === 1 ? '' : 's'}`, detail: 'Hotels or distributors asking to join.', href: '/admin/partners' });
 
+  /* The team's own tasks. One line, not one per task: the queue is on
+   * /admin/tasks and the Overview only needs to say it wants attention.
+   * Guarded because this feed renders the console's front page — a missing
+   * staff_tasks table (migration not yet run) must cost the Overview one
+   * line, not the whole page. */
+  const { staffTasks } = schema;
+  try {
+    const dueTasks = await db.select({ n: sql<number>`count(*)::int`, overdue: sql<number>`count(*) filter (where due_on < ${today})::int` })
+      .from(staffTasks).where(and(eq(staffTasks.status, 'open'), lte(staffTasks.dueOn, today)));
+    if (dueTasks[0].n) issues.push({
+      severity: dueTasks[0].overdue > 0 ? 'urgent' : 'attention', kind: 'task',
+      title: `${dueTasks[0].n} task${dueTasks[0].n === 1 ? '' : 's'} due`,
+      detail: dueTasks[0].overdue > 0 ? `${dueTasks[0].overdue} past its date` : 'Planned for today',
+      href: '/admin/tasks?status=open&due=1',
+    });
+  } catch { /* table not migrated yet */ }
+
   // Best-rate desk: new enquiries to ask hotels for, replies to check and send, accepted offers to confirm.
   const { deskTodo } = await import('./rate-requests');
   for (const t of await deskTodo(db)) {

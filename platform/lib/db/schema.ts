@@ -928,3 +928,45 @@ export const settings = pgTable('settings', {
   value: jsonb('value').notNull(),
   updatedAt: updatedAt(),
 });
+
+/* ============================== Staff tasks ============================== *
+ * The team's own to-do list: the work a person owes, by a date, that no
+ * record implies on its own — "call Piyarat about VAT on Tuesday", "get our
+ * registration number to Mercure".
+ *
+ * Deliberately NOT a copy of the Overview feed. Everything the system can
+ * work out for itself — a hotel that has not confirmed, a prospect due, a
+ * commission overdue — is derived in lib/services/metrics.ts and must never
+ * be typed in here, or the two disagree and neither is trusted. This table
+ * holds only what someone decided to do and nothing else records.
+ *
+ * `entity`/`entityId` optionally pin a task to the record it is about, so
+ * the task can link back to it. They carry no behaviour. */
+
+export const TASK_STATUSES = ['open', 'done', 'cancelled'] as const;
+export const TASK_PRIORITIES = ['high', 'normal', 'low'] as const;
+/** What a task may hang off. Free of foreign keys on purpose: a task about a
+ *  prospect must survive that prospect being merged away. */
+export const TASK_ENTITIES = ['booking', 'group', 'hotel', 'contract', 'prospect', 'agency', 'rate_request'] as const;
+
+export const staffTasks = pgTable('staff_tasks', {
+  id: id(),
+  title: text('title').notNull(),
+  detail: text('detail'),
+  /** Null means nobody has picked it up yet — the queue shows these first. */
+  assignedTo: uuid('assigned_to'),
+  dueOn: date('due_on'),
+  priority: text('priority').notNull().default('normal'),
+  status: text('status').notNull().default('open'),
+  entity: text('entity'),
+  entityId: uuid('entity_id'),
+  createdBy: uuid('created_by'),
+  completedBy: uuid('completed_by'),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  index('staff_tasks_queue_idx').on(t.status, t.dueOn),
+  index('staff_tasks_owner_idx').on(t.assignedTo, t.status),
+  index('staff_tasks_entity_idx').on(t.entity, t.entityId),
+]);

@@ -10,6 +10,7 @@ import { inArray } from 'drizzle-orm';
 import { requireStaff } from '@/lib/session';
 import { ROLE_LABEL, type StaffRole } from '@/lib/services/actor';
 import { operationalIssues } from '@/lib/services/metrics';
+import { overdueTaskCount } from '@/lib/services/tasks';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user } = await requireStaff();
@@ -23,6 +24,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       .where(inArray(schema.rateRequests.status, ['review', 'hotel_quoted']));
     return new Set(rows.map((x) => x.parentId ?? x.id)).size;
   });
+  // Tasks due today or earlier, so the badge says what is waiting.
+  const dueTasks = await memo('due-tasks', 15_000, () => overdueTaskCount(db));
   const role = user.platformRole as StaffRole;
   // Each role sees its own work; admin sees everything.
   const ROLES: Record<string, StaffRole[]> = {
@@ -33,6 +36,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     '/admin/groups': ['admin', 'ops', 'sales'],
     '/admin/rate-requests': ['admin', 'ops', 'sales'],
     '/admin/support': ['admin', 'ops'],
+    // Everyone keeps a to-do list, so tasks are not role-restricted.
+    '/admin/invoices': ['admin', 'finance'],
     '/admin/hotels': ['admin', 'ops', 'sales'],
     '/admin/rate-check': ['admin', 'sales'],
     '/admin/prospects': ['admin', 'sales', 'ops'],
@@ -55,12 +60,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     { href: '/admin/groups', label: 'Group Desk', icon: 'groups', section: 'Operations' },
     { href: '/admin/rate-requests', label: 'Best-rate requests', icon: 'spark', badge: deskTodo, section: 'Operations' },
     { href: '/admin/support', label: 'Support', icon: 'support', section: 'Operations' },
+    { href: '/admin/tasks', label: 'Tasks', icon: 'inbox', badge: dueTasks, section: 'Operations' },
     { href: '/admin/prospects', label: 'Hotel outreach', icon: 'inbox', section: 'Portfolio' },
     { href: '/admin/hotels', label: 'Hotels & contracts', icon: 'hotels', section: 'Portfolio' },
     { href: '/admin/rate-check', label: 'Rate comparison', icon: 'compare', section: 'Portfolio' },
     { href: '/admin/suppliers', label: 'Suppliers', icon: 'plug', section: 'Portfolio' },
     { href: '/admin/agencies', label: 'Agencies', icon: 'agencies', section: 'Commercial' },
     { href: '/admin/commissions', label: 'Commissions', icon: 'finance', section: 'Commercial' },
+    { href: '/admin/invoices', label: 'Invoices', icon: 'finance', section: 'Commercial' },
     { href: '/admin/pricing', label: 'Pricing & settings', icon: 'pricing', section: 'Commercial' },
     { href: '/admin/partners', label: 'Partner applications', icon: 'inbox', section: 'Commercial' },
     { href: '/admin/team', label: 'Team', icon: 'agencies', section: 'Governance' },

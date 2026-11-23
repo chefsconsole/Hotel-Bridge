@@ -38,8 +38,20 @@ const nextConfig: NextConfig = {
       { source: '/whyus', destination: '/why-us', permanent: true },
       { source: '/why', destination: '/why-us', permanent: true },
       { source: '/contact-us', destination: '/contact', permanent: true },
-      // The old site carried the staff CRM at /crm; staff tools live under /admin.
+      /* The old site carried the staff CRM at /crm. Its screens all have a
+       * counterpart here, so an old bookmark lands on the right page rather
+       * than the console's front door. Anything unmapped falls through to the
+       * catch-all below. */
       { source: '/crm', destination: '/admin', permanent: false },
+      { source: '/crm/leads', destination: '/admin/prospects', permanent: false },
+      { source: '/crm/tasks', destination: '/admin/tasks', permanent: false },
+      { source: '/crm/hotels', destination: '/admin/hotels', permanent: false },
+      { source: '/crm/operators', destination: '/admin/agencies', permanent: false },
+      { source: '/crm/requirements', destination: '/admin/rate-requests', permanent: false },
+      { source: '/crm/bookings', destination: '/admin/bookings', permanent: false },
+      { source: '/crm/revenue', destination: '/admin/commissions', permanent: false },
+      { source: '/crm/invoices', destination: '/admin/invoices', permanent: false },
+      { source: '/crm/ai-assistant', destination: '/admin/ai', permanent: false },
       { source: '/crm/:path*', destination: '/admin', permanent: false },
       // The old site sent agents to a login of its own.
       { source: '/signin', destination: '/login', permanent: true },
