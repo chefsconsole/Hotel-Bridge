@@ -119,7 +119,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
               {restrictions.length === 0 && <li className="py-2 text-muted">None</li>}
               {restrictions.map((r) => (
                 <li key={r.id} className="flex items-center justify-between py-2">
-                  <span><Pill tone={r.kind === 'supplement' ? 'info' : 'negative'} dot={false}>{r.kind.replace('_', '-')}</Pill> <span className="num">{formatDate(r.dateFrom)} – {formatDate(r.dateTo)}</span> · {rtName(r.roomTypeId)}{r.amountMinor ? <> · +<Money minor={r.amountMinor} currency={c.currency} /></> : null}{r.note ? ` · ${r.note}` : ''}</span>
+                  <span><Pill tone={r.kind === 'supplement' ? 'info' : 'negative'} dot={false}>{r.kind.replace('_', '-')}</Pill> <span className="num">{formatDate(r.dateFrom)} – {formatDate(r.dateTo)}</span> · {rtName(r.roomTypeId)}{r.amountMinor ? <> · +<Money minor={r.amountMinor} currency={c.currency} />{r.basis === 'per_person' ? <> per adult{r.childAmountMinor ? <> · +<Money minor={r.childAmountMinor} currency={c.currency} /> per child</> : ' · children not priced'}</> : ' per room'} per night</> : null}{r.note ? ` · ${r.note}` : ''}</span>
                   <ActionForm action={restrictionAction}><input type="hidden" name="contractId" value={c.id} /><input type="hidden" name="remove" value={r.id} /><SubmitButton size="sm" variant="ghost">Remove</SubmitButton></ActionForm>
                 </li>
               ))}
@@ -130,7 +130,9 @@ export default async function ContractPage({ params, searchParams }: { params: P
               <Field label="Room"><select name="roomTypeId" className="field"><option value="">All rooms</option>{roomTypes.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select></Field>
               <Field label="From"><input type="date" name="dateFrom" className="field num" /></Field>
               <Field label="To"><input type="date" name="dateTo" className="field num" /></Field>
-              <Field label="Supplement amount"><input name="amount" className="field num" /></Field>
+              <Field label="Charged" hint="Supplements only"><select name="basis" className="field"><option value="per_room">Per room, per night</option><option value="per_person">Per person, per night</option></select></Field>
+              <Field label="Supplement amount" hint="Per room, or per adult"><input name="amount" className="field num" /></Field>
+              <Field label="Child amount" hint="Per-person supplements only; leave blank and a room with children is refused rather than under-charged"><input name="childAmount" className="field num" /></Field>
               <Field label="Note"><input name="note" className="field" placeholder="Trade fair" /></Field>
               <div><SubmitButton size="sm" variant="secondary">Add restriction</SubmitButton></div>
             </ActionForm>

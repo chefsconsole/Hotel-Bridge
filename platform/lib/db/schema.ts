@@ -288,8 +288,15 @@ export const restrictions = pgTable('restrictions', {
   kind: text('kind').notNull(), // blackout | stop_sell | supplement
   dateFrom: date('date_from').notNull(),
   dateTo: date('date_to').notNull(),
-  // supplement only: per room per night
+  /* Supplement only, charged on every night in the range.
+   * per_room  — amountMinor is added once per room per night.
+   * per_person — amountMinor is per ADULT per night and childAmountMinor per
+   *   child, which is how hotels price a compulsory gala dinner. A per-person
+   *   supplement with children in the room and no childAmountMinor is refused
+   *   rather than under-charged. */
+  basis: text('basis').notNull().default('per_room'), // per_room | per_person
   amountMinor: money('amount_minor'),
+  childAmountMinor: money('child_amount_minor'),
   note: text('note'),
   createdAt: createdAt(),
 });

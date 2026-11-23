@@ -28,7 +28,13 @@ export type RatePeriodRow = {
   daysOfWeek?: number;
   minStay: number; releaseDays: number;
 };
-export type RestrictionRow = { roomTypeId: string | null; kind: string; dateFrom: string; dateTo: string; amountMinor: number | null; note: string | null };
+export type RestrictionRow = {
+  roomTypeId: string | null; kind: string; dateFrom: string; dateTo: string; amountMinor: number | null; note: string | null;
+  /** Supplements: 'per_room' (the default) or 'per_person'. */
+  basis?: string;
+  /** Per-person supplements: the charge for one child. Null means children are not priced. */
+  childAmountMinor?: number | null;
+};
 export type AllocationRow = { roomTypeId: string; night: string; total: number; sold: number };
 export type RoomTypeRow = RoomCapacity & { id: string; name: string; active: boolean };
 
@@ -42,6 +48,22 @@ export type EngineResult =
     roomNights: number; personNights: number; notes: string[];
   }
   | { ok: false; reason: string };
+
+/** What tonight's supplements add to one room. Null when a per-person
+ *  supplement applies to a room with children it has no price for. */
+export function supplementFor(tonight: RestrictionRow[], room: RoomRequest): number | null {
+  let total = 0;
+  for (const r of tonight) {
+    // Defensive: a blackout or stop-sell carries no money, and must not add any
+    // if it ever reaches here through a caller that forgot to filter.
+    if (r.kind !== 'supplement') continue;
+    const amount = r.amountMinor ?? 0;
+    if ((r.basis ?? 'per_room') !== 'per_person') { total += amount; continue; }
+    if (room.childAges.length > 0 && r.childAmountMinor == null) return null;
+    total += amount * room.adults + (r.childAmountMinor ?? 0) * room.childAges.length;
+  }
+  return total;
+}
 
 export function occupancyPrice(p: RatePeriodRow, room: RoomRequest): number | null {
   const byAdults = [null, p.price1Minor, p.price2Minor, p.price3Minor][room.adults] ?? null;
@@ -89,19 +111,26 @@ export function evaluateStay(args: {
     if (!p) return { ok: false, reason: `No rate loaded for ${night}` };
     const closed = restr.find((r) => (r.kind === 'blackout' || r.kind === 'stop_sell') && within(night, r.dateFrom, r.dateTo));
     if (closed) return { ok: false, reason: closed.kind === 'blackout' ? `Blackout date (${night})` : `Stop-sell in place (${night})` };
-    const supplement = restr
-      .filter((r) => r.kind === 'supplement' && within(night, r.dateFrom, r.dateTo))
-      .reduce((s, r) => s + (r.amountMinor ?? 0), 0);
+    const tonight = restr.filter((r) => r.kind === 'supplement' && within(night, r.dateFrom, r.dateTo));
     for (let i = 0; i < stay.rooms.length; i++) {
       const base = occupancyPrice(p, stay.rooms[i]);
       if (base == null) return { ok: false, reason: `No price for this occupancy in ${roomType.name}` };
+      const supplement = supplementFor(tonight, stay.rooms[i]);
+      // A compulsory per-person charge we cannot work out is never guessed:
+      // quoting the room alone would under-charge the stay by the whole gala.
+      if (supplement == null) return { ok: false, reason: `A compulsory supplement on ${night} is not priced for children — quote this stay by hand` };
       const amount = base + supplement;
       roomPrices[i].nightly.push({ night, amountMinor: amount });
       roomPrices[i].totalMinor += amount;
     }
   }
-  if (restr.some((r) => r.kind === 'supplement' && nights.some((n) => within(n, r.dateFrom, r.dateTo)))) {
-    notes.push('Includes a high-demand supplement on some nights.');
+  const applied = restr.filter((r) => r.kind === 'supplement' && nights.some((n) => within(n, r.dateFrom, r.dateTo)));
+  if (applied.length) {
+    // The restriction's own note is staff-written and stays internal; the agent
+    // is told that a supplement is in the price and how it is charged.
+    notes.push(applied.some((r) => r.basis === 'per_person')
+      ? 'Includes a compulsory supplement on some nights, charged per person.'
+      : 'Includes a high-demand supplement on some nights.');
   }
 
   const arrival = periodFor(nights[0])!;

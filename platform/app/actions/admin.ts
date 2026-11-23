@@ -232,7 +232,10 @@ export async function restrictionAction(_: ActionResult | null, fd: FormData): P
     if (str(fd, 'remove')) await removeRestriction(db, actor, str(fd, 'remove'));
     else await addRestriction(db, actor, str(fd, 'contractId'), {
       roomTypeId: str(fd, 'roomTypeId') || null, kind: str(fd, 'kind') as 'blackout', dateFrom: str(fd, 'dateFrom'), dateTo: str(fd, 'dateTo'),
-      amountMinor: money(fd, 'amount', str(fd, 'currency')), note: optStr(fd, 'note'),
+      basis: (optStr(fd, 'basis') ?? 'per_room') as 'per_room',
+      amountMinor: money(fd, 'amount', str(fd, 'currency')),
+      childAmountMinor: money(fd, 'childAmount', str(fd, 'currency')),
+      note: optStr(fd, 'note'),
     });
     revalidatePath(`/admin/contracts/${str(fd, 'contractId')}`);
     return 'Restrictions updated.';

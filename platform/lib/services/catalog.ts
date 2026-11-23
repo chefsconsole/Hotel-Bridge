@@ -346,10 +346,16 @@ export const restrictionSchema = z.object({
   kind: z.enum(['blackout', 'stop_sell', 'supplement']),
   dateFrom: z.string().refine(isIsoDate),
   dateTo: z.string().refine(isIsoDate),
+  basis: z.enum(['per_room', 'per_person']).default('per_room'),
   amountMinor: z.number().int().positive().nullable(),
+  childAmountMinor: z.number().int().positive().nullable().optional(),
   note: optText(300),
 }).refine((v) => v.dateTo >= v.dateFrom, { message: 'End must be after start', path: ['dateTo'] })
-  .refine((v) => v.kind !== 'supplement' || v.amountMinor != null, { message: 'Supplements need an amount', path: ['amountMinor'] });
+  .refine((v) => v.kind !== 'supplement' || v.amountMinor != null, { message: 'Supplements need an amount', path: ['amountMinor'] })
+  // A per-room supplement has no separate child price, so a value here would be
+  // silently ignored at quote time.
+  .refine((v) => v.basis === 'per_person' || v.childAmountMinor == null, { message: 'A child amount only applies to a per-person supplement', path: ['childAmountMinor'] })
+  .refine((v) => v.kind === 'supplement' || v.basis === 'per_room', { message: 'Only supplements are charged per person', path: ['basis'] });
 
 export async function addRestriction(db: DB, actor: Actor, contractId: string, input: z.input<typeof restrictionSchema>) {
   requireStaff(actor, ['admin', 'ops', 'sales']);
