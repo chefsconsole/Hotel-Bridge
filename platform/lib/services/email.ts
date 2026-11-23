@@ -11,7 +11,7 @@
  * ------------------------------------------------------------------ */
 import { desc } from 'drizzle-orm';
 import { schema, type Executor } from '@/lib/db';
-import { isProduction } from '@/lib/config';
+import { isProduction, OFFICE_ADDRESS_LINE } from '@/lib/config';
 
 export type EmailInput = { to: string; toName?: string | null; subject: string; body: string; kind: string; relatedId?: string | null; replyTo?: string | null;
   /** Demo/sample accounts: record the email but never send it, so a demo never contacts a real hotel. */
@@ -125,7 +125,7 @@ export function toHtml(text: string): string {
 <tr><td style="padding:18px 32px 26px;border-top:1px solid #eee7d8;font-family:${FONT};font-size:11.5px;line-height:1.6;color:#7a7365;">
   <strong style="color:${NAVY};">HotelBridge</strong> &middot; Hotels direct. No middleman.<br>
   <a href="mailto:info@hotelbridge.co" style="color:#7a7365;">info@hotelbridge.co</a> &middot; +91 70216 20577 &middot; <a href="${base}" style="color:#7a7365;">www.hotelbridge.co</a><br>
-  Sunrise, Charkop, Kandivali West, Mumbai 400067
+  ${OFFICE_ADDRESS_LINE}
 </td></tr>
 </table></td></tr></table></body></html>`;
 }

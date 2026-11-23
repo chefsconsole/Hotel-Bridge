@@ -26,5 +26,8 @@ export const SUPPORT_WHATSAPP = '917021620577';
 export const SUPPORT_PHONE_DISPLAY = '+91 70216 20577';
 export const whatsappUrl = (text?: string) =>
   `https://wa.me/${SUPPORT_WHATSAPP}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
+/** The office, as it appears on invoices and in the email footer. */
+export const OFFICE_ADDRESS = ['Sunrise, Charkop', 'Kandivali West', 'Mumbai 400067', 'India'];
+export const OFFICE_ADDRESS_LINE = OFFICE_ADDRESS.join(', ');
 /** Where new-agency registrations are announced (set HB_NOTIFY_EMAIL to e.g. registrations@hotelbridge.co). */
 export const NOTIFY_EMAIL = process.env.HB_NOTIFY_EMAIL || SUPPORT_EMAIL;

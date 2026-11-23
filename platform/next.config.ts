@@ -32,13 +32,15 @@ const nextConfig: NextConfig = {
       { source: '/terms', destination: '/legal/terms', permanent: true },
       { source: '/privacy-policy', destination: '/legal/privacy', permanent: true },
       { source: '/terms-and-conditions', destination: '/legal/terms', permanent: true },
-      // No like-for-like page yet; the partner page is the closest match and the
-      // homepage covers the rest. Port the real content and drop these.
-      { source: '/about', destination: '/', permanent: false },
-      { source: '/why-us', destination: '/', permanent: false },
-      { source: '/whyus', destination: '/', permanent: false },
-      { source: '/services', destination: '/partners', permanent: false },
-      { source: '/contact', destination: '/partners', permanent: false },
+      /* /about, /services, /why-us and /contact are real pages now, at the same
+       * paths the old marketing site used, so nothing needs redirecting. These
+       * are only the spellings that site never had. */
+      { source: '/whyus', destination: '/why-us', permanent: true },
+      { source: '/why', destination: '/why-us', permanent: true },
+      { source: '/contact-us', destination: '/contact', permanent: true },
+      // The old site carried the staff CRM at /crm; staff tools live under /admin.
+      { source: '/crm', destination: '/admin', permanent: false },
+      { source: '/crm/:path*', destination: '/admin', permanent: false },
       // The old site sent agents to a login of its own.
       { source: '/signin', destination: '/login', permanent: true },
       { source: '/sign-in', destination: '/login', permanent: true },

@@ -98,9 +98,13 @@ export function agencyStatusChanged(db: DB, a: { id: string; name: string }, sta
 export function partnerApplicationReceived(db: DB, p: { id: string; kind: string; organisation: string; contactName: string; email: string; phone?: string | null; city?: string | null; country?: string | null; website?: string | null; rooms?: number | null; message?: string | null }) {
   return safe(() => sendEmail(db, {
     to: NOTIFY_EMAIL, toName: 'HotelBridge', kind: 'partner_application', relatedId: p.id, replyTo: p.email,
-    subject: `New ${p.kind} partner application · ${p.organisation}${p.city ? ` · ${p.city}` : ''}`,
+    subject: p.kind === 'enquiry'
+      ? `Website enquiry · ${p.organisation}${p.city ? ` · ${p.city}` : ''}`
+      : `New ${p.kind} partner application · ${p.organisation}${p.city ? ` · ${p.city}` : ''}`,
     body: [
-      `${p.organisation} applied to partner with HotelBridge (${p.kind}).`,
+      p.kind === 'enquiry'
+        ? `${p.contactName} wrote to us from the website contact page.`
+        : `${p.organisation} applied to partner with HotelBridge (${p.kind}).`,
       '',
       `  Contact   ${p.contactName} <${p.email}>`,
       `  Phone     ${p.phone || '—'}`,

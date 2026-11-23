@@ -75,6 +75,21 @@ export async function partnerApplyAction(_: ActionResult | null, fd: FormData): 
   });
 }
 
+/* A message from the public contact page. It is stored as an application of
+ * kind 'enquiry' so it reaches the same queue someone already reads every day,
+ * and inherits that queue's one-per-email-per-day flood protection. */
+export async function contactAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  return attempt(async () => {
+    const db = await getDb();
+    await submitPartnerApplication(db, {
+      kind: 'enquiry',
+      organisation: str(fd, 'organisation'), contactName: str(fd, 'contactName'), email: str(fd, 'email'),
+      phone: optStr(fd, 'phone'), city: optStr(fd, 'city'), message: optStr(fd, 'message'),
+    });
+    return 'Thank you — your message is with us. We reply personally, usually the same working day. For anything urgent, WhatsApp is faster.';
+  });
+}
+
 export async function setPasswordAction(_: ActionResult | null, fd: FormData): Promise<ActionResult> {
   let done = false;
   const r = await attempt(async () => {

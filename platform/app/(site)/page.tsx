@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { and, eq, sql } from 'drizzle-orm';
 import { LinkButton } from '@/components/ui';
 import { HomeMotion } from '@/components/home/home-motion';
 import { NetworkMap } from '@/components/home/network-map';
-import { getDb, schema } from '@/lib/db';
+import { liveNetwork, type Network } from '@/lib/services/network';
 
 /* Homepage. Every number and every city shown is read from the database — never
  * a marketing figure. Product previews are labelled "Example". Motion is CSS
@@ -11,23 +10,6 @@ import { getDb, schema } from '@/lib/db';
 
 /** Served from the CDN; the live counts refresh every 5 minutes. */
 export const revalidate = 300;
-
-type Live = { hotels: number; countries: number; cities: number; rows: { city: string; country: string; n: number }[] };
-
-async function liveNetwork(): Promise<Live | null> {
-  try {
-    const db = await getDb();
-    const live = and(eq(schema.hotels.isSample, false), sql`${schema.hotels.status} <> 'inactive'`);
-    const rows = await db.select({ city: schema.hotels.city, country: schema.hotels.country, n: sql<number>`count(*)::int` })
-      .from(schema.hotels).where(live).groupBy(schema.hotels.city, schema.hotels.country).orderBy(sql`count(*) desc`, schema.hotels.city);
-    return {
-      rows,
-      hotels: rows.reduce((s, r) => s + r.n, 0),
-      cities: rows.length,
-      countries: new Set(rows.map((r) => r.country)).size,
-    };
-  } catch { return null; }
-}
 
 export default async function Home() {
   const live = await liveNetwork();
@@ -84,7 +66,7 @@ function DiwaliStrip() {
 
 /* --------------------------------- hero --------------------------------- */
 
-function Hero({ live }: { live: Live | null }) {
+function Hero({ live }: { live: Network | null }) {
   return (
     <section className="relative isolate overflow-hidden bg-[#060a14] text-paper">
       <div aria-hidden className="hb-aurora absolute -inset-[20%] -z-10 bg-[radial-gradient(ellipse_45%_40%_at_75%_30%,rgba(199,154,74,0.26),transparent_60%),radial-gradient(ellipse_50%_45%_at_15%_85%,rgba(37,52,104,0.85),transparent_70%),radial-gradient(ellipse_35%_30%_at_45%_10%,rgba(80,96,160,0.25),transparent_70%)]" />
@@ -132,7 +114,7 @@ function Hero({ live }: { live: Live | null }) {
 /* ------------------------------ city ribbon ------------------------------ */
 
 /** Every city we have hotels in, scrolling. Doubled so the loop is seamless; the copy is hidden from screen readers. */
-function CityRibbon({ rows }: { rows: Live['rows'] }) {
+function CityRibbon({ rows }: { rows: Network['rows'] }) {
   const list = (hidden: boolean) => (
     <ul aria-hidden={hidden || undefined} className="flex shrink-0 items-center gap-10 pr-10">
       {rows.map((r) => (

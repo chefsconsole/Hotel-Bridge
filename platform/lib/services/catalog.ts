@@ -474,7 +474,9 @@ export async function setAgencyGrade(db: DB, actor: Actor, agencyId: string, inp
 /* ------------------------------ partners ------------------------------ */
 
 export const partnerApplicationSchema = z.object({
-  kind: z.enum(['hotel', 'distribution']),
+  // 'enquiry' is a message from the public contact page: it lands in the same
+  // queue so that someone actually reads it, and carries no rooms or website.
+  kind: z.enum(['hotel', 'distribution', 'enquiry']),
   organisation: z.string().trim().min(2).max(160),
   contactName: z.string().trim().min(2).max(120),
   email: emailSchema,
@@ -491,7 +493,9 @@ export async function submitPartnerApplication(db: DB, input: z.input<typeof par
   // Basic flood protection: one application per email per day.
   const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(partnerApplications)
     .where(and(eq(partnerApplications.email, data.email), gte(partnerApplications.createdAt, new Date(Date.now() - 86_400_000))));
-  if (n > 0) throw new AppError('We already have your application from today — we will be in touch.');
+  if (n > 0) throw new AppError(data.kind === 'enquiry'
+    ? 'We already have a message from you today — we will come back to you. For anything urgent, WhatsApp us.'
+    : 'We already have your application from today — we will be in touch.');
   const [a] = await db.insert(partnerApplications).values({ ...data, rooms: data.rooms ?? null }).returning();
   await partnerApplicationReceived(db, a);
   return a;
