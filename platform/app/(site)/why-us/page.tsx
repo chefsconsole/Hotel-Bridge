@@ -65,11 +65,11 @@ export default async function WhyUsPage() {
 
       <Section eyebrow="Compared with" tone="surface" title="Three honest ways to book a hotel for a client."
         lead="All three work. They cost you different things.">
-        <div className="mt-10 -mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <div className="mt-10 overflow-x-auto">
           <table className="w-full min-w-[46rem] border-collapse text-left text-[0.88rem]">
             <thead>
               <tr className="border-b border-line">
-                <th scope="col" className="py-4 pr-4 font-medium text-faint">&nbsp;</th>
+                <th scope="col" className="sticky left-0 z-10 bg-surface py-4 pr-4 font-medium text-faint">&nbsp;</th>
                 <th scope="col" className="py-4 pr-4 font-semibold">HotelBridge</th>
                 <th scope="col" className="py-4 pr-4 font-medium text-muted">A bed bank or API portal</th>
                 <th scope="col" className="py-4 font-medium text-muted">Contacting hotels yourself</th>
@@ -78,7 +78,7 @@ export default async function WhyUsPage() {
             <tbody className="divide-y divide-line">
               {rows.map(([label, us, feed, direct]) => (
                 <tr key={label} className="align-top">
-                  <th scope="row" className="py-4 pr-4 font-medium">{label}</th>
+                  <th scope="row" className="sticky left-0 z-10 bg-surface py-4 pr-4 font-medium">{label}</th>
                   <td className="py-4 pr-4 leading-relaxed">{us}</td>
                   <td className="py-4 pr-4 leading-relaxed text-muted">{feed}</td>
                   <td className="py-4 leading-relaxed text-muted">{direct}</td>
