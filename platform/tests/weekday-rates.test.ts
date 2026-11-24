@@ -67,8 +67,8 @@ describe('weekday rate bands', () => {
     });
     if (!res.ok) throw new Error(res.reason);
     expect(res.rooms[0].nightly).toEqual([
-      { night: '2027-06-10', amountMinor: 16_800 }, // Thursday — weekday band
-      { night: '2027-06-11', amountMinor: 15_600 }, // Friday — weekend band
+      { night: '2027-06-10', amountMinor: 16_800, discountMinor: 0 }, // Thursday — weekday band
+      { night: '2027-06-11', amountMinor: 15_600, discountMinor: 0 }, // Friday — weekend band
     ]);
     expect(res.contractAmountMinor).toBe(32_400);
   });

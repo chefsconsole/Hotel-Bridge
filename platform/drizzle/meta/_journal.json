@@ -155,6 +155,13 @@
       "when": 1795453585807,
       "tag": "0021_lucky_mystique",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795505399583,
+      "tag": "0022_daily_hammerhead",
+      "breakpoints": true
     }
   ]
 }

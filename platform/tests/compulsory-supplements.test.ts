@@ -49,8 +49,8 @@ describe('compulsory per-person supplements', () => {
     if (!r.ok) return;
     const [room] = r.rooms;
     expect(room.nightly).toEqual([
-      { night: '2026-12-30', amountMinor: 370_000 },
-      { night: '2026-12-31', amountMinor: 370_000 + 2 * 430_000 },
+      { night: '2026-12-30', amountMinor: 370_000, discountMinor: 0 },
+      { night: '2026-12-31', amountMinor: 370_000 + 2 * 430_000, discountMinor: 0 },
     ]);
     expect(r.contractAmountMinor).toBe(370_000 + 370_000 + 860_000);
   });

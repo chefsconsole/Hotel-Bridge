@@ -12,8 +12,11 @@
  *  5. Minimum stay is taken from the ARRIVAL night's period.
  *  6. Inside the release period, allotment can't be used -> on request.
  *  7. Instant confirmation only with allotment left on every night.
+ *  8. A lead-time ("Early Bird") discount comes off the ROOM rate only, never
+ *     off a supplement, and only the best qualifying tier is applied.
  * ------------------------------------------------------------------ */
 import { ALL_DAYS, dayAllowed, daysBetween, nightsOf, within } from './dates';
+import { applyBps } from './money';
 import { fits, type RoomCapacity } from './occupancy';
 import type { RoomRequest } from '@/lib/db/schema';
 
@@ -35,17 +38,31 @@ export type RestrictionRow = {
   /** Per-person supplements: the charge for one child. Null means children are not priced. */
   childAmountMinor?: number | null;
 };
+/** A lead-time discount tier. Its dates are the STAY nights it covers. */
+export type DiscountRow = {
+  roomTypeId: string | null; kind: string; dateFrom: string; dateTo: string;
+  minLeadDays: number; discountBps: number; active?: boolean;
+};
 export type AllocationRow = { roomTypeId: string; night: string; total: number; sold: number };
 export type RoomTypeRow = RoomCapacity & { id: string; name: string; active: boolean };
 
 export type StayRequest = { checkIn: string; checkOut: string; rooms: RoomRequest[]; today: string };
 
-export type RoomPrice = { roomIndex: number; nightly: { night: string; amountMinor: number }[]; totalMinor: number };
+export type RoomPrice = {
+  roomIndex: number;
+  /** amountMinor is what the night costs AFTER any discount. */
+  nightly: { night: string; amountMinor: number; discountMinor: number }[];
+  totalMinor: number;
+  /** What the lead-time discount took off this room, for the audit trail. */
+  discountMinor: number;
+};
 
 export type EngineResult =
   | {
     ok: true; availability: 'instant' | 'on_request'; rooms: RoomPrice[]; contractAmountMinor: number;
     roomNights: number; personNights: number; notes: string[];
+    /** Total taken off by lead-time discounts. Already out of contractAmountMinor. */
+    discountMinor: number;
   }
   | { ok: false; reason: string };
 
@@ -65,6 +82,20 @@ export function supplementFor(tonight: RestrictionRow[], room: RoomRequest): num
   return total;
 }
 
+/* The best tier a booking qualifies for on one night. Tiers never stack: a
+ * booking 70 days out gets 15%, not 10% + 15%. Rows the booking is too late
+ * for, and nights no row covers, simply yield nothing. */
+export function bestDiscountBps(rows: DiscountRow[], night: string, leadDays: number): number {
+  let best = 0;
+  for (const d of rows) {
+    if (d.active === false) continue;
+    if (leadDays < d.minLeadDays) continue;
+    if (!within(night, d.dateFrom, d.dateTo)) continue;
+    if (d.discountBps > best) best = d.discountBps;
+  }
+  return best;
+}
+
 export function occupancyPrice(p: RatePeriodRow, room: RoomRequest): number | null {
   const byAdults = [null, p.price1Minor, p.price2Minor, p.price3Minor][room.adults] ?? null;
   if (byAdults == null) return null;
@@ -80,6 +111,7 @@ export function evaluateStay(args: {
   periods: RatePeriodRow[];
   restrictions: RestrictionRow[];
   allocations: AllocationRow[];
+  discounts?: DiscountRow[];
   stay: StayRequest;
 }): EngineResult {
   const { contract, roomType, mealPlan, stay } = args;
@@ -103,8 +135,23 @@ export function evaluateStay(args: {
     periods.find((p) => within(night, p.dateFrom, p.dateTo) && dayAllowed(p.daysOfWeek ?? ALL_DAYS, night));
 
   const restr = args.restrictions.filter((r) => r.roomTypeId == null || r.roomTypeId === roomType.id);
+  const discounts = (args.discounts ?? []).filter((d) => d.roomTypeId == null || d.roomTypeId === roomType.id);
+  for (const d of discounts) {
+    // A mis-loaded tier would otherwise discount a room past zero and we would
+    // owe the hotel more than the agent paid. Refuse the offer instead.
+    if (!Number.isInteger(d.discountBps) || d.discountBps < 0 || d.discountBps > 10_000) {
+      return { ok: false, reason: `Discount of ${d.discountBps} bps on this contract is not a usable percentage — fix the rate load` };
+    }
+    if (!Number.isInteger(d.minLeadDays) || d.minLeadDays < 0) {
+      return { ok: false, reason: 'A discount tier has no usable lead time — fix the rate load' };
+    }
+  }
+  // Lead time is measured to ARRIVAL, which is what hotels mean by booking
+  // ahead, and is the same figure the release period already uses below.
+  const leadDays = daysBetween(stay.today, stay.checkIn);
   const notes: string[] = [];
-  const roomPrices: RoomPrice[] = stay.rooms.map((_, i) => ({ roomIndex: i, nightly: [], totalMinor: 0 }));
+  const roomPrices: RoomPrice[] = stay.rooms.map((_, i) => ({ roomIndex: i, nightly: [], totalMinor: 0, discountMinor: 0 }));
+  let bestApplied = 0;
 
   for (const night of nights) {
     const p = periodFor(night);
@@ -112,6 +159,8 @@ export function evaluateStay(args: {
     const closed = restr.find((r) => (r.kind === 'blackout' || r.kind === 'stop_sell') && within(night, r.dateFrom, r.dateTo));
     if (closed) return { ok: false, reason: closed.kind === 'blackout' ? `Blackout date (${night})` : `Stop-sell in place (${night})` };
     const tonight = restr.filter((r) => r.kind === 'supplement' && within(night, r.dateFrom, r.dateTo));
+    const discountBps = bestDiscountBps(discounts, night, leadDays);
+    if (discountBps > bestApplied) bestApplied = discountBps;
     for (let i = 0; i < stay.rooms.length; i++) {
       const base = occupancyPrice(p, stay.rooms[i]);
       if (base == null) return { ok: false, reason: `No price for this occupancy in ${roomType.name}` };
@@ -119,9 +168,13 @@ export function evaluateStay(args: {
       // A compulsory per-person charge we cannot work out is never guessed:
       // quoting the room alone would under-charge the stay by the whole gala.
       if (supplement == null) return { ok: false, reason: `A compulsory supplement on ${night} is not priced for children — quote this stay by hand` };
-      const amount = base + supplement;
-      roomPrices[i].nightly.push({ night, amountMinor: amount });
+      /* Rounded DOWN, so a half-unit never turns into a discount we did not
+       * earn: the hotel is paid at least the exact discounted rate, never less. */
+      const off = discountBps > 0 ? applyBps(base, discountBps, 'down') : 0;
+      const amount = base - off + supplement;
+      roomPrices[i].nightly.push({ night, amountMinor: amount, discountMinor: off });
       roomPrices[i].totalMinor += amount;
+      roomPrices[i].discountMinor += off;
     }
   }
   const applied = restr.filter((r) => r.kind === 'supplement' && nights.some((n) => within(n, r.dateFrom, r.dateTo)));
@@ -136,7 +189,6 @@ export function evaluateStay(args: {
   const arrival = periodFor(nights[0])!;
   if (nights.length < arrival.minStay) return { ok: false, reason: `Minimum stay is ${arrival.minStay} nights` };
 
-  const leadDays = daysBetween(stay.today, stay.checkIn);
   const insideRelease = leadDays < arrival.releaseDays;
 
   let availability: 'instant' | 'on_request' = 'on_request';
@@ -152,7 +204,11 @@ export function evaluateStay(args: {
     notes.push(`Inside the ${arrival.releaseDays}-day release period — the hotel must confirm.`);
   }
 
+  const discountMinor = roomPrices.reduce((s, r) => s + r.discountMinor, 0);
+  if (discountMinor > 0) {
+    notes.push(`Early Bird: ${(bestApplied / 100).toFixed(bestApplied % 100 === 0 ? 0 : 1)}% off the room rate for booking ${leadDays} days ahead.`);
+  }
   const contractAmountMinor = roomPrices.reduce((s, r) => s + r.totalMinor, 0);
   const personNights = stay.rooms.reduce((s, r) => s + r.adults + r.childAges.length, 0) * nights.length;
-  return { ok: true, availability, rooms: roomPrices, contractAmountMinor, roomNights: nights.length * stay.rooms.length, personNights, notes };
+  return { ok: true, availability, rooms: roomPrices, contractAmountMinor, roomNights: nights.length * stay.rooms.length, personNights, notes, discountMinor };
 }

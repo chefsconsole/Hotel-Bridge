@@ -13,7 +13,7 @@ import {
   type SupplierAdapter, type SupplierContext, type SupplierOffer,
 } from './types';
 
-const { hotels, contracts, roomTypes, ratePeriods, restrictions, allocations, bookings } = schema;
+const { hotels, contracts, roomTypes, ratePeriods, restrictions, rateDiscounts, allocations, bookings } = schema;
 
 export function contractOfferKey(contractId: string, roomTypeId: string, mealPlan: string) {
   return `contracted:${contractId}:${roomTypeId}:${mealPlan}`;
@@ -65,10 +65,11 @@ async function offersFor(db: DB, req: SearchRequest, filter: { hotelIds: string[
   ));
   if (cs.length === 0) return [];
   const contractIds = cs.map((c) => c.id);
-  const [rts, periods, restr, allots] = await Promise.all([
+  const [rts, periods, restr, discs, allots] = await Promise.all([
     db.select().from(roomTypes).where(inArray(roomTypes.hotelId, filter.hotelIds)),
     db.select().from(ratePeriods).where(and(inArray(ratePeriods.contractId, contractIds), eq(ratePeriods.active, true))),
     db.select().from(restrictions).where(and(inArray(restrictions.contractId, contractIds), lte(restrictions.dateFrom, last), gte(restrictions.dateTo, first))),
+    db.select().from(rateDiscounts).where(and(inArray(rateDiscounts.contractId, contractIds), eq(rateDiscounts.active, true), lte(rateDiscounts.dateFrom, last), gte(rateDiscounts.dateTo, first))),
     db.select().from(allocations).where(and(inArray(allocations.contractId, contractIds), gte(allocations.night, first), lte(allocations.night, last))),
   ]);
 
@@ -88,6 +89,7 @@ async function offersFor(db: DB, req: SearchRequest, filter: { hotelIds: string[
         mealPlan,
         periods: cPeriods,
         restrictions: restr.filter((r) => r.contractId === c.id),
+        discounts: discs.filter((d) => d.contractId === c.id),
         allocations: allots.filter((a) => a.contractId === c.id) as AllocationRow[],
         stay: { checkIn: req.checkIn, checkOut: req.checkOut, rooms: req.rooms, today: req.today },
       });
@@ -108,6 +110,7 @@ async function offersFor(db: DB, req: SearchRequest, filter: { hotelIds: string[
         roomNights: res.roomNights,
         personNights: res.personNights,
         cancelPolicy: policyOf(c),
+        discountMinor: res.discountMinor,
         notes: res.notes,
       });
     }

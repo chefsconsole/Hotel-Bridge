@@ -36,8 +36,9 @@ function makeOffer(hotelId: string, req: SearchRequest, driftBps: number): Suppl
   const base = 9_000 + (hash(hotelId) % 9_000); // 90.00–179.99 per room night
   const rooms = req.rooms.map((r, i) => {
     const perNight = base + (r.adults - 1) * 2_500 + r.childAges.length * 1_500;
-    const nightly = nights.map((night) => ({ night, amountMinor: perNight + applyBps(perNight, driftBps) }));
-    return { roomIndex: i, nightly, totalMinor: nightly.reduce((s, n) => s + n.amountMinor, 0) };
+    // The simulated wholesaler has no lead-time discount, so nothing comes off.
+    const nightly = nights.map((night) => ({ night, amountMinor: perNight + applyBps(perNight, driftBps), discountMinor: 0 }));
+    return { roomIndex: i, nightly, totalMinor: nightly.reduce((s, n) => s + n.amountMinor, 0), discountMinor: 0 };
   });
   const contractAmountMinor = rooms.reduce((s, r) => s + r.totalMinor, 0);
   return {

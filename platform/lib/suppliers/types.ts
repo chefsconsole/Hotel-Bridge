@@ -42,6 +42,9 @@ export type SupplierOffer = {
   roomNights: number;
   personNights: number;
   cancelPolicy: CancelPolicy;
+  /** What a lead-time discount took off the contract amount, where the
+   *  supplier has one. Already deducted from contractAmountMinor. */
+  discountMinor?: number;
   notes: string[];
 };
 

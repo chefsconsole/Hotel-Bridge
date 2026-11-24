@@ -301,6 +301,38 @@ export const restrictions = pgTable('restrictions', {
   createdAt: createdAt(),
 });
 
+export const DISCOUNT_KINDS = ['early_bird'] as const;
+
+/* Lead-time discounts ("Early Bird"): a percentage off the ROOM rate when the
+ * booking is made far enough ahead of arrival.
+ *
+ * Tiers are separate rows — 30+ days 10%, 60+ days 15% — and the engine applies
+ * the single best tier a booking qualifies for, never two stacked.
+ *
+ * A blackout inside the validity window is expressed as a GAP between rows
+ * rather than as its own column: a night no row covers simply gets no
+ * discount, which is how rate periods already behave.
+ *
+ * Never applied to supplements. Patong's contract is explicit that Early Bird
+ * excludes meal and gala supplements, and that is the usual shape — a
+ * compulsory gala is a cost the hotel passes through, not our margin to
+ * discount away. */
+export const rateDiscounts = pgTable('rate_discounts', {
+  id: id(),
+  contractId: uuid('contract_id').notNull().references(() => contracts.id, { onDelete: 'cascade' }),
+  roomTypeId: uuid('room_type_id'), // null = whole contract
+  kind: text('kind').notNull().default('early_bird'),
+  /** The STAY nights this covers — not the dates the booking may be made in. */
+  dateFrom: date('date_from').notNull(),
+  dateTo: date('date_to').notNull(),
+  /** Qualifies when the booking is made at least this many days before arrival. */
+  minLeadDays: integer('min_lead_days').notNull(),
+  discountBps: integer('discount_bps').notNull(),
+  active: boolean('active').notNull().default(true),
+  note: text('note'),
+  createdAt: createdAt(),
+}, (t) => [index('rate_discounts_contract_idx').on(t.contractId, t.dateFrom, t.dateTo)]);
+
 export const allocations = pgTable('allocations', {
   contractId: uuid('contract_id').notNull().references(() => contracts.id, { onDelete: 'cascade' }),
   roomTypeId: uuid('room_type_id').notNull().references(() => roomTypes.id, { onDelete: 'cascade' }),
