@@ -554,13 +554,49 @@ export async function createPartnerUser(db: DB, actor: Actor, input: { hotelId: 
   }
 }
 
-export async function listHotelsAdmin(db: DB) {
+export type HotelFilter = {
+  /** Matches the hotel name, the city, or the country. */
+  q?: string;
+  city?: string;
+  /** Profile status: active (published) | draft | inactive. */
+  status?: string;
+  /** 'active' — has a live contract. 'none' — has none. */
+  contract?: string;
+  limit?: number;
+};
+
+/* The portfolio runs to hundreds of hotels, so this is never unfiltered in
+ * practice: the page always passes something, and the result is capped. A flat
+ * list of every hotel is unreadable and slow to render. */
+export async function listHotelsAdmin(db: DB, filter: HotelFilter = {}) {
+  const term = filter.q?.trim();
+  const active = sql<number>`(select count(*)::int from contracts c where c.hotel_id = "hotels"."id" and c.status = 'active')`;
   return db.select({
     h: hotels,
     // Qualified explicitly: inside a subquery a bare "id" would bind to the inner table.
     contracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = "hotels"."id")`,
-    activeContracts: sql<number>`(select count(*)::int from contracts c where c.hotel_id = "hotels"."id" and c.status = 'active')`,
-  }).from(hotels).orderBy(asc(hotels.city), asc(hotels.name));
+    activeContracts: active,
+  }).from(hotels).where(and(
+    term ? sql`(${hotels.name} ilike ${'%' + term + '%'} or ${hotels.city} ilike ${'%' + term + '%'} or ${hotels.country} ilike ${'%' + term + '%'})` : undefined,
+    filter.city ? eq(hotels.city, filter.city) : undefined,
+    filter.status && filter.status !== 'all' ? eq(hotels.status, filter.status) : undefined,
+    filter.contract === 'active' ? sql`${active} > 0` : undefined,
+    filter.contract === 'none' ? sql`${active} = 0` : undefined,
+  )).orderBy(asc(hotels.city), asc(hotels.name)).limit(filter.limit ?? 300);
+}
+
+/** How many hotels match, before the cap — so the page can say what it is hiding. */
+export async function countHotelsAdmin(db: DB, filter: HotelFilter = {}): Promise<number> {
+  const rows = await listHotelsAdmin(db, { ...filter, limit: 10_000 });
+  return rows.length;
+}
+
+/** Every city we hold a hotel in, with its count, for the filter. */
+export async function hotelCities(db: DB): Promise<{ city: string; country: string; n: number }[]> {
+  const rows = await db.select({
+    city: hotels.city, country: hotels.country, n: sql<number>`count(*)::int`,
+  }).from(hotels).groupBy(hotels.city, hotels.country).orderBy(asc(hotels.city));
+  return rows;
 }
 
 export async function listAgencies(db: DB) {
