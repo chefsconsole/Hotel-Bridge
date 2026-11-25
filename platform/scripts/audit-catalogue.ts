@@ -128,7 +128,7 @@ async function main() {
     select h.name as hotel, rt.name as room, count(*)::int as bad_periods
     from rate_periods rp join room_types rt on rt.id = rp.room_type_id
     join hotels h on h.id = rt.hotel_id
-    where rp.active and rp.price1_minor is null and rp.price2_minor is null and rp.price3_minor is null
+    where rp.active and rp.price1_minor is null and rp.price2_minor is null and rp.price3_minor is null and rp.price4_minor is null
     group by h.name, rt.name`));
 
   section('13. Hotels with no room types');

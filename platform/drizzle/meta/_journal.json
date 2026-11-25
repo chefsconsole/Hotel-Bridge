@@ -162,6 +162,13 @@
       "when": 1795505399583,
       "tag": "0022_daily_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795604766480,
+      "tag": "0023_amazing_steel_serpent",
+      "breakpoints": true
     }
   ]
 }

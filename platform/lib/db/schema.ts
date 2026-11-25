@@ -270,6 +270,10 @@ export const ratePeriods = pgTable('rate_periods', {
   price1Minor: money('price1_minor'),
   price2Minor: money('price2_minor'),
   price3Minor: money('price3_minor'),
+  /* Four adults. Plenty of hotels publish a quad rate — Centre Point
+   * Pratunam's Grand Deluxe is one — and the search form has always let an
+   * agent ask for four, so without this the request simply found no rate. */
+  price4Minor: money('price4_minor'),
   childMinor: money('child_minor'), // per child per night; null = children not priced
   // Weekday mask: bit 0 Monday … bit 6 Sunday. 127 = every night, which is
   // what a sheet with no weekday split means. Lets one room type carry a

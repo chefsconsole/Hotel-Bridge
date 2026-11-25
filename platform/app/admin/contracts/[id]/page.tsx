@@ -47,7 +47,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
         <Panel title="Rates" description="Per room per night, by adult occupancy. Agent price preview uses the default rule for 1 night, 2 adults." padded={false}>
           {rates.length === 0 ? <Empty title="No rates loaded" /> : (
             <div className="overflow-x-auto"><table className="table">
-              <thead><tr><th>Room</th><th>Board</th><th>Period</th><th className="text-right">1 ad.</th><th className="text-right">2 ad.</th><th className="text-right">3 ad.</th><th className="text-right">Child</th><th>Min / release</th><th className="text-right">Agent sees (2 ad.)</th><th /></tr></thead>
+              <thead><tr><th>Room</th><th>Board</th><th>Period</th><th className="text-right">1 ad.</th><th className="text-right">2 ad.</th><th className="text-right">3 ad.</th><th className="text-right">4 ad.</th><th className="text-right">Child</th><th>Min / release</th><th className="text-right">Agent sees (2 ad.)</th><th /></tr></thead>
               <tbody>{rates.map((r) => {
                 const pv = preview(r.price2Minor);
                 return (
@@ -55,7 +55,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
                     <td>{rtName(r.roomTypeId)}</td><td>{r.mealPlan}</td><td className="num whitespace-nowrap">{formatDate(r.dateFrom)} – {formatDate(r.dateTo)}
                       {r.daysOfWeek !== ALL_DAYS && <span className="ml-2 rounded bg-line/60 px-1.5 py-0.5 text-[0.7rem] font-medium tracking-tight">{describeDays(r.daysOfWeek)}</span>}
                     </td>
-                    {[r.price1Minor, r.price2Minor, r.price3Minor, r.childMinor].map((v, i) => <td key={i} className="text-right">{v == null ? '—' : <Money minor={v} currency={c.currency} />}</td>)}
+                    {[r.price1Minor, r.price2Minor, r.price3Minor, r.price4Minor, r.childMinor].map((v, i) => <td key={i} className="text-right">{v == null ? '—' : <Money minor={v} currency={c.currency} />}</td>)}
                     <td className="num">{r.minStay}n / {r.releaseDays}d</td>
                     <td className="text-right">{pv ? <><Money minor={pv.sellMinor} currency={c.currency} /><p className="text-[0.72rem] text-faint">net rev. <Money minor={pv.netRevenueMinor} currency={c.currency} /></p></> : '—'}</td>
                     <td>{r.active && <ActionForm action={deactivateRateAction}><input type="hidden" name="rateId" value={r.id} /><input type="hidden" name="contractId" value={c.id} /><SubmitButton size="sm" variant="ghost" confirm="Deactivate this rate period?">Deactivate</SubmitButton></ActionForm>}</td>
@@ -76,6 +76,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
                 <Field label="1 adult"><input name="p1" className="field num" inputMode="decimal" /></Field>
                 <Field label="2 adults"><input name="p2" className="field num" inputMode="decimal" /></Field>
                 <Field label="3 adults"><input name="p3" className="field num" inputMode="decimal" /></Field>
+                <Field label="4 adults"><input name="p4" className="field num" inputMode="decimal" /></Field>
                 <Field label="Per child"><input name="child" className="field num" inputMode="decimal" /></Field>
                 <Field label="Min stay"><input name="minStay" defaultValue={1} className="field num" /></Field>
                 <Field label="Release days"><input name="releaseDays" defaultValue={0} className="field num" /></Field>
@@ -93,7 +94,7 @@ export default async function ContractPage({ params, searchParams }: { params: P
             </ActionForm>
             <ActionForm action={importRatesAction}>
               <p className="mb-1 text-[0.9rem] font-semibold">Import a rate sheet</p>
-              <p className="mb-3 text-[0.8rem] text-muted">One period per line: <code className="text-[0.75rem] break-all">room_type,meal_plan,from,to,single,double,triple,child,min_stay,release</code>. Room types must match by name. Nothing imports unless every line is valid.</p>
+              <p className="mb-3 text-[0.8rem] text-muted">One period per line: <code className="text-[0.75rem] break-all">room_type,meal_plan,from,to,single,double,triple,child,min_stay,release</code>. Room types must match by name. Nothing imports unless every line is valid. To load a <strong>quad</strong> rate, start the sheet with a header row and add a <code className="text-[0.75rem]">quad</code> column — with a header the columns are read by name, in any order.</p>
               <input type="hidden" name="contractId" value={c.id} />
               <textarea name="csv" rows={7} defaultValue={draftCsv ?? ''} className="field font-mono text-[0.8rem]" placeholder={`Double,BB,${c.validFrom},${c.validTo},110,130,,25,1,7`} />
               {draftCsv && <p className="mt-2 text-[0.8rem] text-attention">Drafted by AI — validate, and check every line against the hotel&apos;s offer before importing.</p>}

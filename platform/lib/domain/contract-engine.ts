@@ -26,7 +26,10 @@ export type ContractRow = {
 };
 export type RatePeriodRow = {
   roomTypeId: string; mealPlan: string; dateFrom: string; dateTo: string; active: boolean;
-  price1Minor: number | null; price2Minor: number | null; price3Minor: number | null; childMinor: number | null;
+  price1Minor: number | null; price2Minor: number | null; price3Minor: number | null;
+  /** Four adults. Optional so a caller that predates quad rates still compiles. */
+  price4Minor?: number | null;
+  childMinor: number | null;
   /** Weekday mask (bit 0 Monday … bit 6 Sunday). Absent means every night. */
   daysOfWeek?: number;
   minStay: number; releaseDays: number;
@@ -97,7 +100,7 @@ export function bestDiscountBps(rows: DiscountRow[], night: string, leadDays: nu
 }
 
 export function occupancyPrice(p: RatePeriodRow, room: RoomRequest): number | null {
-  const byAdults = [null, p.price1Minor, p.price2Minor, p.price3Minor][room.adults] ?? null;
+  const byAdults = [null, p.price1Minor, p.price2Minor, p.price3Minor, p.price4Minor ?? null][room.adults] ?? null;
   if (byAdults == null) return null;
   if (room.childAges.length === 0) return byAdults;
   if (p.childMinor == null) return null;

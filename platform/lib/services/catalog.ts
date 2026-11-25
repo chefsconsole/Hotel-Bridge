@@ -236,12 +236,13 @@ export const ratePeriodSchema = z.object({
   price1Minor: z.number().int().positive().nullable(),
   price2Minor: z.number().int().positive().nullable(),
   price3Minor: z.number().int().positive().nullable(),
+  price4Minor: z.number().int().positive().nullable().default(null),
   childMinor: z.number().int().min(0).nullable(),
   daysOfWeek: z.number().int().min(1).max(127).default(127),
   minStay: z.number().int().min(1).max(30),
   releaseDays: z.number().int().min(0).max(90),
 }).refine((v) => v.dateTo >= v.dateFrom, { message: 'End must be after start', path: ['dateTo'] })
-  .refine((v) => v.price1Minor != null || v.price2Minor != null || v.price3Minor != null, { message: 'Enter at least one occupancy price', path: ['price2Minor'] });
+  .refine((v) => v.price1Minor != null || v.price2Minor != null || v.price3Minor != null || v.price4Minor != null, { message: 'Enter at least one occupancy price', path: ['price2Minor'] });
 
 /* Two periods for the same room and meal plan may share dates as long as they
  * split the week between them (Mon–Thu vs Fri–Sun). Only an overlap in BOTH
@@ -287,7 +288,17 @@ export async function deactivateRatePeriod(db: DB, actor: Actor, id: string) {
 }
 
 /* Rate sheet import: one line per period.
- * room_type,meal_plan,from,to,single,double,triple,child,min_stay,release */
+ *
+ * Legacy layout, still accepted exactly as before:
+ *   room_type,meal_plan,from,to,single,double,triple,child,min_stay,release
+ *
+ * A quad column can only be used with a HEADER row, which names the columns:
+ *   room_type,meal_plan,from,to,single,double,triple,quad,child,min_stay,release
+ *
+ * That is deliberate. Inserting "quad" positionally would silently shift every
+ * column after it, so an old sheet pasted into the new importer would read its
+ * child rate as a quad rate and lose the child charge. Naming the columns makes
+ * that impossible; a sheet with no header keeps the old meaning and no quad. */
 export type ImportRow = z.infer<typeof ratePeriodSchema> & { line: number; roomName: string };
 
 export async function parseRateSheet(db: DB, contractId: string, csv: string): Promise<{ rows: ImportRow[]; errors: string[] }> {
@@ -297,21 +308,40 @@ export async function parseRateSheet(db: DB, contractId: string, csv: string): P
   const errors: string[] = [];
   const rows: ImportRow[] = [];
   const lines = csv.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (lines[0]?.toLowerCase().startsWith('room_type')) lines.shift();
+  const split = (l: string) => l.split(/[,;\t]/).map((x) => x.trim());
+  /* With a header we read the columns by name, so order and extra columns do
+   * not matter. Without one we fall back to the legacy order, which has no
+   * quad in it. */
+  const LEGACY = ['room_type', 'meal_plan', 'from', 'to', 'single', 'double', 'triple', 'child', 'min_stay', 'release'];
+  let header = LEGACY;
+  if (lines[0]?.toLowerCase().startsWith('room_type')) {
+    header = split(lines.shift()!).map((h) => h.toLowerCase().replace(/\s+/g, '_'));
+  }
+  const at = (cells: string[], name: string) => {
+    const i = header.indexOf(name);
+    return i < 0 ? undefined : cells[i];
+  };
   const price = (v: string | undefined, line: number, label: string) => {
     if (!v) return null;
     try { return parseMoney(v, c.currency); } catch { errors.push(`Line ${line}: ${label} "${v}" is not an amount`); return null; }
   };
   lines.forEach((l, idx) => {
     const line = idx + 1;
-    const cells = l.split(/[,;\t]/).map((x) => x.trim());
-    const [room, meal, from, to, p1, p2, p3, child, minStay, release] = cells;
+    const cells = split(l);
+    const room = at(cells, 'room_type');
+    const minStay = at(cells, 'min_stay');
+    const release = at(cells, 'release');
     const rt = rts.find((r) => r.name.toLowerCase() === (room ?? '').toLowerCase());
     if (!rt) { errors.push(`Line ${line}: unknown room type "${room}". Known: ${rts.map((r) => r.name).join(', ') || 'none — add room types first'}`); return; }
     const candidate = {
-      roomTypeId: rt.id, mealPlan: (meal ?? '').toUpperCase(), dateFrom: from, dateTo: to,
-      price1Minor: price(p1, line, 'single'), price2Minor: price(p2, line, 'double'), price3Minor: price(p3, line, 'triple'),
-      childMinor: price(child, line, 'child'), minStay: Number(minStay || 1), releaseDays: Number(release || 0),
+      roomTypeId: rt.id, mealPlan: (at(cells, 'meal_plan') ?? '').toUpperCase(),
+      dateFrom: at(cells, 'from'), dateTo: at(cells, 'to'),
+      price1Minor: price(at(cells, 'single'), line, 'single'),
+      price2Minor: price(at(cells, 'double'), line, 'double'),
+      price3Minor: price(at(cells, 'triple'), line, 'triple'),
+      price4Minor: price(at(cells, 'quad'), line, 'quad'),
+      childMinor: price(at(cells, 'child'), line, 'child'),
+      minStay: Number(minStay || 1), releaseDays: Number(release || 0),
     };
     const parsed = ratePeriodSchema.safeParse(candidate);
     if (!parsed.success) { errors.push(`Line ${line}: ${parsed.error.issues.map((i) => `${i.path.join('.')} ${i.message}`).join('; ')}`); return; }

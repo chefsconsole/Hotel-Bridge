@@ -1,0 +1,1 @@
+ALTER TABLE "rate_periods" ADD COLUMN "price4_minor" bigint;

@@ -398,6 +398,36 @@ describe('contracts', () => {
     await expect(importRateSheet(f.db, f.ADMIN, f.contract.id, bad)).rejects.toThrow(/Nothing imported/);
     expect(await importRateSheet(f.db, f.ADMIN, f.contract.id, bad.split('\n').slice(0, 2).join('\n'))).toBe(1);
   });
+
+  /* Column order is where an import mistake turns into a money mistake: shift
+   * one cell and a child charge is read as a quad rate. A sheet with no header
+   * keeps its original meaning for ever; quad is only read when a header names
+   * it, which also makes the column order free. */
+  it('reads a quad column only when a header names it, and never shifts an old sheet', async () => {
+    f = await setup();
+    const from = addDays(f.today, 260);
+    const to = addDays(f.today, 270);
+
+    // Headerless, the legacy layout: the 4th price cell is the CHILD charge.
+    const legacy = `Double,RO,${from},${to},90,110,130,20,1,0`;
+    const oldSheet = await parseRateSheet(f.db, f.contract.id, legacy);
+    expect(oldSheet.errors).toEqual([]);
+    expect(oldSheet.rows[0]).toMatchObject({ price3Minor: 13_000, price4Minor: null, childMinor: 2_000 });
+
+    // With a header, quad is read and the child charge stays put.
+    const headed = `room_type,meal_plan,from,to,single,double,triple,quad,child,min_stay,release\nDouble,RO,${from},${to},90,110,130,150,20,1,0`;
+    const newSheet = await parseRateSheet(f.db, f.contract.id, headed);
+    expect(newSheet.errors).toEqual([]);
+    expect(newSheet.rows[0]).toMatchObject({ price3Minor: 13_000, price4Minor: 15_000, childMinor: 2_000 });
+
+    // A header also means the order no longer matters.
+    const shuffled = `room_type,meal_plan,from,to,quad,child,single,double,triple,min_stay,release\nDouble,RO,${from},${to},150,20,90,110,130,1,0`;
+    const any = await parseRateSheet(f.db, f.contract.id, shuffled);
+    expect(any.errors).toEqual([]);
+    expect(any.rows[0]).toMatchObject({ price1Minor: 9_000, price4Minor: 15_000, childMinor: 2_000 });
+
+    expect(await importRateSheet(f.db, f.ADMIN, f.contract.id, headed)).toBe(1);
+  });
 });
 
 describe('group desk', () => {
