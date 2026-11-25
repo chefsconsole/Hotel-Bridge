@@ -769,6 +769,45 @@ export async function deskTodo(db: DB) {
 }
 
 /** The agent cancels the whole request. */
+/** Stop asking ONE hotel, leaving the rest of the request alone.
+ *
+ * Deliberately separate from cancelRateRequest, which closes the WHOLE family —
+ * the agent's request and every hotel on it. "Stop asking this hotel" is a
+ * different and far more common thing: a hotel asked by mistake, a duplicate
+ * record, a property the agent has ruled out. Until this existed the only
+ * options were to cancel every hotel on the request or edit the row by hand,
+ * and a duplicate hotel record made us do exactly that.
+ *
+ * Two things it refuses, because both would lose something:
+ *  - a hotel that has already replied. Its rate is worth keeping; setting the
+ *    reply aside (holdBackOffer) keeps it on file, cancelling throws it away.
+ *  - the last hotel still open. The agent is owed an outcome, so closing the
+ *    final one silently would strand them with a request that never answers.
+ *    closeWithoutOffer exists for that and tells them. */
+export async function cancelHotelAsk(db: DB, actor: Actor, id: string) {
+  requireStaff(actor, ['admin', 'ops', 'sales']);
+  const r = await load(db, actor, id);
+  if (!HOTEL_OPEN.includes(r.status)) {
+    throw new AppError(['hotel_quoted', 'quoted'].includes(r.status)
+      ? `${r.hotelName} has already replied — set the reply aside instead, which keeps their rate on file.`
+      : `${r.hotelName} is already closed (${RATE_STATUS[r.status]?.label ?? r.status}).`);
+  }
+  const root = await rootOf(db, r);
+  const rows = await family(db, root.id);
+  const othersOpen = rows.filter((x) => x.id !== r.id && ['quoted', ...WORKING].includes(x.status));
+  if (!othersOpen.length) {
+    throw new AppError(`${r.hotelName} is the only hotel still open on this request. Ask another hotel first, or close the request with a note to the agent.`);
+  }
+  // Guarded on status so two people clicking at once cannot cancel a reply
+  // that landed in between.
+  const [done] = await db.update(rateRequests).set({ status: 'cancelled', updatedAt: new Date() })
+    .where(and(eq(rateRequests.id, r.id), inArray(rateRequests.status, HOTEL_OPEN))).returning();
+  if (!done) throw new AppError(`${r.hotelName} replied just now — reload the request.`);
+  await audit(db, actor, 'rate_request.hotel_cancelled', 'rate_request', root.id,
+    { hotel: r.hotelName, hotelEmail: r.hotelEmail, reference: r.reference, wasStatus: r.status }, root.agencyId);
+  return done;
+}
+
 export async function cancelRateRequest(db: DB, actor: Actor, id: string) {
   const r = await load(db, actor, id);
   const root = await rootOf(db, r);

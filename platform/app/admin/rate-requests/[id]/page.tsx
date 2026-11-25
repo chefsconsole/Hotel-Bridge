@@ -193,7 +193,19 @@ export default async function DeskRequestPage({ params }: { params: Promise<{ id
                     <td className="font-medium">{x.hotelName}<p className="text-[0.72rem] font-normal text-faint">{x.reference}{x.hotelEmail ? ` · ${x.hotelEmail}` : ''}</p></td>
                     <td><Pill tone={RATE_STATUS[x.status]?.tone ?? 'neutral'}>{x.status === 'review' && quotesInHouse(x.hotelEmail) ? 'Our contract — enter rate' : x.status === 'not_emailed' && agency?.isSample ? 'Demo — recorded, not sent' : RATE_STATUS[x.status]?.label ?? x.status}</Pill>{x.status === 'sent' && <p className="mt-1 text-[0.72rem] text-faint">reply by {formatDateTime(x.respondByAt)}</p>}</td>
                     <td className="text-[0.85rem]">{x.quoteNetMinor != null && x.quoteCurrency ? <>net {formatMoney(x.quoteNetMinor, x.quoteCurrency)}{x.sellMinor != null && ['quoted', 'accepted', 'booked'].includes(x.status) ? <> → agent {formatMoney(x.sellMinor, x.quoteCurrency)}</> : null}</> : x.declineReason ?? '—'}</td>
-                    <td>{['review', 'sent', 'not_emailed'].includes(x.status) && <a href={appUrl(`/r/${x.token}`)} target="_blank" rel="noreferrer" className="text-[0.78rem] font-medium underline" title={quotesInHouse(x.hotelEmail) ? 'We hold the contract: enter the rate from it' : 'Open to enter a reply the hotel gave by phone or email'}>{quotesInHouse(x.hotelEmail) ? 'Enter our rate' : x.status === 'review' ? 'Enter their rate' : 'Hotel reply link'}</a>}</td>
+                    <td>
+                      {['review', 'sent', 'not_emailed'].includes(x.status) && (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <a href={appUrl(`/r/${x.token}`)} target="_blank" rel="noreferrer" className="text-[0.78rem] font-medium underline" title={quotesInHouse(x.hotelEmail) ? 'We hold the contract: enter the rate from it' : 'Open to enter a reply the hotel gave by phone or email'}>{quotesInHouse(x.hotelEmail) ? 'Enter our rate' : x.status === 'review' ? 'Enter their rate' : 'Hotel reply link'}</a>
+                          {/* Closes THIS hotel only. The request, and every
+                            * other hotel on it, carries on. */}
+                          <ActionForm action={deskAction} showMessage={false}>
+                            <input type="hidden" name="id" value={x.id} /><input type="hidden" name="rootId" value={r.id} /><input type="hidden" name="intent" value="drop" />
+                            <SubmitButton variant="ghost" size="sm" pendingLabel="…" confirm={`Stop asking ${x.hotelName}? Their reply link stops working. Every other hotel on this request is unaffected.`}>Stop asking</SubmitButton>
+                          </ActionForm>
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}</tbody>
               </table></div>

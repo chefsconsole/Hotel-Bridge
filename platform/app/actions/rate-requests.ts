@@ -6,7 +6,7 @@ import { attempt, bps, int, optStr, str, type ActionResult } from '@/lib/action'
 import { decodeRooms } from '@/lib/domain/occupancy';
 import { requireAgent, requireStaff } from '@/lib/session';
 import {
-  acceptRateQuote, askAlternative, askHotels, assignRateRequest, cancelRateRequest, closeWithoutOffer, createRateRequest, holdBackOffer, hotelQuote, markBooked, recordOffer, releaseOffer,
+  acceptRateQuote, askAlternative, askHotels, assignRateRequest, cancelHotelAsk, cancelRateRequest, closeWithoutOffer, createRateRequest, holdBackOffer, hotelQuote, markBooked, recordOffer, releaseOffer,
 } from '@/lib/services/rate-requests';
 
 /** Rooms come either from the search (encoded) or from the simple room picker. */
@@ -111,6 +111,10 @@ export async function deskAction(_: ActionResult | null, fd: FormData): Promise<
       return { ok: true, message: done(`Recorded ${row.hotelName}. Check it below and send it to the agent — nothing was emailed to the hotel.`) };
     }
     if (intent === 'holdback') { await holdBackOffer(db, actor, id); return done('Set aside — the agent won’t see this reply.'); }
+    if (intent === 'drop') {
+      const row = await cancelHotelAsk(db, actor, id);
+      return done(`Stopped asking ${row.hotelName}. Their reply link no longer works; every other hotel on this request is untouched.`);
+    }
     if (intent === 'close') { await closeWithoutOffer(db, actor, id, str(fd, 'message')); return done('Closed — the agent has your note.'); }
     if (intent === 'assign') { await assignRateRequest(db, actor, id, optStr(fd, 'userId') ?? null); return done('Assigned — they have the details by email.'); }
     return 'Nothing to do';
